@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZEROHOUR — Inteligencia de vulnerabilidades</title>
+<meta name="description" content="Briefing diario de vulnerabilidades: NVD, CISA KEV, EPSS, GitHub Advisories, PoC públicas e INCIBE-CERT, puntuado de 0 a 100.">
+<meta name="theme-color" content="#050A0A">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050A0A'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%234CF2A3' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E3EEEA' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E3EEEA'/%3E%3Cpath d='M16 17.5V7.4' stroke='%234CF2A3' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%234CF2A3'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
+
+<!-- Precarga solo la fuente del titular (Big Shoulders); el resto con font-display: swap -->
+<link rel="preload" href="assets/fonts/big-shoulders-display-latin.woff2" as="font" type="font/woff2" crossorigin>
+
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/fuentes.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/fondo.css">
+<link rel="stylesheet" href="assets/css/cabecera.css">
+</head>
+
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<!-- Fondo por capas: base · retícula · grano · viñeta -->
+<div class="bg bg__base" aria-hidden="true"></div>
+<div class="bg bg__grid" aria-hidden="true"></div>
+<div class="bg bg__grain" aria-hidden="true"></div>
+<div class="bg bg__vignette" aria-hidden="true"></div>
+<div class="frame" aria-hidden="true">
+  <span class="frame__ruler frame__ruler--l"></span><span class="frame__ruler frame__ruler--r"></span>
+</div>
+
+<!-- Logotipo: la «hora cero». Esfera de cronómetro parada en 00:00 que es a la vez pantalla de radar -->
+<svg class="logo-defs" width="0" height="0" aria-hidden="true">
+  <symbol id="logo" viewBox="0 0 32 32">
+    <path d="M16 17.5 L16 8.3 A9.2 9.2 0 0 0 6.8 17.5 Z" fill="var(--ok)" fill-opacity=".3"/>
+    <circle cx="16" cy="17.5" r="11.6" fill="none" stroke="currentColor" stroke-width="2.6"/>
+    <rect x="13" y="0.8" width="6" height="2.8" fill="currentColor"/>
+    <path d="M27.6 17.5h-2.6M16 29.1v-2.6M4.4 17.5H7" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M16 17.5V7.4" stroke="var(--ok)" stroke-width="2.2"/>
+    <circle cx="16" cy="17.5" r="2" fill="var(--ok)"/>
+    <circle cx="20.7" cy="13.5" r="2.1" fill="var(--sev-critical)"/>
+  </symbol>
+</svg>
+
+<header class="hdr">
+  <div class="wrap hdr__row">
+    <a class="brand" href="#briefing" aria-label="ZEROHOUR, ir al briefing">
+      <svg aria-hidden="true"><use href="#logo"/></svg>
+      <span class="brand__name" aria-hidden="true">ZERO<i class="brand__sep"></i>HOUR</span>
+      <span class="brand__by">Inteligencia de vulnerabilidades<br>por Adrián López Olaria</span>
+    </a>
+    <nav class="nav" aria-label="Secciones">
+      <a class="nav__a" href="#briefing" data-view="briefing"><small>SEC-01</small>BRIEFING</a>
+      <a class="nav__a" href="#listado" data-view="listado"><small>SEC-02</small>LISTADO</a>
+      <a class="nav__a" href="#cve" data-view="detalle"><small>SEC-03</small>DETALLE</a>
+      <a class="nav__a" href="#historico" data-view="historico"><small>SEC-04</small>HISTÓRICO</a>
+    </nav>
+    <div class="clocks" aria-live="off">
+      <span class="tplus" title="Tiempo desde la última actualización del briefing">T+<b class="js-tplus">00:00:00</b></span>
+      <span class="clk-utc">UTC <b id="clk-utc">--:--:--</b></span>
+      <span class="clk-loc">LOCAL <b id="clk-loc">--:--:--</b></span>
+      <span class="pilot">LIVE</span>
+    </div>
+  </div>
+  <div class="srcbar"><div class="wrap srcbar__row" id="srcbar" aria-label="Estado de las fuentes"></div></div>
+</header>
+
+<main id="main" class="wrap" tabindex="-1">
+  <!-- Las vistas se rellenan desde los JSON en fases posteriores (capa de datos: fase 2) -->
+  <div id="alerts"></div>
+  <section class="view" id="view-briefing" aria-labelledby="h-brief"></section>
+  <section class="view" id="view-listado" aria-labelledby="h-list" hidden></section>
+  <section class="view" id="view-detalle" aria-labelledby="h-det" hidden></section>
+  <section class="view" id="view-historico" aria-labelledby="h-hist" hidden></section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <div class="lockup" aria-label="ZEROHOUR"><svg aria-hidden="true"><use href="#logo"/></svg><span class="brand__name" aria-hidden="true">ZERO<i class="brand__sep"></i>HOUR</span></div>
+        <p class="label foot__by">Inteligencia de vulnerabilidades<br>por Adrián López Olaria</p>
+        <p>Un briefing de vulnerabilidades que se compila solo cada mañana: NVD, CISA KEV, FIRST EPSS, GitHub Advisories, PoC públicas, INCIBE-CERT y prensa especializada. Web estática; los datos son JSON que regenera un job programado.</p>
+        <p class="foot__sign">Diseño y desarrollo: <b>Adrián López Olaria</b> · Castellón</p>
+      </div>
+      <div>
+        <h3>CÓMO SE PUNTÚA</h3>
+        <p class="formula">score = 3,5 · CVSS<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 20 · EPSS (percentil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 25 · KEV + 5 · ransomware<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 10 · PoC + 5 · stack</p>
+        <p>Una CVE sin puntuar aún en NVD no suma 0 por CVSS: se le asigna un valor neutro del 40 % y su score es provisional (marcado con *) hasta que NVD la analice.</p>
+      </div>
+      <div>
+        <h3>FUENTES</h3>
+        <p>
+          <a class="link" href="https://nvd.nist.gov/" target="_blank" rel="noopener noreferrer">NVD</a> ·
+          <a class="link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener noreferrer">CISA KEV</a> ·
+          <a class="link" href="https://www.first.org/epss/" target="_blank" rel="noopener noreferrer">FIRST EPSS</a> ·
+          <a class="link" href="https://github.com/advisories" target="_blank" rel="noopener noreferrer">GitHub Advisories</a> ·
+          <a class="link" href="https://www.incibe.es/incibe-cert/alerta-temprana/avisos" target="_blank" rel="noopener noreferrer">INCIBE-CERT</a> ·
+          <a class="link" href="https://isc.sans.edu/" target="_blank" rel="noopener noreferrer">SANS ISC</a> ·
+          <a class="link" href="https://ip-api.com/" target="_blank" rel="noopener noreferrer">ip-api</a>
+        </p>
+        <p>Actividad de ataques: sensores públicos tipo honeypot (puertos y orígenes agregados por país).</p>
+      </div>
+    </div>
+    <div class="foot__bar">
+      <span class="label">ZEROHOUR · 39°59′N 0°03′O</span>
+      <span class="label foot__disc">This product uses the NVD API but is not endorsed or certified by the NVD.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,39 @@
+/* =============================================================================
+   FUENTES AUTOALOJADAS · subconjunto latino · woff2 · font-display: swap
+   Procedencia y hashes en assets/fonts/FUENTES.md
+   ============================================================================= */
+
+/* Titulares, cifras y wordmark */
+@font-face {
+  font-family: 'Big Shoulders Display';
+  font-style: normal;
+  font-weight: 500 900;
+  font-display: swap;
+  src: url('../fonts/big-shoulders-display-latin.woff2') format('woff2');
+}
+
+/* Datos: IDs, métricas, etiquetas, navegación (eje de anchura vía font-stretch) */
+@font-face {
+  font-family: 'Martian Mono';
+  font-style: normal;
+  font-weight: 300 700;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+  src: url('../fonts/martian-mono-latin.woff2') format('woff2');
+}
+
+/* Texto corrido */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../fonts/hanken-grotesk-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/hanken-grotesk-italic-latin.woff2') format('woff2');
+}

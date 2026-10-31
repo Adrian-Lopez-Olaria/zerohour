@@ -1,0 +1,79 @@
+# ─────────────────────────────────────────────
+#  Radar CVE · configuración
+#  Todo lo que quieras ajustar sin tocar código
+# ─────────────────────────────────────────────
+
+[general]
+# Horas hacia atrás que mira el informe diario (26 h para cubrir retrasos del cron)
+ventana_horas = 26
+# Días hacia atrás para considerar "recién añadida" una CVE al catálogo KEV de CISA
+kev_dias = 3
+# Cuántas CVE salen en el bloque "Las que importan hoy"
+top_n = 10
+# A cuántas candidatas se les busca PoC pública (las de mayor puntuación)
+poc_candidatas = 60
+# Días de histórico que se conservan en data/index.json
+dias_historico = 90
+# Identificación educada ante las APIs (pon la URL de tu repo cuando lo tengas)
+user_agent = "RadarCVE/1.0 (+https://github.com/TU_USUARIO/radar-cve)"
+
+# Tu stack: si una CVE menciona alguna de estas palabras, se marca con ⭐
+# (se busca en descripción, fabricante y producto, sin distinguir mayúsculas)
+[stack]
+palabras = [
+  "fortinet", "fortios", "fortigate", "fortimanager", "forticlient",
+  "mikrotik", "routeros",
+  "pfsense", "netgate",
+  "vmware", "esxi", "vcenter", "vsphere",
+  "acronis",
+  "wazuh",
+  "windows server", "active directory", "exchange server", "remote desktop",
+  "wordpress",
+  "veeam",
+  "synology", "qnap",
+]
+
+# Pesos de la puntuación propia (0-100). Juega con ellos: es tu "sello".
+[puntuacion]
+cvss_max = 35          # CVSS 10 → 35 puntos
+epss_max = 20          # percentil EPSS 1.0 → 20 puntos
+kev = 25               # explotada activamente (CISA KEV)
+ransomware = 5         # usada en campañas de ransomware (según KEV)
+poc = 10               # hay PoC pública en GitHub
+stack = 5              # afecta a tu stack
+
+# Fuentes RSS: avisos y noticias. Se enlazan a las CVE que mencionen.
+[[rss]]
+nombre = "INCIBE-CERT Avisos"
+url = "https://www.incibe.es/incibe-cert/alerta-temprana/avisos/feed"
+tipo = "aviso"
+idioma = "es"
+
+[[rss]]
+nombre = "INCIBE-CERT Avisos SCI"
+url = "https://www.incibe.es/incibe-cert/alerta-temprana/avisos-sci/feed"
+tipo = "aviso"
+idioma = "es"
+
+[[rss]]
+nombre = "BleepingComputer"
+url = "https://www.bleepingcomputer.com/feed/"
+tipo = "noticia"
+idioma = "en"
+
+[[rss]]
+nombre = "The Hacker News"
+url = "https://feeds.feedburner.com/TheHackersNews"
+tipo = "noticia"
+idioma = "en"
+
+# Resumen con IA (opcional y gratis con GitHub Models).
+# Si está desactivado o falla, se usa el resumen por plantilla.
+[ia]
+activado = false
+endpoint = "https://models.github.ai/inference/chat/completions"
+modelo = "openai/gpt-4o-mini"
+
+[mapa]
+# Nº de IPs atacantes (top de SANS ISC / DShield) que se geolocalizan
+ips = 200

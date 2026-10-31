@@ -1,0 +1,69 @@
+name: Radar CVE
+
+on:
+  schedule:
+    # Informe diario: 05:17 UTC → 06:17 en invierno / 07:17 en verano (hora de España)
+    - cron: "17 5 * * *"
+    # Mapa de ataques: cada 3 horas
+    - cron: "41 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Qué ejecutar"
+        type: choice
+        options: [all, daily, map]
+        default: all
+
+permissions:
+  contents: write   # para guardar los JSON en el repo
+  models: read      # para el resumen con IA (GitHub Models), si lo activas
+
+concurrency:
+  group: radar-cve
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Elegir modo
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "17 5 * * *" ]; then
+            echo "mode=daily" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=map" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ejecutar radar (${{ steps.mode.outputs.mode }})
+        run: python scripts/radar.py ${{ steps.mode.outputs.mode }}
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Guardar datos en el repo
+        if: always()
+        run: |
+          git config user.name "radar-cve-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "Sin cambios"
+            exit 0
+          fi
+          git commit -m "datos: ${{ steps.mode.outputs.mode }} $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git pull --rebase --autostash
+          git push

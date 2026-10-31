@@ -1,0 +1,19 @@
+# ── Python / pipeline ──
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# ── Build de Netlify (data/ se copia aquí en el build; no se versiona) ──
+web/data/
+
+# ── Node / Playwright (fase 8) ──
+node_modules/
+/test-results/
+/playwright-report/
+/.playwright/
+
+# ── Varios ──
+.netlify/
+.DS_Store
+Thumbs.db

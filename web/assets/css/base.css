@@ -1,0 +1,31 @@
+/* =============================================================================
+   BASE · reset ligero, tipografía raíz, utilidades compartidas
+   ============================================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: dark; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text-1); background: var(--bg-0);
+  font-family: var(--f-text); font-size: var(--fs-body); line-height: 1.55;
+  -webkit-font-smoothing: antialiased; overflow-x: clip;
+}
+::selection { background: var(--ok); color: var(--bg-0); }
+a { color: inherit; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+
+.mono { font-family: var(--f-mono); font-stretch: var(--mono-stretch); }
+.label { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); }
+.num { font-variant-numeric: tabular-nums lining-nums; }
+
+.link { color: var(--text-1); text-decoration: underline; text-decoration-color: var(--ok); text-underline-offset: 4px; }
+.link:hover { color: var(--ok); }
+
+/* Accesibilidad: salto al contenido y texto solo para lectores de pantalla */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: 12px; top: -48px; z-index: 50; padding: 10px 14px; background: var(--ok); color: var(--bg-0); font-family: var(--f-mono); font-size: 12px; }
+.skip:focus { top: 12px; }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
+
+/* Definiciones SVG fuera de pantalla (símbolo del logo) — sin estilos inline por la CSP */
+.logo-defs { position: absolute; }
