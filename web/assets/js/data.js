@@ -1,0 +1,213 @@
+/* =============================================================================
+   data.js · capa de datos
+   Carga y normaliza los JSON del pipeline (radar.py):
+     data/latest.json · data/map.json · data/index.json · data/days/AAAA-MM-DD.json
+   En desarrollo puede cargar un "bundle" {latest, map, index} de un solo fichero
+   (fixtures), que sirve dev_server fuera de producción.
+   Toda la validación es defensiva: los datos vienen de fuentes externas.
+   ============================================================================= */
+
+export const SEV_KEYS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED'];
+
+/** Clave de severidad para pintar: null→UNSCORED, "NONE" (CVSS 0.0)→LOW, bandas conocidas tal cual. */
+export function sevKey(severity) {
+  if (severity == null) return 'UNSCORED';
+  const s = String(severity).toUpperCase();
+  if (s === 'NONE') return 'LOW';                 // NVD da "NONE" para CVSS 0.0; el diseño no tiene esa banda
+  return SEV_KEYS.includes(s) ? s : 'UNSCORED';
+}
+export const SOURCE_KEYS = ['nvd', 'kev', 'epss', 'ghsa', 'poc', 'rss'];
+export const ID_RE = /^CVE-\d{4}-\d{4,7}$/;
+// Pesos por defecto (config.toml [puntuacion]); se usan si latest.json no trae scoring_weights todavía
+export const DEFAULT_WEIGHTS = Object.freeze({ cvss: 35, epss: 20, kev: 25, ransomware: 5, poc: 10, stack: 5 });
+
+const DATA_BASE = 'data/';
+const MAP_REFRESH_MS = 10 * 60 * 1000;
+
+export class DataError extends Error {
+  constructor(message, url) { super(message); this.name = 'DataError'; this.url = url; }
+}
+
+async function getJson(url) {
+  let r;
+  try { r = await fetch(url, { cache: 'no-cache' }); }
+  catch (e) { throw new DataError('Sin respuesta de red', url); }
+  if (!r.ok) throw new DataError(`HTTP ${r.status}`, url);
+  try { return await r.json(); }
+  catch (e) { throw new DataError('JSON inválido', url); }
+}
+
+/* ───────────────────── normalización ───────────────────── */
+
+const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+const arr = (v) => (Array.isArray(v) ? v : []);
+const str = (v) => (v == null ? '' : String(v));
+
+function normalizeKev(k) {
+  if (!k || typeof k !== 'object') return null;
+  return {
+    date_added: k.date_added ?? null,
+    due_date: k.due_date ?? null,
+    action: str(k.action),
+    ransomware: k.ransomware === true,   // el pipeline lo da como booleano
+    vendor: str(k.vendor),
+    product: str(k.product),
+  };
+}
+
+function deriveBreakdown(c, w) {
+  const hasPoc = arr(c.poc).length > 0 || arr(c.exploit_refs).length > 0 || arr(c.tags).includes('poc');
+  const inStack = arr(c.stack).length > 0 || arr(c.tags).includes('stack');
+  return {
+    cvss: (c.cvss != null ? c.cvss / 10 : 0.4) * w.cvss,  // sin CVSS → 40 % neutro (no 0)
+    epss: (num(c.epss_percentile) || 0) * w.epss,
+    kev: c.kev ? w.kev : 0,
+    ransomware: (c.kev && c.kev.ransomware) ? w.ransomware : 0,
+    poc: hasPoc ? w.poc : 0,
+    stack: inStack ? w.stack : 0,
+  };
+}
+
+function normalizeCve(c, w) {
+  const kev = normalizeKev(c.kev);
+  const out = {
+    id: str(c.id),
+    vendor: str(c.vendor),
+    product: str(c.product),
+    description: str(c.description),
+    cvss: num(c.cvss),
+    severity: c.severity ? String(c.severity).toUpperCase() : null,
+    cvss_version: c.cvss_version ?? null,
+    vector: c.vector ?? null,
+    attack_vector: c.attack_vector ?? null,
+    epss: num(c.epss),
+    epss_percentile: num(c.epss_percentile),
+    kev,
+    poc: arr(c.poc).map((p) => ({ url: str(p.url), name: str(p.name), stars: num(p.stars) || 0, description: str(p.description) })),
+    news: arr(c.news).map((n) => ({ title: str(n.title), url: str(n.url), source: str(n.source), type: str(n.type), lang: str(n.lang), date: n.date ?? null })),
+    ghsa: arr(c.ghsa),
+    cwe: arr(c.cwe).map(str),
+    references: arr(c.references),
+    tags: arr(c.tags).map(str),
+    stack: arr(c.stack).map(str),
+    score: num(c.score) ?? 0,
+    links: {
+      nvd: (c.links && c.links.nvd) || `https://nvd.nist.gov/vuln/detail/${encodeURIComponent(str(c.id))}`,
+      mitre: (c.links && c.links.mitre) || `https://www.cve.org/CVERecord?id=${encodeURIComponent(str(c.id))}`,
+    },
+    old_cve: c.old_cve === true,
+  };
+  // El pipeline aportará score_breakdown (fase 6); mientras tanto se deriva de los pesos
+  out.score_breakdown = (c.score_breakdown && typeof c.score_breakdown === 'object') ? c.score_breakdown : deriveBreakdown(out, w);
+  return out;
+}
+
+function normalizeStats(s) {
+  s = s || {};
+  const src = s.by_severity || {};
+  const by = {};
+  for (const k of SEV_KEYS) by[k] = num(src[k]) || 0;
+  by.LOW += num(src.NONE) || 0;   // "NONE" (CVSS 0.0) se cuenta como LOW para que la suma cuadre con new_cves
+  return {
+    new_cves: num(s.new_cves) || 0,
+    by_severity: by,
+    kev_new: num(s.kev_new) || 0,
+    with_poc: num(s.with_poc) || 0,
+    in_stack: num(s.in_stack) || 0,
+    remote: num(s.remote) || 0,
+    ghsa: num(s.ghsa) || 0,
+    news: num(s.news) || 0,
+  };
+}
+
+export function normalizeLatest(raw) {
+  raw = raw || {};
+  const weights = (raw.scoring_weights && typeof raw.scoring_weights === 'object') ? { ...DEFAULT_WEIGHTS, ...raw.scoring_weights } : { ...DEFAULT_WEIGHTS };
+  const cves = arr(raw.cves).map((c) => normalizeCve(c, weights));
+  const byId = new Map(cves.map((c) => [c.id, c]));
+  // top: el pipeline ya da objetos; si viniera como lista de IDs (prototipo), se resuelve
+  const top = arr(raw.top).map((t) => (typeof t === 'string' ? byId.get(t) : normalizeCve(t, weights))).filter(Boolean);
+  return {
+    date: str(raw.date),
+    generated_at: raw.generated_at ?? null,
+    window: raw.window ?? null,
+    summary: str(raw.summary || raw.summary_template),
+    stats: normalizeStats(raw.stats),
+    scoring_weights: weights,
+    cves,
+    top,
+    kev_new: arr(raw.kev_new).map((c) => normalizeCve(c, weights)),
+    news: arr(raw.news).map((n) => ({ title: str(n.title), url: str(n.url), source: str(n.source), type: str(n.type), lang: str(n.lang), date: n.date ?? null })),
+    sources_status: (raw.sources_status && typeof raw.sources_status === 'object') ? raw.sources_status : {},
+  };
+}
+
+export function normalizeMap(raw) {
+  raw = raw || {};
+  return {
+    updated_at: raw.updated_at ?? null,
+    data_day: raw.data_day ?? null,
+    points: arr(raw.points).map((p) => ({ lat: num(p.lat), lon: num(p.lon), country: str(p.country), cc: str(p.cc), attacks: num(p.attacks) || 0, sources: num(p.sources) || 0 })).filter((p) => p.lat != null && p.lon != null),
+    by_country: arr(raw.by_country).map((c) => ({ cc: str(c.cc), country: str(c.country), attacks: num(c.attacks) || 0 })),
+    top_ports: arr(raw.top_ports).map((p) => ({ port: num(p.port), records: num(p.records) || 0, sources: num(p.sources) || 0, targets: num(p.targets) || 0 })).filter((p) => p.port != null),
+  };
+}
+
+export function normalizeIndex(raw) {
+  raw = raw || {};
+  const days = arr(raw.days).map((d) => ({ date: str(d.date), stats: normalizeStats(d.stats), top: arr(d.top) }));
+  // El pipeline los da en orden descendente; la web los quiere ascendentes (antiguo → reciente)
+  days.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return { updated_at: raw.updated_at ?? null, days };
+}
+
+/* ───────────────────── carga ───────────────────── */
+
+/**
+ * Carga el conjunto de datos. opts:
+ *   { base }   producción: lee base+latest.json / map.json / index.json
+ *   { bundle } desarrollo: lee un fichero {latest, map, index}
+ * latest es obligatorio; map e index pueden fallar sin tumbar el resto.
+ */
+export async function loadData(opts = {}) {
+  if (opts.bundle) {
+    const b = await getJson(opts.bundle);
+    return { latest: normalizeLatest(b.latest), map: b.map ? normalizeMap(b.map) : null, index: b.index ? normalizeIndex(b.index) : null, mapError: null, indexError: null };
+  }
+  const base = opts.base || DATA_BASE;
+  const latest = normalizeLatest(await getJson(base + 'latest.json')); // si latest falla, propaga (pantalla de error)
+  let map = null, index = null, mapError = null, indexError = null;
+  try { map = normalizeMap(await getJson(base + 'map.json')); } catch (e) { mapError = e; }
+  try { index = normalizeIndex(await getJson(base + 'index.json')); } catch (e) { indexError = e; }
+  return { latest, map, index, mapError, indexError };
+}
+
+export async function loadDay(date, opts = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) throw new DataError('Fecha inválida', String(date));
+  const base = opts.base || DATA_BASE;
+  return normalizeLatest(await getJson(`${base}days/${date}.json`));
+}
+
+/** Re-pide map.json cada 10 min, solo si la pestaña está visible. Devuelve stop(). */
+export function startMapRefresh(onUpdate, opts = {}) {
+  const base = opts.base || DATA_BASE;
+  const every = opts.intervalMs || MAP_REFRESH_MS;
+  let timer = null;
+  const tick = async () => {
+    if (document.visibilityState !== 'visible') return;
+    try { onUpdate(normalizeMap(await getJson(base + 'map.json'))); } catch (e) { /* el mapa puede fallar sin afectar al resto */ }
+  };
+  timer = setInterval(tick, every);
+  const onVis = () => { if (document.visibilityState === 'visible') tick(); };
+  document.addEventListener('visibilitychange', onVis);
+  return function stop() { clearInterval(timer); document.removeEventListener('visibilitychange', onVis); };
+}
+
+/* ───────────────────── estado de fuentes ─────────────────────
+   Según las órdenes: "ok" → OK ; "error: …" → ERROR (mensaje en tooltip) ;
+   una fuente que no venga → PARCIAL. */
+export function interpretSource(value) {
+  if (value == null) return { state: 'partial', label: 'PARCIAL', msg: '' };
+  if (value === 'ok') return { state: 'ok', label: 'OK', msg: '' };
+  return { state: 'error', label: 'ERROR', msg: String(value).replace(/^error:\s*/i, '') };
+}

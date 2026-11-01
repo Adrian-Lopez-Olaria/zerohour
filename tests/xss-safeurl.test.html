@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>ZEROHOUR · tests safeUrl + XSS</title>
+<link rel="icon" href="data:,">
+<style>body{font:13px/1.5 monospace;background:#0b0b0b;color:#ddd;padding:16px}
+pre{white-space:pre-wrap}.ok{color:#4CF2A3}.bad{color:#FF5C7A;font-weight:bold}h2{color:#9FD9C4}</style>
+</head><body>
+<h2>Resultados (ver #out)</h2>
+<pre id="out">ejecutando…</pre>
+<div id="sandbox" aria-hidden="true"></div>
+<script type="module">
+import { safeUrl, el, text } from '/web/assets/js/util/dom.js';
+import { parseHash } from '/web/assets/js/router.js';
+
+// Interceptamos TODA vía de ejecución para detectar XSS real.
+let EXEC = 0;
+window.alert = () => { EXEC++; };
+window.__xss = () => { EXEC++; };
+
+const lines = [];
+let pass = 0, fail = 0;
+const row = (name, expected, actual, ok) => {
+  (ok ? pass++ : fail++);
+  lines.push(`${ok ? 'PASS' : 'FAIL'} | ${name} | esperado: ${expected} | real: ${actual}`);
+};
+const sandbox = document.getElementById('sandbox');
+
+/* ───────── 1) safeUrl: deben RECHAZARSE (→ null) ───────── */
+const REJECT = [
+  ['JaVaScRiPt:alert(1)', 'javascript mayús/minús'],
+  [' javascript:alert(1)', 'espacios delante'],
+  ['java\tscript:alert(1)', 'TAB en el esquema'],
+  ['java&#x09;script:alert(1)', 'entidad &#x09; literal'],
+  ['%6Aavascript:alert(1)', 'j URL-encoded (%6A)'],
+  ['data:text/html,<script>window.__xss()<\/script>', 'data:text/html'],
+  ['vbscript:msgbox(1)', 'vbscript:'],
+  ['//evil.com', 'protocol-relative'],
+  ['/ruta-relativa', 'ruta relativa'],
+  ['ja\u0001vascript\u0002:alert(1)', 'control chars en esquema'],
+  ['  \t javascript:alert(1)', 'espacios+tab delante'],
+];
+for (const [u, label] of REJECT) {
+  const r = safeUrl(u);
+  row(`safeUrl RECHAZA · ${label}`, 'null', JSON.stringify(r), r === null);
+}
+
+/* ───────── 2) safeUrl: deben ACEPTARSE (→ url http/https) ───────── */
+const ACCEPT = [
+  ['https://github.com/real/repo', 'https válida'],
+  ['http://ok.example.com/legit?q=1', 'http válida con query'],
+  ['https://exa\u0007mple.com/a\u0000b', 'válida con control chars (se limpian)'],
+];
+for (const [u, label] of ACCEPT) {
+  const r = safeUrl(u);
+  const ok = typeof r === 'string' && /^https?:\/\//.test(r);
+  row(`safeUrl ACEPTA · ${label}`, 'http(s)://…', JSON.stringify(r), ok);
+}
+
+/* ───────── 3) XSS en texto: description/title/name/vendor como TEXTO ───────── */
+const PAYLOADS = {
+  description: 'Heap overflow. <img src=x onerror=window.__xss()> y <svg onload=window.__xss()> y "><script>window.__xss()<\/script> fin.',
+  title: '"><script>window.__xss()<\/script> brecha',
+  name: '<svg onload=window.__xss()> exploit',
+  vendor: '<img src=x onerror=window.__xss()>ACME',
+};
+for (const [field, payload] of Object.entries(PAYLOADS)) {
+  const node = el('span', { text: payload });
+  sandbox.appendChild(node);
+  const literal = node.textContent === payload;        // se ve el texto tal cual
+  const noElems = node.querySelectorAll('*').length === 0; // no se creó ningún elemento hijo
+  row(`texto literal · ${field}`, 'textContent==payload & 0 hijos', `literal=${literal} hijos=${node.querySelectorAll('*').length}`, literal && noElems);
+}
+
+/* ───────── 4) enlaces: solo http(s) se pintan, el resto no ───────── */
+const LINKS = [
+  ['javascript:alert(1)', false],
+  ['JaVaScRiPt:alert(1)', false],
+  [' javascript:alert(1)', false],
+  ['java\tscript:alert(1)', false],
+  ['data:text/html,x', false],
+  ['vbscript:msgbox(1)', false],
+  ['//evil.com', false],
+  ['/ruta-relativa', false],
+  ['https://github.com/real/repo', true],
+  ['http://ok.example.com/legit', true],
+];
+for (const [u, shouldPaint] of LINKS) {
+  const a = el('a', { href: u, text: 'enlace' });
+  sandbox.appendChild(a);
+  const painted = a.hasAttribute('href');
+  row(`enlace ${shouldPaint ? 'PINTA' : 'NO pinta'} · ${u.slice(0, 28)}`, String(shouldPaint), `href=${a.getAttribute('href')}`, painted === shouldPaint);
+}
+
+/* ───────── 5) inyección directa en el DOM vivo: no debe ejecutar ───────── */
+{
+  const n = el('div', { text: '<img src=x onerror=window.__xss()>' });
+  sandbox.appendChild(n);
+  row('inyección DOM vivo', 'sin <img>, sin ejecución', `imgs=${sandbox.querySelectorAll('img,script,svg,iframe').length}`, sandbox.querySelectorAll('img,script,svg,iframe').length === 0);
+}
+
+/* ───────── 6) router.parseHash: validación de rutas e IDs ───────── */
+const ROUTES = [
+  ['#briefing', 'briefing', undefined],
+  ['#listado', 'listado', undefined],
+  ['#historico', 'historico', undefined],
+  ['#cve/CVE-2026-41877', 'detalle', 'CVE-2026-41877'],
+  ['#cve/CVE-2026-1234', 'detalle', 'CVE-2026-1234'],
+  ['#cve/<script>alert(1)<\/script>', 'detalle', null],
+  ['#cve/CVE-20-1', 'detalle', null],
+  ['#cve/" onmouseover=alert(1)', 'detalle', null],
+  ['#%ZZ', 'briefing', undefined],
+  ['', 'briefing', undefined],
+  ['#cualquier-cosa', 'briefing', undefined],
+];
+for (const [hash, view, id] of ROUTES) {
+  const r = parseHash(hash);
+  const ok = r.view === view && r.id === id;
+  row(`router ${hash || '(vacío)'}`, `${view}${id !== undefined ? ' id=' + id : ''}`, `${r.view}${r.id !== undefined ? ' id=' + r.id : ''}`, ok);
+}
+
+/* ───────── 7) sobre el fixture real xss.json ───────── */
+try {
+  const b = await (await fetch('/tests/fixtures/xss.json', { cache: 'no-cache' })).json();
+  const c = b.latest.cves[0];
+  // descripción y vendor como texto
+  const d = el('p', { text: c.description });
+  row('fixture · description como texto', '0 hijos', `hijos=${d.querySelectorAll('*').length}`, d.querySelectorAll('*').length === 0 && d.textContent === c.description);
+  // enlace nvd (javascript:) no se pinta
+  const link = el('a', { href: c.links.nvd, text: 'NVD' });
+  row('fixture · links.nvd javascript:', 'no pinta', `href=${link.getAttribute('href')}`, !link.hasAttribute('href'));
+  // poc: contar cuántas URLs se pintan (deben ser solo las 2 http/https)
+  let painted = 0;
+  for (const p of c.poc) { const a = el('a', { href: p.url, text: p.name }); sandbox.appendChild(a); if (a.hasAttribute('href')) painted++; }
+  row('fixture · poc URLs pintadas', '2 (solo http/https)', String(painted), painted === 2);
+} catch (e) {
+  row('fixture xss.json', 'cargado', 'ERROR: ' + e.message, false);
+}
+
+/* ───────── resultado final ───────── */
+lines.push('');
+lines.push(`EJECUCIONES XSS detectadas (alert/__xss): ${EXEC}  (debe ser 0)`);
+lines.push(`TOTAL: ${pass} PASS · ${fail} FAIL  → ${(fail === 0 && EXEC === 0) ? 'TODO OK' : 'HAY FALLOS'}`);
+document.getElementById('out').textContent = lines.join('\n');
+document.title = `RES:${pass}/${pass + fail} exec=${EXEC}`;
+window.__done = true;
+</script>
+</body></html>
