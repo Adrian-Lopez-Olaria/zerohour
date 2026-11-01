@@ -8,19 +8,22 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const XLINK_NS = 'http://www.w3.org/1999/xlink';
-// Caracteres de control (incluye TAB, LF, CR…) que los navegadores ignoran dentro de un esquema
-const CTRL = /[\u0000-\u001F\u007F-\u009F]/g;
+// Caracteres de control (incluye TAB, LF, CR…) que los navegadores ignoran dentro de un esquema.
+// Sin flag 'g': se usa solo con .test() y un regex global guardaría lastIndex entre llamadas.
+const CTRL = /[\u0000-\u001F\u007F-\u009F]/;
 const SAFE_ATTR = /^[a-zA-Z_][a-zA-Z0-9:._-]*$/;
 const URL_ATTRS = new Set(['href', 'src', 'xlink:href', 'srcset', 'poster', 'formaction', 'action']);
 
 /**
  * Devuelve la URL si es http(s) ABSOLUTA y segura; si no, null (no se pinta el enlace).
- * Rechaza javascript:, data:, vbscript:, esquemas con control chars/entidades,
- * y también relativas y protocol-relative (//host), que no esperamos en los datos.
+ * Rechaza javascript:, data:, vbscript:, relativas y protocol-relative (//host), que no
+ * esperamos en los datos. Una URL con CUALQUIER carácter de control se rechaza entera: en
+ * un feed es sospechosa y "limpiarla" podría dejar un destino distinto del original.
  */
 export function safeUrl(raw) {
   if (typeof raw !== 'string') return null;
-  const cleaned = raw.replace(CTRL, '').trim();
+  if (CTRL.test(raw)) return null;        // control chars en cualquier posición → sospechoso
+  const cleaned = raw.trim();
   if (!cleaned) return null;
   let u;
   try { u = new URL(cleaned); } catch { return null; } // sin base: relativas y //host lanzan → null

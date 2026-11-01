@@ -79,6 +79,8 @@ python scripts/radar.py all        # ambos
 }
 ```
 
+**Severidad (`severity` y claves de `by_severity`).** NVD usa las bandas CVSS v3.1: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` y `NONE` (CVSS 0.0). Las CVE todavía sin puntuar aparecen como `UNSCORED` (`severity: null`). El frontend muestra cuatro bandas de color; por eso **pliega `NONE` dentro de `LOW`** (la banda más baja) al contar `by_severity`, de modo que la suma de las bandas sigue cuadrando con `new_cves`. No se pierde ningún CVE: `NONE` son casos sin impacto de seguridad (p. ej. registro insuficiente) que se agrupan con los de menor severidad. `UNSCORED` se cuenta aparte, nunca como 0 puntos (ver [Cómo se calcula la puntuación](#cómo-se-calcula-la-puntuación)).
+
 **Objeto CVE**
 
 ```jsonc

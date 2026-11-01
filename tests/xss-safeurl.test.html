@@ -37,6 +37,8 @@ const REJECT = [
   ['/ruta-relativa', 'ruta relativa'],
   ['ja\u0001vascript\u0002:alert(1)', 'control chars en esquema'],
   ['  \t javascript:alert(1)', 'espacios+tab delante'],
+  ['https://exa\u0007mple.com/a\u0000b', 'https pero con control chars → se RECHAZA entera'],
+  ['https://ok.com/\u0009path', 'https con TAB interior → se RECHAZA'],
 ];
 for (const [u, label] of REJECT) {
   const r = safeUrl(u);
@@ -47,7 +49,7 @@ for (const [u, label] of REJECT) {
 const ACCEPT = [
   ['https://github.com/real/repo', 'https válida'],
   ['http://ok.example.com/legit?q=1', 'http válida con query'],
-  ['https://exa\u0007mple.com/a\u0000b', 'válida con control chars (se limpian)'],
+  ['  https://ok.com/sp  ', 'https con espacios externos (se recortan, sin control chars)'],
 ];
 for (const [u, label] of ACCEPT) {
   const r = safeUrl(u);
