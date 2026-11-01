@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="assets/css/fondo.css">
 <link rel="stylesheet" href="assets/css/componentes.css">
 <link rel="stylesheet" href="assets/css/cabecera.css">
+<link rel="stylesheet" href="assets/css/briefing.css">
 
 <script type="module" src="assets/js/main.js"></script>
 </head>
@@ -65,12 +66,14 @@
       <span class="clk-loc">LOCAL <b id="clk-loc">--:--:--</b></span>
       <span class="pilot">LIVE</span>
     </div>
+    <!-- El T+ visible cambia cada segundo sin anunciarse; aquí, un resumen que solo cambia cada hora -->
+    <span class="sr-only" id="tplus-sr" aria-live="polite"></span>
   </div>
-  <div class="srcbar"><div class="wrap srcbar__row" id="srcbar" aria-label="Estado de las fuentes"></div></div>
+  <div class="srcbar"><div class="wrap srcbar__row" id="srcbar" role="group" aria-label="Estado de las fuentes"></div></div>
 </header>
 
 <main id="main" class="wrap" tabindex="-1">
-  <!-- Las vistas se rellenan desde los JSON en fases posteriores (capa de datos: fase 2) -->
+  <!-- Las vistas se pintan desde los JSON (briefing: fase 3; listado, detalle e histórico: fase 5) -->
   <div id="alerts"></div>
   <section class="view" id="view-briefing" aria-labelledby="h-brief"></section>
   <section class="view" id="view-listado" aria-labelledby="h-list" hidden></section>

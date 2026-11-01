@@ -26,6 +26,9 @@ button, input, select { font: inherit; color: inherit; }
 .skip:focus { top: 12px; }
 
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
+/* Los decorados grandes (barrido del briefing) no deben crear scroll horizontal. El clip del
+   body se propaga al viewport y ahí no basta; en main sí recorta (y clip no crea contenedor de scroll). */
+main { overflow-x: clip; }
 
 /* Definiciones SVG fuera de pantalla (símbolo del logo) — sin estilos inline por la CSP */
 .logo-defs { position: absolute; }
