@@ -18,7 +18,8 @@ function polar(r, deg) {
   const t = deg * Math.PI / 180;
   return [C + r * Math.sin(t), C - r * Math.cos(t)];
 }
-const vendorOf = (c) => c.vendor || 'Sin fabricante';
+// Sin fabricante en NVD: se agrupa por el CNA que la publicó (p. ej. vuldb.com)
+const vendorOf = (c) => c.vendor || c.cna || 'Sin fabricante';
 
 /** Devuelve un fragmento: SVG del radar + línea de estado + leyenda. */
 export function renderRadar(top) {

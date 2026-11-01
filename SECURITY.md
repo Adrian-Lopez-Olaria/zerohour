@@ -17,4 +17,4 @@ problema de seguridad en el código o en el despliegue, repórtalo de forma priv
 
 Dentro: frontend `web/`, pipeline `scripts/radar.py`, `config.toml`,
 `.github/workflows/`, `netlify.toml`. Fuera: la infraestructura de Netlify, GitHub
-y las APIs de terceros (NVD, CISA, FIRST, ip-api…).
+y las APIs y datos de terceros (NVD, CISA, FIRST, SANS ISC, DB-IP…).

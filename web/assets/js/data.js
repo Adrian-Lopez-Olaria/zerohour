@@ -74,6 +74,9 @@ function normalizeCve(c, w) {
     id: str(c.id),
     vendor: str(c.vendor),
     product: str(c.product),
+    // De dónde sale el fabricante: nvd | kev | patron (deducido de la descripción) | cna | null
+    vendor_source: ['nvd', 'kev', 'patron', 'cna'].includes(c.vendor_source) ? c.vendor_source : null,
+    cna: str(c.cna),
     description: str(c.description),
     cvss: num(c.cvss),
     severity: c.severity ? String(c.severity).toUpperCase() : null,

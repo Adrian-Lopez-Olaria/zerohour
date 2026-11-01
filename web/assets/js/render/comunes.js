@@ -104,6 +104,22 @@ export function emptyBlock(title, text, tight = false) {
   ]);
 }
 
+/**
+ * Quién: fabricante y producto; si NVD aún no los da y no se han podido deducir, el CNA
+ * (quién publicó la CVE), marcado como tal. → { main, sub, viaCna }
+ */
+export function who(c) {
+  if (c.vendor || c.product) return { main: c.vendor || c.product, sub: c.vendor ? c.product : '', viaCna: false };
+  if (c.cna) return { main: c.cna, sub: 'Publicada por este CNA; fabricante pendiente en NVD', viaCna: true };
+  return { main: '', sub: '', viaCna: false };
+}
+/** Una línea: "Fabricante · Producto", "CNA · dominio" o "—". */
+export function whoLine(c) {
+  const w = who(c);
+  if (w.viaCna) return `CNA · ${w.main}`;
+  return [w.main, w.sub].filter(Boolean).join(' · ') || '—';
+}
+
 const AV_LABEL = { NETWORK: 'RED', ADJACENT_NETWORK: 'ADYACENTE', ADJACENT: 'ADYACENTE', LOCAL: 'LOCAL', PHYSICAL: 'FÍSICO' };
 /** Vector de ataque de NVD → etiqueta corta (sin dato: PENDIENTE). */
 export const avLabel = (v) => AV_LABEL[String(v || '').toUpperCase()] || 'PENDIENTE';

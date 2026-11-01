@@ -8,7 +8,7 @@
 import { el, svg, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  chips, sevTag, panelHead, emptyBlock, cveHref, isProv, icon, extLink, hostPath, langOf, editionBanner,
+  chips, sevTag, panelHead, emptyBlock, cveHref, isProv, icon, extLink, hostPath, langOf, editionBanner, who,
 } from './comunes.js';
 import {
   nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, scoreBand, scoreVar, verdict, daysFromToday, prefersReducedMotion,
@@ -350,7 +350,11 @@ export function renderDetalle(root, ctx, id) {
   root.appendChild(el('header', { class: 'det-head' }, [
     el('h1', { class: 'det-id', id: 'h-det' }, [el('span', { text: c.id.slice(0, dash + 1) }), c.id.slice(dash + 1)]),
     el('div', { class: 'det-sub' }, [
-      el('h2', [c.vendor || '—', c.product ? el('span', { text: ` · ${c.product}` }) : null]),
+      (() => {
+        const w = who(c);
+        if (w.viaCna) return el('h2', [`CNA · ${w.main}`, el('span', { text: ' · fabricante pendiente en NVD' })]);
+        return el('h2', [w.main || '—', w.sub ? el('span', { text: ` · ${w.sub}` }) : null]);
+      })(),
       sevTag(c.severity), chips(c.tags, true),
     ]),
   ]));

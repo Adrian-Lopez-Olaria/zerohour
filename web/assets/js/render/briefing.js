@@ -6,11 +6,11 @@
 import { el, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  SEV, SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, panelHead, emptyBlock, cveHref, isProv, extLink, langOf,
+  SEV, SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, panelHead, emptyBlock, cveHref, isProv, extLink, langOf, who, whoLine,
 } from './comunes.js';
 import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe } from '../globe.js';
-import { nf, pad, fmtCvss, fmtPctl, dLong, tLocal, tUTC, scoreVar, prefersReducedMotion } from '../util/format.js';
+import { nf, pad, fmtCvss, fmtPctl, dLong, tLocal, tUTC, scoreVar, prefersReducedMotion, countryName } from '../util/format.js';
 
 const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 137: 'NETBIOS', 443: 'HTTPS', 445: 'SMB', 2222: 'SSH-ALT', 2323: 'TELNET-ALT', 3306: 'MYSQL', 3389: 'RDP', 5060: 'SIP', 8000: 'HTTP-ALT', 8080: 'HTTP-ALT', 9000: 'HTTP-ALT' };
 const MAX_COUNTRIES = 10;
@@ -111,7 +111,7 @@ function globeSummary(map) {
   if (!map || !map.points.length) return 'Mapa de origen de ataques no disponible en esta lectura.';
   const total = map.points.reduce((a, p) => a + p.attacks, 0);
   const countries = new Set(map.points.map((p) => p.cc)).size;
-  const lead = map.by_country.slice(0, 3).map((c) => c.country).filter(Boolean);
+  const lead = map.by_country.slice(0, 3).map((c) => countryName(c.cc, c.country)).filter(Boolean);
   return `Origen de ataques de las últimas 24 horas según los sensores de SANS ISC: ${nf(total)} eventos desde ${countries} países.`
     + (lead.length ? ` Más actividad en ${lead.join(', ')}.` : '');
 }
@@ -152,11 +152,12 @@ function topRow(c, i, animate) {
   const prov = isProv(c);
   const tagsLong = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
   const sev = SEV[sevKey(c.severity)].label.toLowerCase();
-  const label = `${i + 1}. ${c.id}, ${[c.vendor, c.product].filter(Boolean).join(' ') || 'sin fabricante'}, score ${c.score}${prov ? ' provisional' : ''}, CVSS ${fmtCvss(c.cvss)} ${sev}, EPSS ${fmtPctl(c.epss_percentile)}${tagsLong.length ? ', ' + tagsLong.join(', ') : ''}`;
+  const w = who(c);
+  const label = `${i + 1}. ${c.id}, ${whoLine(c)}, score ${c.score}${prov ? ' provisional' : ''}, CVSS ${fmtCvss(c.cvss)} ${sev}, EPSS ${fmtPctl(c.epss_percentile)}${tagsLong.length ? ', ' + tagsLong.join(', ') : ''}`;
   const cells = [
     el('span', { class: 'trow__pos', 'aria-hidden': 'true', text: pad(i + 1) }),
     el('span', { class: 'trow__id', text: c.id }),
-    el('span', { class: 'trow__prod' }, [el('b', { text: c.vendor || '—' }), el('span', { text: c.product })]),
+    el('span', { class: 'trow__prod' + (w.viaCna ? ' is-cna' : '') }, [el('b', { text: w.viaCna ? `CNA · ${w.main}` : (w.main || '—') }), el('span', { text: w.viaCna ? 'fabricante pendiente en NVD' : w.sub })]),
     el('span', { class: 'trow__score' }, sbar(c)),
     el('span', { class: 'trow__cvss' }, [el('span', { class: 'v', text: fmtCvss(c.cvss) }), sevTag(c.severity)]),
     el('span', { class: 'trow__epss', text: fmtPctl(c.epss_percentile) }),
@@ -202,7 +203,7 @@ function countriesPanel(map) {
   return el('section', { class: 'panel', id: 'panel-cty', 'aria-labelledby': 'h-cty' }, [
     panelHead('GEO-02', 'Países de origen', rows.length ? `24 H · TOP ${rows.length}` : '24 H', 'h-cty'),
     rows.length
-      ? rankList(rows.map((c) => ({ code: c.cc, name: c.country, value: nf(c.attacks), w: Math.round(c.attacks / maxC * 100), band: attackBand(c.attacks) })))
+      ? rankList(rows.map((c) => ({ code: c.cc, name: countryName(c.cc, c.country), value: nf(c.attacks), w: Math.round(c.attacks / maxC * 100), band: attackBand(c.attacks) })))
       : emptyBlock(null, map ? 'Sin orígenes de ataque en esta lectura de SANS ISC.' : 'El mapa de ataques no se pudo leer en esta edición.', true),
   ]);
 }

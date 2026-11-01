@@ -10,7 +10,7 @@
 import { el, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, emptyBlock, cveHref, isProv, icon, avLabel, editionBanner,
+  SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, emptyBlock, cveHref, isProv, icon, avLabel, editionBanner, whoLine,
 } from './comunes.js';
 import { nf, fmtCvss, fmtPctl, dLong } from '../util/format.js';
 
@@ -43,7 +43,7 @@ function applySearchFocus() {
 
 function rowLabel(c) {
   const tags = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
-  return `${c.id}, ${[c.vendor, c.product].filter(Boolean).join(' ') || 'sin fabricante'}, score ${c.score}${isProv(c) ? ' provisional' : ''}, `
+  return `${c.id}, ${whoLine(c)}, score ${c.score}${isProv(c) ? ' provisional' : ''}, `
     + `${sevKey(c.severity) === 'UNSCORED' ? 'sin puntuar' : 'CVSS ' + fmtCvss(c.cvss)}, EPSS ${fmtPctl(c.epss_percentile)}`
     + (tags.length ? `, ${tags.join(', ')}` : '');
 }
@@ -54,7 +54,7 @@ const NARROW = matchMedia('(max-width: 1180px)');
 
 function buildRow(c) {
   const href = cveHref(c.id);
-  const prod = [c.vendor, c.product].filter(Boolean).join(' · ') || '—';
+  const prod = whoLine(c);
   const cells = [
     el('span', { class: 'lrow__idcell' }, [el('span', { class: 'trow__id', text: c.id }), el('span', { class: 'lrow__score' }, sbar(c))]),
     el('span', { class: 'lrow__prod trow__prod' }, [

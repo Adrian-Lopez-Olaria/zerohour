@@ -79,5 +79,16 @@ export function nextMapRun(now = new Date()) {
   return t;
 }
 
+/* Nombre del país en español a partir del código ISO-2 (validado), con el del navegador:
+   DB-IP da nombres de estilo ISO ("Estados Unidos de América (los)") que no queremos mostrar. */
+let regionNames = null;
+try { regionNames = new Intl.DisplayNames(['es'], { type: 'region' }); } catch (e) { /* navegador antiguo */ }
+export function countryName(cc, fallback = '') {
+  if (regionNames && /^[A-Z]{2}$/.test(String(cc))) {
+    try { const n = regionNames.of(cc); if (n && n !== cc) return n; } catch (e) { /* código no reconocido */ }
+  }
+  return fallback || String(cc || '');
+}
+
 export const prefersReducedMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;

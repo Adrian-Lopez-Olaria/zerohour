@@ -18,7 +18,8 @@ dias_historico = 90
 user_agent = "RadarCVE/1.0 (+https://github.com/TU_USUARIO/radar-cve)"
 
 # Tu stack: si una CVE menciona alguna de estas palabras, se marca con ⭐
-# (se busca en descripción, fabricante y producto, sin distinguir mayúsculas)
+# Se busca, sin distinguir mayúsculas, en fabricante, producto, CNA y CPE (fabricante:producto)
+# y también en la descripción, salvo que esta case con un patrón de [stack.excluir].
 [stack]
 palabras = [
   "fortinet", "fortios", "fortigate", "fortimanager", "forticlient",
@@ -32,6 +33,42 @@ palabras = [
   "veeam",
   "synology", "qnap",
 ]
+
+# Exclusiones por palabra (expresiones regulares, sin distinguir mayúsculas).
+# Si la DESCRIPCIÓN casa con alguno de estos patrones, esa palabra deja de contar por la
+# descripción (sigue contando si aparece en fabricante, producto o CPE).
+# Ej.: "The X plugin for WordPress…" es un plugin de terceros, no WordPress. Para seguir
+# un plugin concreto, añádelo por su nombre a `palabras` (p. ej. "elementor", "woocommerce").
+[stack.excluir]
+# Wordfence: "The X plugin for WordPress…" · WPScan: "The X WordPress plugin before…"
+# Patchstack: "…This issue affects WordPress File Upload: from n/a through 5.2.1" (un plugin que se
+# llama "WordPress Algo"); no excluye "This issue affects WordPress: from…", que sería el core.
+wordpress = [
+  '\b(?:plugin|theme) for wordpress\b',
+  '\bwordpress (?:plugin|theme)\b',
+  '\bthis issue affects (?!wordpress:)[^:]{0,120}\bwordpress\b[^:]{0,120}:',
+]
+
+# Si NVD aún no da fabricante ni producto, se intenta deducir de la descripción.
+# `regex` (sin distinguir mayúsculas) debe tener un grupo con nombre "producto".
+# Si ningún patrón casa, la web muestra el CNA (quién publicó la CVE).
+# Formato Wordfence: "The X plugin for WordPress is vulnerable…"
+[[fabricante]]
+regex = '^The (?P<producto>.{2,250}?) plugin for WordPress\b'
+nombre = "Plugin WordPress"
+
+[[fabricante]]
+regex = '^The (?P<producto>.{2,250}?) theme for WordPress\b'
+nombre = "Tema WordPress"
+
+# Formato WPScan: "The X WordPress plugin before 1.2…" o "X WordPress plugin 1.0 before…"
+[[fabricante]]
+regex = '^(?:The )?(?P<producto>.{2,250}?)\s+WordPress plugin\b'
+nombre = "Plugin WordPress"
+
+[[fabricante]]
+regex = '^(?:The )?(?P<producto>.{2,250}?)\s+WordPress theme\b'
+nombre = "Tema WordPress"
 
 # Pesos de la puntuación propia (0-100). Juega con ellos: es tu "sello".
 [puntuacion]
@@ -77,3 +114,6 @@ modelo = "openai/gpt-4o-mini"
 [mapa]
 # Nº de IPs atacantes (top de SANS ISC / DShield) que se geolocalizan
 ips = 200
+# Geolocalización offline con DB-IP Lite (CC BY 4.0): la base mensual se descarga por
+# HTTPS, se verifica con el SHA-1 que publica DB-IP y se guarda en esta caché local.
+geo_cache = ".cache/geo"

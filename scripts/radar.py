@@ -11,6 +11,12 @@ Cruza varias fuentes públicas y gratuitas y genera JSON listos para la web:
   GitHub Advisories ..... vulnerabilidades en librerías (npm, pip, maven…)
   PoC-in-GitHub ......... ¿hay exploit/PoC público?
   RSS (INCIBE, noticias)  contexto y avisos en español
+  SANS ISC (DShield) .... IPs que más atacan y puertos más atacados (mapa)
+  DB-IP Lite ............ geolocalización offline de esas IPs (CC BY 4.0)
+
+Todo lo que llega de fuera se trata como hostil: antes de escribir los JSON se
+sanean URLs (solo http/https), textos (longitud máxima, sin caracteres de control),
+IDs y números (rangos válidos). Es defensa en profundidad: la web vuelve a hacerlo.
 
 Modos:
   python scripts/radar.py daily   → data/latest.json, data/days/AAAA-MM-DD.json,
@@ -26,9 +32,12 @@ Variables de entorno opcionales:
 from __future__ import annotations
 
 import argparse
+import gzip
+import hashlib
 import html
 import ipaddress
 import json
+import math
 import os
 import re
 import sys
@@ -37,9 +46,11 @@ import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 import feedparser
+import maxminddb
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -59,7 +70,9 @@ GHSA_URL = "https://api.github.com/advisories"
 POC_URL = "https://raw.githubusercontent.com/nomi-sec/PoC-in-GitHub/master/{year}/{cve}.json"
 ISC_ATTACKS_URL = "https://isc.sans.edu/api/sources/attacks/{n}/{date}?json"
 ISC_PORTS_URL = "https://isc.sans.edu/api/topports/records/10/{date}?json"
-GEO_URL = "http://ip-api.com/batch?fields=status,query,country,countryCode,lat,lon"
+DBIP_URL = "https://download.db-ip.com/free/dbip-city-lite-{month}.mmdb.gz"
+DBIP_PAGE = "https://db-ip.com/db/download/ip-to-city-lite"   # publica el SHA-1 de cada fichero
+GEO_CACHE = ROOT / CONFIG["mapa"].get("geo_cache", ".cache/geo")
 
 CVE_RE = re.compile(r"CVE-\d{4}-\d{4,7}", re.I)
 TAG_RE = re.compile(r"<[^>]+>")
@@ -91,6 +104,138 @@ def write_json(path: Path, obj) -> None:
 
 def nvd_time(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000")
+
+
+# ─────────────────────── saneamiento (defensa en profundidad) ───────────────────────
+# Todo lo que viene de NVD, KEV, RSS, PoC-in-GitHub, GHSA o ISC es hostil. Antes de escribir
+# los JSON se valida cada campo; la web vuelve a tratarlo como hostil (textContent + safeUrl).
+
+ID_RE = re.compile(r"^CVE-\d{4}-\d{4,7}$")
+GHSA_RE = re.compile(r"^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$")
+CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")      # control salvo \t \n \r
+URL_CTRL_RE = re.compile(r"[\x00-\x20\x7f-\x9f]")                   # en una URL, ni espacios
+CWE_OK = re.compile(r"^(CWE-\d{1,5}|NVD-CWE-noinfo|NVD-CWE-Other)$")
+VECTOR_OK = re.compile(r"^[A-Za-z0-9:./]{1,300}$")
+DATE_OK = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+LANG_OK = re.compile(r"^[a-z]{2}$")
+SEVERITIES = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"}
+ATTACK_VECTORS = {"NETWORK", "ADJACENT_NETWORK", "ADJACENT", "LOCAL", "PHYSICAL"}
+MAX_URL = 2048
+LIMIT = {"description": 4000, "vendor": 120, "product": 160, "cna": 120, "title": 300, "summary": 500,
+         "name": 200, "poc_desc": 300, "kev_text": 1000, "source": 80, "tag": 60, "country": 60}
+
+
+def safe_url(u) -> str | None:
+    """Solo URLs http(s) absolutas, sin espacios ni caracteres de control, sin credenciales
+    (user@host) y de longitud razonable. Mismo criterio que safeUrl() en la web."""
+    if not isinstance(u, str) or not u or len(u) > MAX_URL or URL_CTRL_RE.search(u):
+        return None
+    try:
+        p = urlsplit(u)
+    except ValueError:
+        return None
+    if p.scheme.lower() not in ("http", "https") or not p.hostname or "@" in p.netloc:
+        return None
+    return u
+
+
+def cap(text, limit: int) -> str:
+    """Texto sin caracteres de control, espacios normalizados y como mucho `limit` caracteres."""
+    if text is None:
+        return ""
+    t = re.sub(r"[ \t]+", " ", CTRL_RE.sub("", str(text))).strip()
+    return t if len(t) <= limit else t[:limit].rstrip() + "…"
+
+
+def num(v, lo: float, hi: float) -> float | None:
+    """Número dentro de [lo, hi]; si no lo es (o no es número), None."""
+    if isinstance(v, bool):
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f == f and lo <= f <= hi else None  # f == f descarta NaN
+
+
+def safe_date(v) -> str | None:
+    return v if isinstance(v, str) and DATE_OK.match(v) else None
+
+
+def sanitize_news(n: dict) -> dict | None:
+    if not isinstance(n, dict) or not (url := safe_url(n.get("url"))):
+        return None
+    return {
+        "title": cap(n.get("title"), LIMIT["title"]),
+        "summary": cap(n.get("summary"), LIMIT["summary"]),
+        "url": url,
+        "date": cap(n.get("date"), 40) or None,
+        "source": cap(n.get("source"), LIMIT["source"]),
+        "type": n.get("type") if n.get("type") in ("aviso", "noticia") else "noticia",
+        "lang": n.get("lang") if isinstance(n.get("lang"), str) and LANG_OK.match(n["lang"]) else "",
+        "cves": [c for c in (n.get("cves") or []) if isinstance(c, str) and ID_RE.match(c)],
+    }
+
+
+def sanitize_ghsa(a: dict) -> dict | None:
+    if not isinstance(a, dict) or not GHSA_RE.match(str(a.get("id", ""))) or not (url := safe_url(a.get("url"))):
+        return None
+    sev = str(a.get("severity") or "").upper()
+    return {
+        "id": a["id"],
+        "cve": a["cve"] if isinstance(a.get("cve"), str) and ID_RE.match(a["cve"]) else None,
+        "summary": cap(a.get("summary"), LIMIT["summary"]),
+        "severity": sev if sev in SEVERITIES or sev == "MODERATE" else None,
+        "cvss": num(a.get("cvss"), 0, 10),
+        "published": cap(a.get("published"), 40) or None,
+        "url": url,
+        "packages": [{"ecosystem": cap(p.get("ecosystem"), 40), "name": cap(p.get("name"), 200),
+                      "vulnerable": cap(p.get("vulnerable"), 120), "patched": cap(p.get("patched"), 60)}
+                     for p in (a.get("packages") or [])[:5] if isinstance(p, dict)],
+    }
+
+
+def sanitize_cve(r: dict) -> dict | None:
+    """Valida y recorta un registro de CVE. Devuelve None si el ID no es válido."""
+    if not isinstance(r, dict) or not ID_RE.match(str(r.get("id", ""))):
+        return None
+    cid = r["id"]
+    r["description"] = cap(r.get("description"), LIMIT["description"])
+    for k in ("vendor", "product", "cna"):
+        r[k] = cap(r.get(k), LIMIT[k])
+    r["cvss"] = num(r.get("cvss"), 0, 10)
+    sev = str(r.get("severity") or "").upper()
+    r["severity"] = sev if r["cvss"] is not None and sev in SEVERITIES else None
+    r["cvss_version"] = cap(r.get("cvss_version"), 8) or None
+    r["vector"] = r["vector"] if isinstance(r.get("vector"), str) and VECTOR_OK.match(r["vector"]) else None
+    av = str(r.get("attack_vector") or "").upper()
+    r["attack_vector"] = av if av in ATTACK_VECTORS else None
+    r["epss"] = num(r.get("epss"), 0, 1)
+    r["epss_percentile"] = num(r.get("epss_percentile"), 0, 1)
+    r["cwe"] = [w for w in (r.get("cwe") or []) if isinstance(w, str) and CWE_OK.match(w)][:10]
+    r["references"] = [{"url": u, "tags": [cap(t, LIMIT["tag"]) for t in (x.get("tags") or [])][:8]}
+                       for x in (r.get("references") or []) if isinstance(x, dict) and (u := safe_url(x.get("url")))]
+    r["exploit_refs"] = [u for u in (safe_url(x) for x in (r.get("exploit_refs") or [])) if u]
+    r["poc"] = [{"url": u, "name": cap(p.get("name"), LIMIT["name"]),
+                 "stars": int(num(p.get("stars"), 0, 1e9) or 0),
+                 "description": cap(p.get("description"), LIMIT["poc_desc"])}
+                for p in (r.get("poc") or []) if isinstance(p, dict) and (u := safe_url(p.get("url")))]
+    r["news"] = [n for n in (sanitize_news(x) for x in (r.get("news") or [])) if n]
+    r["ghsa"] = [a for a in (sanitize_ghsa(x) for x in (r.get("ghsa") or [])) if a]
+    k = r.get("kev")
+    if isinstance(k, dict):
+        r["kev"] = {
+            "date_added": safe_date(k.get("date_added")), "due_date": safe_date(k.get("due_date")),
+            "vendor": cap(k.get("vendor"), LIMIT["vendor"]), "product": cap(k.get("product"), LIMIT["product"]),
+            "name": cap(k.get("name"), LIMIT["title"]), "description": cap(k.get("description"), LIMIT["kev_text"]),
+            "action": cap(k.get("action"), LIMIT["kev_text"]), "ransomware": k.get("ransomware") is True,
+        }
+    else:
+        r["kev"] = None
+    r["published"] = cap(r.get("published"), 40) or None
+    # Los enlaces se construyen aquí a partir del ID ya validado, no se copian de fuera
+    r["links"] = {"nvd": f"https://nvd.nist.gov/vuln/detail/{cid}", "mitre": f"https://www.cve.org/CVERecord?id={cid}"}
+    return r
 
 
 # ──────────────────────────────── NVD ────────────────────────────────
@@ -189,6 +334,7 @@ def parse_nvd(item: dict) -> dict:
         "attack_vector": cvss["attack_vector"] if cvss else None,
         "vendor": pretty(vendor),
         "product": pretty(product),
+        "vendor_source": "nvd" if (vendor or product) else None,
         "cna": cna_domain,
         "cwe": cwes,
         "cpes": cpes[:10],
@@ -350,28 +496,78 @@ def fetch_rss(since: datetime) -> list[dict]:
 
 # ─────────────────────────── puntuación y etiquetas ───────────────────────────
 
+def _cpe_vendor_product(cpe: str) -> str:
+    """Solo fabricante y producto del CPE: en un plugin, el campo target_sw dice "wordpress"
+    y no debe contar como si la CVE fuera de WordPress."""
+    p = str(cpe).split(":")
+    return f"{p[3]} {p[4]}" if len(p) > 4 else ""
+
+
 def stack_match(rec: dict) -> list[str]:
-    hay = " ".join([rec.get("description", ""), rec.get("vendor", ""), rec.get("product", ""),
-                    rec.get("cna", ""), " ".join(rec.get("cpes", []))]).lower().replace("_", " ")
-    return [w for w in CONFIG["stack"]["palabras"] if w.lower() in hay]
+    """Palabras de [stack] que afectan a la CVE. Cuentan si aparecen en datos estructurados
+    (fabricante/producto de NVD o KEV, CNA, CPE) o en la descripción, salvo que la descripción
+    case con un patrón de [stack.excluir] para esa palabra."""
+    st = CONFIG["stack"]
+    excl = st.get("excluir", {})
+    own = rec.get("vendor_source") in ("nvd", "kev")  # un fabricante deducido por patrón no cuenta
+    structured = " ".join(
+        ([rec.get("vendor", ""), rec.get("product", "")] if own else [])
+        + [rec.get("cna", "")] + [_cpe_vendor_product(c) for c in rec.get("cpes", [])]
+    ).lower().replace("_", " ")
+    desc = (rec.get("description") or "").lower()
+    out = []
+    for w in st["palabras"]:
+        wl = w.lower()
+        if wl in structured or (wl in desc and not any(re.search(p, desc, re.I) for p in excl.get(w, []))):
+            out.append(w)
+    return out
+
+
+def infer_vendor(rec: dict) -> None:
+    """Si NVD/KEV no dan fabricante ni producto, lo intenta deducir con los patrones de
+    [[fabricante]] (config.toml). Si no hay suerte y hay CNA, la web mostrará el CNA."""
+    if rec.get("vendor") or rec.get("product"):
+        return
+    for pat in CONFIG.get("fabricante", []):
+        m = re.search(pat["regex"], rec.get("description") or "", re.I)
+        if m and m.group("producto"):
+            rec["vendor"], rec["product"] = cap(pat["nombre"], LIMIT["vendor"]), cap(m.group("producto"), LIMIT["product"])
+            rec["vendor_source"] = "patron"
+            return
+    rec["vendor_source"] = "cna" if rec.get("cna") else None
+
+
+def scoring_weights() -> dict[str, int]:
+    """Máximo de cada fila del desglose (lo que pinta el dial de la web)."""
+    w = CONFIG["puntuacion"]
+    return {"cvss": w["cvss_max"], "epss": w["epss_max"], "kev": w["kev"],
+            "ransomware": w["ransomware"], "poc": w["poc"], "stack": w["stack"]}
+
+
+def _breakdown_raw(rec: dict) -> dict[str, float]:
+    w = scoring_weights()
+    kev = rec.get("kev") or {}
+    return {
+        # Sin CVSS todavía (muy habitual el primer día): valor neutro del 40 %
+        "cvss": (rec["cvss"] / 10 if rec.get("cvss") is not None else 0.4) * w["cvss"],
+        "epss": (rec.get("epss_percentile") or 0) * w["epss"],
+        "kev": w["kev"] if kev else 0,
+        "ransomware": w["ransomware"] if kev.get("ransomware") else 0,
+        "poc": w["poc"] if (rec.get("poc") or rec.get("exploit_refs")) else 0,
+        "stack": w["stack"] if rec.get("stack") else 0,
+    }
+
+
+def breakdown(rec: dict) -> dict[str, float]:
+    """Puntos obtenidos en cada fila (4 decimales). El score sale de ESTOS valores, así que la
+    web (que suma el desglose) y el pipeline nunca discrepan."""
+    return {k: round(v, 4) for k, v in _breakdown_raw(rec).items()}
 
 
 def score(rec: dict) -> int:
-    w = CONFIG["puntuacion"]
-    s = 0.0
-    # Sin CVSS todavía (muy habitual el primer día): valor neutro del 40 %
-    s += (rec["cvss"] / 10 if rec.get("cvss") is not None else 0.4) * w["cvss_max"]
-    if rec.get("epss_percentile") is not None:
-        s += rec["epss_percentile"] * w["epss_max"]
-    if rec.get("kev"):
-        s += w["kev"]
-        if rec["kev"].get("ransomware"):
-            s += w["ransomware"]
-    if rec.get("poc") or rec.get("exploit_refs"):
-        s += w["poc"]
-    if rec.get("stack"):
-        s += w["stack"]
-    return min(100, round(s))
+    # Redondeo de los .5 hacia arriba, como Math.round en la web (round() de Python va al par:
+    # 58.5 → 58, que no es lo que nadie espera ver)
+    return min(100, math.floor(sum(breakdown(rec).values()) + 0.5))
 
 
 def tags(rec: dict) -> list[str]:
@@ -509,6 +705,7 @@ def build_daily() -> None:
                 k = kev[cid]
                 recs[cid] = {"id": cid, "published": None, "description": k["description"],
                              "cvss": None, "severity": None, "vendor": k["vendor"], "product": k["product"],
+                             "vendor_source": "kev" if (k["vendor"] or k["product"]) else None,
                              "cna": "", "cwe": [], "cpes": [], "references": [], "exploit_refs": [],
                              "attack_vector": None,
                              "links": {"nvd": f"https://nvd.nist.gov/vuln/detail/{cid}",
@@ -518,6 +715,7 @@ def build_daily() -> None:
         r["kev"] = kev.get(cid)
         if r["kev"] and not r.get("vendor"):  # NVD aún sin CPE: KEV sí trae fabricante/producto
             r["vendor"], r["product"] = r["kev"]["vendor"] or "", r["kev"]["product"] or ""
+            r["vendor_source"] = "kev" if (r["vendor"] or r["product"]) else None
 
     # 3) EPSS
     epss = _safe(fetch_epss, list(recs), default={}, status=status, name="epss")
@@ -552,8 +750,24 @@ def build_daily() -> None:
         r["poc"] = pocs.get(r["id"], [])
         r.setdefault("news", [])
         r.setdefault("ghsa", [])
+
+    # 7) Saneamiento y puntuación final, sobre datos ya validados (una PoC con URL no
+    #    http(s) se descarta y no suma). Registros con ID inválido se descartan enteros.
+    clean_recs = {}
+    for r in recs.values():
+        r = sanitize_cve(r)
+        if r is None:
+            continue
+        infer_vendor(r)
+        r["stack"] = stack_match(r)
         r["score"] = score(r)
+        r["score_breakdown"] = breakdown(r)
         r["tags"] = tags(r)
+        clean_recs[r["id"]] = r
+    recs = clean_recs
+    kev_new_ids = [cid for cid in kev_new_ids if cid in recs]
+    news = [n for n in (sanitize_news(x) for x in news) if n]
+    ghsa = [a for a in (sanitize_ghsa(x) for x in ghsa) if a]
 
     ordered = sorted(recs.values(), key=lambda r: (r["score"], r.get("cvss") or 0), reverse=True)
     new_only = [r for r in ordered if not r.get("old_cve")]
@@ -578,6 +792,7 @@ def build_daily() -> None:
             "ghsa": len(ghsa),
             "news": len(news),
         },
+        "scoring_weights": scoring_weights(),
         "top": ordered[:g["top_n"]],
         "kev_new": kev_new,
         "cves": ordered,
@@ -623,10 +838,20 @@ def norm_ip(raw: str) -> str | None:
 
 
 def isc_rows(data) -> list[dict]:
-    """La API de ISC a veces envuelve la lista; nos quedamos con los dicts de datos."""
+    """Filas de datos de la API de ISC, que responde en tres formas según el endpoint:
+       - lista:                 [{…}, {…}]                      (sources/attacks)
+       - dict que envuelve:     {"clave": [{…}, {…}]}
+       - dict de claves numéricas con escalares sueltos:
+                                {"0": {…}, "1": {…}, "date": "…", "limit": 10}   (topports)
+    En el último caso los escalares (date, limit) se descartan por no ser dicts."""
+    if isinstance(data, list):
+        return [x for x in data if isinstance(x, dict)]
     if isinstance(data, dict):
-        data = next((v for v in data.values() if isinstance(v, list)), [])
-    return [x for x in data if isinstance(x, dict)]
+        for v in data.values():
+            if isinstance(v, list):
+                return [x for x in v if isinstance(x, dict)]
+        return [v for v in data.values() if isinstance(v, dict)]
+    return []
 
 
 def fetch_isc_attackers(n: int) -> tuple[list[tuple[str, int]], str]:
@@ -637,8 +862,8 @@ def fetch_isc_attackers(n: int) -> tuple[list[tuple[str, int]], str]:
         out = []
         for row in isc_rows(r.json()):
             ip = norm_ip(row.get("ip") or row.get("source") or "")
-            hits = row.get("attacks") or row.get("reports") or row.get("count") or 1
-            if ip:
+            hits = num(row.get("attacks") or row.get("reports") or row.get("count") or 1, 0, 1e9)
+            if ip and hits is not None:
                 out.append((ip, int(hits)))
         if out:
             return out, str(d)
@@ -650,23 +875,117 @@ def fetch_isc_ports(date: str) -> list[dict]:
     r.raise_for_status()
     out = []
     for row in isc_rows(r.json()):
-        port = row.get("targetport") or row.get("port")
+        port = num(row.get("targetport") if row.get("targetport") is not None else row.get("port"), 0, 65535)
         if port is None:
             continue
-        out.append({"port": int(port), "records": int(row.get("records") or 0),
-                    "sources": int(row.get("sources") or 0), "targets": int(row.get("targets") or 0)})
+        cnt = lambda k: int(num(row.get(k), 0, 1e12) or 0)  # noqa: E731
+        out.append({"port": int(port), "records": cnt("records"), "sources": cnt("sources"), "targets": cnt("targets")})
     return out
+
+
+# ─────────────── geolocalización offline: DB-IP Lite (CC BY 4.0) ───────────────
+# Antes se usaba ip-api.com, cuyo plan gratuito solo funciona por HTTP (IPs y respuestas en
+# claro). Ahora la base mensual de DB-IP se descarga por HTTPS, se verifica con el SHA-1 que
+# publica DB-IP y se consulta en local. Se cachea por mes: el mapa corre 8 veces al día y la
+# base solo cambia una vez al mes (60 MB por descarga).
+
+DBIP_MAX_GZ = 200 * 1024 * 1024       # tope de descarga
+DBIP_MAX_MMDB = 600 * 1024 * 1024     # tope al descomprimir (defensa ante un gzip anómalo)
+
+
+def dbip_sha1(page: str, month: str) -> str | None:
+    """SHA-1 que publica DB-IP para el MMDB de ese mes. En su página cada tarjeta es
+    <dt>SHA1SUM</dt><dd>HASH</dd> … <a href='…/dbip-city-lite-AAAA-MM.mmdb.gz'>. Ojo: el hash
+    es el del fichero .mmdb DESCOMPRIMIDO, no el del .gz (comprobado el 2026-11-01)."""
+    m = re.search(r"SHA1SUM(?:\s|<[^>]{0,80}>){0,10}([0-9a-f]{40})(?:(?!SHA1SUM).){0,1500}?"
+                  r"dbip-city-lite-" + re.escape(month) + r"\.mmdb\.gz", page, re.S | re.I)
+    return m.group(1).lower() if m else None
+
+
+def _dbip_expected_sha1(month: str) -> str | None:
+    r = HTTP.get(DBIP_PAGE, timeout=30)
+    r.raise_for_status()
+    return dbip_sha1(r.text[:2_000_000], month)
+
+
+def _dbip_download(month: str) -> Path | None:
+    """Descarga y verifica la base de un mes. None si DB-IP aún no la ha publicado (404)."""
+    GEO_CACHE.mkdir(parents=True, exist_ok=True)
+    dest = GEO_CACHE / f"dbip-city-lite-{month}.mmdb"
+    gz_tmp, mmdb_tmp = dest.with_suffix(".mmdb.gz.part"), dest.with_suffix(".mmdb.part")
+    try:
+        with HTTP.get(DBIP_URL.format(month=month), timeout=300, stream=True) as r:
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            size = 0
+            with gz_tmp.open("wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    size += len(chunk)
+                    if size > DBIP_MAX_GZ:
+                        raise ValueError("descarga de DB-IP demasiado grande")
+                    f.write(chunk)
+        sha1, out = hashlib.sha1(), 0
+        with gzip.open(gz_tmp, "rb") as src, mmdb_tmp.open("wb") as dst:
+            while chunk := src.read(1 << 20):
+                out += len(chunk)
+                if out > DBIP_MAX_MMDB:
+                    raise ValueError("base de DB-IP descomprimida demasiado grande")
+                sha1.update(chunk)
+                dst.write(chunk)
+        expected = _safe(_dbip_expected_sha1, month, name="dbip sha1")
+        if expected and sha1.hexdigest() != expected:
+            raise ValueError(f"SHA-1 de DB-IP no coincide ({sha1.hexdigest()} ≠ {expected})")
+        log(f"DB-IP {month}: descargada ({size // 1024 // 1024} MB), "
+            + ("SHA-1 verificado" if expected else "⚠ sin SHA-1 publicado para verificar"))
+        mmdb_tmp.replace(dest)
+    finally:
+        gz_tmp.unlink(missing_ok=True)
+        mmdb_tmp.unlink(missing_ok=True)
+    for old in GEO_CACHE.glob("dbip-city-lite-*.mmdb"):  # solo se guarda la del mes vigente
+        if old != dest:
+            old.unlink(missing_ok=True)
+    return dest
+
+
+def dbip_path() -> Path:
+    """Base del mes en curso (de la caché o descargada); si aún no está publicada, la anterior."""
+    now = datetime.now(timezone.utc)
+    cur = now.strftime("%Y-%m")
+    prev = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    for month in (cur, prev):
+        cached = GEO_CACHE / f"dbip-city-lite-{month}.mmdb"
+        if cached.exists():
+            return cached
+        try:
+            got = _dbip_download(month)
+            if got:
+                return got
+        except Exception as e:  # p. ej. el mes en curso aún no está o el SHA-1 no cuadra
+            log(f"⚠ DB-IP {month}: {e}")
+    raise RuntimeError("no hay base de DB-IP disponible")
+
+
+def geo_fields(rec) -> dict | None:
+    """Campos útiles de un registro de DB-IP, validados (coordenadas en rango, país ISO-2)."""
+    if not isinstance(rec, dict):
+        return None
+    loc, ctry = rec.get("location") or {}, rec.get("country") or {}
+    lat, lon = num(loc.get("latitude"), -90, 90), num(loc.get("longitude"), -180, 180)
+    cc = str(ctry.get("iso_code") or "").upper()
+    names = ctry.get("names") or {}
+    if lat is None or lon is None or not re.fullmatch(r"[A-Z]{2}", cc):
+        return None
+    return {"lat": lat, "lon": lon, "cc": cc, "country": cap(names.get("es") or names.get("en") or cc, LIMIT["country"])}
 
 
 def geolocate(ips: list[str]) -> dict[str, dict]:
     out = {}
-    for i in range(0, len(ips), 100):  # ip-api: 100 IPs por lote, 15 lotes/min gratis
-        r = HTTP.post(GEO_URL, json=[{"query": ip} for ip in ips[i:i + 100]], timeout=60)
-        r.raise_for_status()
-        for g in r.json():
-            if g.get("status") == "success":
-                out[g["query"]] = g
-        time.sleep(4.5)
+    with maxminddb.open_database(str(dbip_path())) as db:
+        for ip in ips:
+            g = geo_fields(db.get(ip))
+            if g:
+                out[ip] = g
     return out
 
 
@@ -684,11 +1003,11 @@ def build_map() -> None:
             continue
         key = (round(g["lat"], 1), round(g["lon"], 1))  # agregamos por zona, sin exponer IPs
         p = points.setdefault(key, {"lat": key[0], "lon": key[1], "country": g["country"],
-                                    "cc": g["countryCode"], "attacks": 0, "sources": 0})
+                                    "cc": g["cc"], "attacks": 0, "sources": 0})
         p["attacks"] += hits
         p["sources"] += 1
-        c = countries.setdefault(g["countryCode"], {"cc": g["countryCode"], "country": g["country"],
-                                                    "attacks": 0, "sources": 0})
+        c = countries.setdefault(g["cc"], {"cc": g["cc"], "country": g["country"],
+                                           "attacks": 0, "sources": 0})
         c["attacks"] += hits
         c["sources"] += 1
 
@@ -696,7 +1015,7 @@ def build_map() -> None:
     write_json(DATA / "map.json", {
         "updated_at": now.isoformat(),
         "data_day": day,
-        "source": "SANS Internet Storm Center (DShield) · geolocalización ip-api.com",
+        "source": "SANS Internet Storm Center (DShield) · geolocalización IP Geolocation by DB-IP (CC BY 4.0)",
         "note": "IPs con más ataques reportados por sensores DShield, agregadas por zona.",
         "points": sorted(points.values(), key=lambda p: p["attacks"], reverse=True),
         "by_country": sorted(countries.values(), key=lambda c: c["attacks"], reverse=True),

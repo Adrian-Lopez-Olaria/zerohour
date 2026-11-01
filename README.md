@@ -14,7 +14,10 @@ Todo corre gratis en **GitHub Actions**; la web (estática) lee los JSON de la c
 | [GitHub Advisories](https://github.com/advisories) | Vulnerabilidades en librerías (npm, PyPI, Maven…) |
 | [PoC-in-GitHub](https://github.com/nomi-sec/PoC-in-GitHub) | Si existe PoC/exploit público |
 | [INCIBE-CERT](https://www.incibe.es/incibe-cert/alerta-temprana/avisos) + noticias (RSS) | Avisos en español y contexto |
-| [SANS ISC / DShield](https://isc.sans.edu/) + [ip-api](https://ip-api.com/) | IPs atacantes geolocalizadas para el mapa |
+| [SANS ISC / DShield](https://isc.sans.edu/) | IPs que más atacan y puertos más atacados (mapa) |
+| [DB-IP Lite](https://db-ip.com/db/lite.php) | Geolocalización **offline** de esas IPs: la base mensual se descarga por HTTPS, se verifica con el SHA-1 que publica DB-IP y se consulta en local (en el mapa solo se publican zonas, nunca IPs) |
+
+> Geolocalización: <a href="https://db-ip.com">IP Geolocation by DB-IP</a>, con licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## Puesta en marcha
 
@@ -35,7 +38,9 @@ python scripts/radar.py all        # ambos
 
 ## Personalizar (`config.toml`)
 
-- **`[stack]`**: palabras que marcan una CVE con ⭐ "afecta a mi stack".
+- **`[stack]`**: palabras que marcan una CVE con ⭐ "afecta a mi stack". Cuentan si aparecen en fabricante, producto, CNA o CPE (fabricante:producto) o en la descripción.
+- **`[stack.excluir]`**: patrones por palabra que anulan la coincidencia en la descripción. Por ejemplo, "wordpress" no cuenta en "The X plugin for WordPress…" (un plugin de terceros), pero sí en un fallo de WordPress core aunque aún no tenga CPE.
+- **`[[fabricante]]`**: patrones para deducir fabricante y producto de la descripción cuando NVD aún no los da (p. ej. "Plugin WordPress · X"). Si ninguno casa, la web muestra el CNA que publicó la CVE.
 - **`[puntuacion]`**: pesos de la puntuación propia (0-100).
 - **`[[rss]]`**: añade o quita fuentes de avisos y noticias.
 - **`[ia]`**: pon `activado = true` para que el resumen lo escriba un LLM gratis vía GitHub Models. Si falla, se usa el resumen por plantilla.

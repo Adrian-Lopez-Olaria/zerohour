@@ -1,3 +1,5 @@
 requests>=2.31
 feedparser>=6.0
 tzdata
+# Geolocalización offline (DB-IP Lite en formato MMDB)
+maxminddb==3.2.0

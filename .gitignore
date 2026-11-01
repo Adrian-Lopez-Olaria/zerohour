@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 .venv/
 .env
+# Caché local del pipeline (base mensual de DB-IP, ~130 MB)
+.cache/
+.pytest_cache/
 
 # ── Build de Netlify (data/ se copia aquí en el build; no se versiona) ──
 web/data/
