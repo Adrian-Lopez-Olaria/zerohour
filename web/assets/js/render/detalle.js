@@ -292,7 +292,7 @@ function linksPanel(c) {
     panelHead('LNK-09', 'Fuentes y referencias', '', 'h-lnk'),
     el('div', { class: 'panel__body panel__body--list' }, [
       ...fixed.map(([u, t, s]) => extLink(u, { class: 'extl' }, [t, el('span', { text: s })])),
-      refs.length ? el('p', { class: 'label lk-sub', text: `REFERENCIAS DE NVD · ${refs.length}${c.references.length > refs.length ? ` DE ${c.references.length}` : ''}` }) : null,
+      refs.length ? el('p', { class: 'label lk-sub', text: `REFERENCIAS DE NVD · ${refs.length}${c.references_total > refs.length ? ` DE ${c.references_total}` : ''}` }) : null,
       ...refs.map((r) => linkItem(r.url, hostPath(r.url) || 'Referencia descartada', r.tags.join(' · ') || 'SIN ETIQUETA')),
     ]),
   ]);

@@ -286,3 +286,32 @@ def test_geo_fields_valida(radar, rec_, ok):
     assert (g is not None) == ok
     if ok:
         assert g == {"lat": 40.4, "lon": -3.7, "cc": "ES", "country": "España"}
+
+
+# ───────────────────────── esquema ligero (c1) ─────────────────────────
+
+def test_slim_report_sobre_la_edicion_real(radar):
+    import json
+    from conftest import ROOT
+    rep = json.loads((ROOT / "tests" / "fixtures" / "real-2026-10-31.json").read_text(encoding="utf-8"))["latest"]
+    slim = radar.slim_report(rep)
+    assert "advisories" not in slim
+    assert slim["top"] == [c["id"] for c in rep["top"]] and all(isinstance(x, str) for x in slim["kev_new"])
+    ids = {c["id"] for c in slim["cves"]}
+    assert set(slim["top"]) <= ids and set(slim["kev_new"]) <= ids        # la web resuelve los IDs contra cves
+    for c in slim["cves"]:
+        assert not set(radar.DROP_FIELDS) & set(c)
+        assert len(c["references"]) <= radar.MAX_REFS and c["references_total"] >= len(c["references"])
+    antes = len(json.dumps(rep, ensure_ascii=False, separators=(",", ":")).encode())
+    despues = len(json.dumps(slim, ensure_ascii=False, separators=(",", ":")).encode())
+    assert despues < antes * 0.85, (antes, despues)
+
+
+def test_slim_cve_prioriza_referencias_accionables(radar):
+    refs = [{"url": f"https://x.com/{i}", "tags": []} for i in range(10)]
+    refs[7]["tags"] = ["Patch"]
+    refs[9]["tags"] = ["Vendor Advisory"]
+    o = radar.slim_cve({"id": "CVE-2026-1111", "references": refs, "links": {}, "cpes": ["x"]})
+    assert [r["url"] for r in o["references"][:2]] == ["https://x.com/9", "https://x.com/7"]
+    assert len(o["references"]) == 8 and o["references_total"] == 10
+    assert "links" not in o and "cpes" not in o

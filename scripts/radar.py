@@ -20,7 +20,7 @@ IDs y números (rangos válidos). Es defensa en profundidad: la web vuelve a hac
 
 Modos:
   python scripts/radar.py daily   → data/latest.json, data/days/AAAA-MM-DD.json,
-                                    data/index.json, data/linkedin.md
+                                    data/index.json, data/advisories.json, data/linkedin.md
   python scripts/radar.py map     → data/map.json (ataques geolocalizados)
   python scripts/radar.py all     → ambos
 
@@ -338,7 +338,8 @@ def parse_nvd(item: dict) -> dict:
         "cna": cna_domain,
         "cwe": cwes,
         "cpes": cpes[:10],
-        "references": [{"url": r["url"], "tags": r.get("tags", [])} for r in refs[:10]],
+        # Se guardan hasta 40: al escribir se eligen las 8 más útiles (ver slim_cve)
+        "references": [{"url": r["url"], "tags": r.get("tags", [])} for r in refs[:40]],
         "exploit_refs": exploit_refs[:5],
         "links": {
             "nvd": f"https://nvd.nist.gov/vuln/detail/{c['id']}",
@@ -663,6 +664,36 @@ def linkedin_post(rep: dict, date: str) -> str:
     return "\n".join(lines)
 
 
+# ─────────────────────── esquema de salida (ligero, opción c1) ───────────────────────
+# Lo que la web no usa no se publica: menos peso por visita y por edición guardada.
+
+REF_PRIORITY = ["Vendor Advisory", "Patch", "Mitigation", "Release Notes", "Third Party Advisory", "US Government Resource"]
+MAX_REFS = 8
+DROP_FIELDS = ("links", "cpes", "modified", "status")  # links: la web los construye desde el ID
+
+
+def _ref_rank(ref: dict) -> int:
+    return min((REF_PRIORITY.index(t) for t in ref.get("tags", []) if t in REF_PRIORITY), default=len(REF_PRIORITY))
+
+
+def slim_cve(r: dict) -> dict:
+    o = {k: v for k, v in r.items() if k not in DROP_FIELDS}
+    refs = sorted(r.get("references") or [], key=_ref_rank)  # sorted es estable: dentro de cada prioridad, orden de NVD
+    o["references"] = refs[:MAX_REFS]
+    o["references_total"] = len(refs)
+    return o
+
+
+def slim_report(rep: dict) -> dict:
+    """Versión que se escribe en latest.json y days/AAAA-MM-DD.json: top y kev_new como IDs
+    (los objetos ya están en cves) y sin advisories (van a advisories.json)."""
+    out = {k: v for k, v in rep.items() if k != "advisories"}
+    out["cves"] = [slim_cve(r) for r in rep["cves"]]
+    out["top"] = [r["id"] for r in rep["top"]]
+    out["kev_new"] = [r["id"] for r in rep["kev_new"]]
+    return out
+
+
 # ─────────────────────────────── utilidades ───────────────────────────────
 
 def _safe(fn, *args, default=None, status: dict | None = None, name: str = ""):
@@ -804,8 +835,11 @@ def build_daily() -> None:
     rep["summary"] = _safe(summary_ai, rep, name="ia") or rep["summary_template"]
     rep["linkedin_post"] = linkedin_post(rep, date)
 
-    write_json(DATA / "latest.json", rep)
-    write_json(DAYS / f"{date}.json", rep)
+    slim = slim_report(rep)
+    write_json(DATA / "latest.json", slim)
+    write_json(DAYS / f"{date}.json", slim)
+    # Avisos de GitHub sin CVE: aparte, para el futuro panel "Librerías"
+    write_json(DATA / "advisories.json", {"date": date, "generated_at": rep["generated_at"], "advisories": rep["advisories"]})
     (DATA / "linkedin.md").write_text(rep["linkedin_post"] + "\n", encoding="utf-8")
     update_index(rep)
     log(f"✔ Informe {date}: {rep['stats']['new_cves']} nuevas, {len(kev_new)} KEV, top: "

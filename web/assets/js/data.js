@@ -91,6 +91,7 @@ function normalizeCve(c, w) {
     ghsa: arr(c.ghsa),
     cwe: arr(c.cwe).map(str),
     references: arr(c.references).map(normalizeRef).filter((r) => r.url),
+    references_total: num(c.references_total) ?? arr(c.references).length,
     exploit_refs: arr(c.exploit_refs).map(normalizeRef).filter((r) => r.url),
     tags: arr(c.tags).map(str),
     stack: arr(c.stack).map(str),
@@ -138,8 +139,10 @@ export function normalizeLatest(raw) {
   const weights = (raw.scoring_weights && typeof raw.scoring_weights === 'object') ? { ...DEFAULT_WEIGHTS, ...raw.scoring_weights } : { ...DEFAULT_WEIGHTS };
   const cves = arr(raw.cves).map((c) => normalizeCve(c, weights));
   const byId = new Map(cves.map((c) => [c.id, c]));
-  // top: el pipeline ya da objetos; si viniera como lista de IDs (prototipo), se resuelve
-  const top = arr(raw.top).map((t) => (typeof t === 'string' ? byId.get(t) : normalizeCve(t, weights))).filter(Boolean);
+  // top y kev_new: listas de IDs que apuntan a cves (esquema ligero de la fase 6); las ediciones
+  // antiguas traen objetos completos, que también se aceptan
+  const resolve = (list) => arr(list).map((t) => (typeof t === 'string' ? byId.get(t) : normalizeCve(t, weights))).filter(Boolean);
+  const top = resolve(raw.top);
   return {
     date: str(raw.date),
     generated_at: raw.generated_at ?? null,
@@ -149,7 +152,7 @@ export function normalizeLatest(raw) {
     scoring_weights: weights,
     cves,
     top,
-    kev_new: arr(raw.kev_new).map((c) => normalizeCve(c, weights)),
+    kev_new: resolve(raw.kev_new),
     news: arr(raw.news).map((n) => ({ title: str(n.title), url: str(n.url), source: str(n.source), type: str(n.type), lang: str(n.lang), date: n.date ?? null })),
     sources_status: (raw.sources_status && typeof raw.sources_status === 'object') ? raw.sources_status : {},
   };
