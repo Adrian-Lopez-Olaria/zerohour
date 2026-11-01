@@ -232,6 +232,16 @@ def sanitize_cve(r: dict) -> dict | None:
         }
     else:
         r["kev"] = None
+    r["cvss_source"] = r.get("cvss_source") if r.get("cvss_source") in ("nvd", "cna", "adp") and r["cvss"] is not None else None
+    s = r.get("ssvc")
+    r["ssvc"] = ({"exploitation": s["exploitation"],
+                  "automatable": s.get("automatable") if s.get("automatable") in SSVC_VALUES["automatable"] else None,
+                  "technical_impact": s.get("technical_impact") if s.get("technical_impact") in SSVC_VALUES["technical impact"] else None,
+                  "version": cap(s.get("version"), 12) or None}
+                 if isinstance(s, dict) and s.get("exploitation") in SSVC_VALUES["exploitation"] else None)
+    r["exploits"] = [{"source": e["source"], "url": u, "name": cap(e.get("name"), LIMIT["name"]), "verified": e.get("verified") is True}
+                     for e in (r.get("exploits") or [])
+                     if isinstance(e, dict) and e.get("source") in ("metasploit", "nuclei", "exploitdb") and (u := safe_url(e.get("url")))][:10]
     r["published"] = cap(r.get("published"), 40) or None
     # Los enlaces se construyen aquí a partir del ID ya validado, no se copian de fuera
     r["links"] = {"nvd": f"https://nvd.nist.gov/vuln/detail/{cid}", "mitre": f"https://www.cve.org/CVERecord?id={cid}"}
@@ -452,12 +462,221 @@ def fetch_pocs(cve_ids: list[str]) -> dict[str, list]:
     return out
 
 
+# ─────────────────── CVE.org (cvelistV5) + CISA Vulnrichment (ADP) ───────────────────
+# Registro oficial de cada CVE. Aporta: SSVC de CISA (¿se explota? ¿automatizable? ¿impacto?)
+# y CVSS del CNA o de CISA cuando NVD aún no lo ha puesto. Formato verificado el 2026-11-01.
+
+CVELIST_URL = "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/{year}/{block}xxx/{cve}.json"
+SSVC_VALUES = {"exploitation": {"none", "poc", "active"}, "automatable": {"yes", "no"},
+               "technical impact": {"partial", "total"}}
+CVSS_KEYS = ("cvssV3_1", "cvssV4_0", "cvssV3_0")   # misma preferencia que con NVD: 3.1 > 4.0 > 3.0
+
+
+def cvelist_url(cve_id: str) -> str:
+    _, year, num_ = cve_id.split("-")
+    return CVELIST_URL.format(year=year, block=int(num_) // 1000, cve=cve_id)
+
+
+def _cvss_from_metrics(metrics) -> dict | None:
+    for m in metrics or []:
+        for k in CVSS_KEYS:
+            d = (m or {}).get(k)
+            if isinstance(d, dict) and num(d.get("baseScore"), 0, 10) is not None:
+                return {"score": float(d["baseScore"]), "severity": str(d.get("baseSeverity") or "").upper() or None,
+                        "version": str(d.get("version") or k[5:].replace("_", ".")), "vector": d.get("vectorString"),
+                        "attack_vector": d.get("attackVector")}
+    return None
+
+
+def parse_ssvc(content) -> dict | None:
+    if not isinstance(content, dict):
+        return None
+    vals = {}
+    for opt in content.get("options") or []:
+        for k, v in (opt or {}).items():
+            k, v = str(k).strip().lower(), str(v).strip().lower()
+            if k in SSVC_VALUES and v in SSVC_VALUES[k]:
+                vals[k] = v
+    if "exploitation" not in vals:
+        return None
+    return {"exploitation": vals["exploitation"], "automatable": vals.get("automatable"),
+            "technical_impact": vals.get("technical impact"), "version": cap(content.get("version"), 12) or None}
+
+
+def parse_cvelist(doc) -> dict:
+    """De un registro CVE JSON 5: SSVC de CISA-ADP y CVSS del CNA o de CISA-ADP."""
+    out = {"ssvc": None, "cna_cvss": None, "adp_cvss": None}
+    cont = (doc or {}).get("containers") or {}
+    out["cna_cvss"] = _cvss_from_metrics((cont.get("cna") or {}).get("metrics"))
+    for adp in cont.get("adp") or []:
+        if ((adp or {}).get("providerMetadata") or {}).get("shortName") != "CISA-ADP":
+            continue
+        for m in adp.get("metrics") or []:
+            o = (m or {}).get("other") or {}
+            if o.get("type") == "ssvc":
+                out["ssvc"] = parse_ssvc(o.get("content"))
+        out["adp_cvss"] = out["adp_cvss"] or _cvss_from_metrics(adp.get("metrics"))
+    return out
+
+
+def fetch_cvelist_one(cve_id: str) -> dict | None:
+    """None si el registro no existe todavía (404: reservada o recién publicada) → "sin dato"."""
+    r = HTTP.get(cvelist_url(cve_id), timeout=30)
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    return parse_cvelist(r.json())
+
+
+def fetch_cvelist(cve_ids: list[str]) -> dict[str, dict]:
+    """Concurrencia moderada (5) y reintentos con espera (sesión HTTP). Si fallan muchas
+    peticiones (no 404), la fuente se da por caída para que se vea en sources_status."""
+    out, errors = {}, 0
+
+    def one(cid):
+        try:
+            return cid, fetch_cvelist_one(cid), None
+        except Exception as e:  # noqa: BLE001
+            return cid, None, e
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        for cid, res, err in ex.map(one, cve_ids):
+            if err:
+                errors += 1
+            elif res:
+                out[cid] = res
+    log(f"CVE.org: {len(out)}/{len(cve_ids)} registros, {sum(1 for v in out.values() if v['ssvc'])} con SSVC de CISA, {errors} errores")
+    if cve_ids and errors > max(5, len(cve_ids) // 5):
+        raise RuntimeError(f"{errors} de {len(cve_ids)} peticiones fallaron")
+    return out
+
+
+# ───────────────── exploits verificados: Metasploit, Nuclei, Exploit-DB ─────────────────
+# Ficheros grandes (11, 2 y 10 MB): se descargan una vez por ejecución y se indexan por CVE.
+# Las URLs se construyen a partir de piezas validadas, nunca se copian tal cual.
+
+MSF_URL = "https://raw.githubusercontent.com/rapid7/metasploit-framework/master/db/modules_metadata_base.json"
+NUCLEI_URL = "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json"
+EDB_URL = "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv"
+MAX_INDEX_BYTES = 64 * 1024 * 1024
+MSF_PATH_OK = re.compile(r"^/?modules/[A-Za-z0-9_./-]{1,200}\.(?:rb|py|go)$")
+NUCLEI_PATH_OK = re.compile(r"^[A-Za-z0-9_./-]{1,200}\.ya?ml$")
+
+
+def _get_text(url: str) -> str:
+    """Descarga con tope de tamaño (son ficheros de terceros que pueden crecer o romperse)."""
+    with HTTP.get(url, timeout=120, stream=True) as r:
+        r.raise_for_status()
+        buf, size = [], 0
+        for chunk in r.iter_content(1 << 20):
+            size += len(chunk)
+            if size > MAX_INDEX_BYTES:
+                raise ValueError(f"respuesta demasiado grande ({url})")
+            buf.append(chunk)
+    return b"".join(buf).decode("utf-8", errors="replace")
+
+
+def index_metasploit(data: dict) -> dict[str, list]:
+    """Solo módulos de tipo exploit (los auxiliary suelen ser escáneres o DoS)."""
+    idx: dict[str, list] = {}
+    for mod in (data or {}).values():
+        if not isinstance(mod, dict) or mod.get("type") != "exploit":
+            continue
+        path = str(mod.get("path") or "")
+        if not MSF_PATH_OK.match(path):
+            continue
+        url = "https://github.com/rapid7/metasploit-framework/blob/master/" + path.lstrip("/")
+        entry = {"source": "metasploit", "url": url, "name": cap(mod.get("fullname") or mod.get("name"), LIMIT["name"]), "verified": True}
+        for ref in mod.get("references") or []:
+            if isinstance(ref, str) and ID_RE.match(ref):
+                idx.setdefault(ref, []).append(entry)
+    return idx
+
+
+def index_nuclei(text: str) -> dict[str, list]:
+    idx: dict[str, list] = {}
+    for line in text.splitlines():
+        try:
+            t = json.loads(line)
+        except ValueError:
+            continue
+        cid, path = str((t or {}).get("ID") or "").upper(), str((t or {}).get("file_path") or "")
+        if not ID_RE.match(cid) or not NUCLEI_PATH_OK.match(path):
+            continue
+        idx.setdefault(cid, []).append({
+            "source": "nuclei", "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/" + path,
+            "name": cap(((t.get("Info") or {}).get("Name")), LIMIT["name"]), "verified": True})
+    return idx
+
+
+def index_exploitdb(text: str) -> dict[str, list]:
+    import csv
+    idx: dict[str, list] = {}
+    for row in csv.DictReader(text.splitlines()):
+        eid = str(row.get("id") or "")
+        if not eid.isdigit():
+            continue
+        cves = {c.strip().upper() for c in str(row.get("codes") or "").split(";")}
+        entry = {"source": "exploitdb", "url": f"https://www.exploit-db.com/exploits/{eid}",
+                 "name": cap(row.get("description"), LIMIT["name"]), "verified": str(row.get("verified")).strip() == "1"}
+        for cid in cves:
+            if ID_RE.match(cid):
+                idx.setdefault(cid, []).append(entry)
+    return idx
+
+
+def fetch_exploit_indexes(status: dict) -> dict[str, list]:
+    """Índice CVE → [{source, url, name, verified}]. Cada fuente puede fallar sin tumbar al resto."""
+    merged: dict[str, list] = {}
+    for name, fn in (("metasploit", lambda: index_metasploit(json.loads(_get_text(MSF_URL)))),
+                     ("nuclei", lambda: index_nuclei(_get_text(NUCLEI_URL))),
+                     ("exploitdb", lambda: index_exploitdb(_get_text(EDB_URL)))):
+        idx = _safe(fn, default={}, status=status, name=name)
+        for cid, entries in idx.items():
+            merged.setdefault(cid, []).extend(entries)
+        log(f"{name}: {len(idx)} CVE con exploit o plantilla")
+    return merged
+
+
+def pick_exploits(entries: list) -> list:
+    """Hasta 10, primero los verificados; sin duplicados de URL."""
+    seen, out = set(), []
+    for e in sorted(entries, key=lambda e: (not e["verified"], e["source"])):
+        if e["url"] not in seen:
+            seen.add(e["url"])
+            out.append(e)
+    return out[:10]
+
+
 # ──────────────────────────────── RSS ────────────────────────────────
 
 def clean(text: str, limit: int = 300) -> str:
     t = html.unescape(TAG_RE.sub(" ", text or ""))
     t = re.sub(r"\s+", " ", t).strip()
     return t if len(t) <= limit else t[:limit].rsplit(" ", 1)[0] + "…"
+
+
+PAGE_MAX_BYTES = 1024 * 1024
+
+
+def page_cves(url: str, feed_url: str) -> list[str]:
+    """IDs de CVE de la página de un aviso (CERT-EU casi nunca los pone en el RSS).
+    Sin interpretar el HTML: solo una regex sobre el texto. Únicamente se descargan páginas
+    del MISMO dominio que el feed (un RSS manipulado no puede llevarnos a cualquier URL),
+    con timeout y tamaño máximo."""
+    u = safe_url(url)
+    if not u or urlsplit(u).hostname != urlsplit(feed_url).hostname:
+        return []
+    with HTTP.get(u, timeout=15, stream=True) as r:
+        r.raise_for_status()
+        buf, size = [], 0
+        for chunk in r.iter_content(64 * 1024):
+            size += len(chunk)
+            if size > PAGE_MAX_BYTES:
+                break                                    # basta con lo leído hasta el tope
+            buf.append(chunk)
+    text = b"".join(buf).decode("utf-8", errors="replace")
+    return sorted({m.upper() for m in CVE_RE.findall(text)})[:50]
 
 
 def fetch_rss(since: datetime) -> list[dict]:
@@ -479,6 +698,9 @@ def fetch_rss(since: datetime) -> list[dict]:
             if dt < since:
                 continue
             raw = f"{e.get('title', '')} {e.get('summary', '')}"
+            cves = {m.upper() for m in CVE_RE.findall(raw)}
+            if feed.get("leer_pagina") and e.get("link"):
+                cves |= set(_safe(page_cves, e.get("link"), feed["url"], default=[], name=f"página {feed['nombre']}"))
             items.append({
                 "title": clean(e.get("title", ""), 200),
                 "summary": clean(e.get("summary", "")),
@@ -487,7 +709,7 @@ def fetch_rss(since: datetime) -> list[dict]:
                 "source": feed["nombre"],
                 "type": feed.get("tipo", "noticia"),
                 "lang": feed.get("idioma", "en"),
-                "cves": sorted({m.upper() for m in CVE_RE.findall(raw)}),
+                "cves": sorted(cves),
             })
             n += 1
         log(f"RSS ✓ {feed['nombre']}: {n} entradas recientes")
@@ -754,6 +976,26 @@ def build_daily() -> None:
         e = epss.get(cid)
         r["epss"] = e["epss"] if e else None
         r["epss_percentile"] = e["percentile"] if e else None
+
+    # 3b) CVE.org + CISA Vulnrichment: SSVC y CVSS de respaldo (CNA o CISA) si NVD no lo trae
+    cvelist = _safe(fetch_cvelist, list(recs), default={}, status=status, name="cvelist")
+    for cid, r in recs.items():
+        info = cvelist.get(cid) or {}
+        r["ssvc"] = info.get("ssvc")
+        r["cvss_source"] = "nvd" if r.get("cvss") is not None else None
+        if r.get("cvss") is None:
+            for src in ("cna", "adp"):
+                c = info.get(f"{src}_cvss")
+                if c:
+                    r.update({"cvss": c["score"], "severity": c["severity"], "cvss_version": c["version"],
+                              "vector": c["vector"], "attack_vector": c["attack_vector"] or r.get("attack_vector"),
+                              "cvss_source": src})
+                    break
+
+    # 3c) Exploits verificados (Metasploit, Nuclei, Exploit-DB)
+    exploit_idx = fetch_exploit_indexes(status)
+    for cid, r in recs.items():
+        r["exploits"] = pick_exploits(exploit_idx.get(cid, []))
 
     # 4) GitHub Advisories
     ghsa = _safe(fetch_ghsa, since, default=[], status=status, name="ghsa")

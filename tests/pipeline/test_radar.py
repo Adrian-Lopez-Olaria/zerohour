@@ -315,3 +315,139 @@ def test_slim_cve_prioriza_referencias_accionables(radar):
     assert [r["url"] for r in o["references"][:2]] == ["https://x.com/9", "https://x.com/7"]
     assert len(o["references"]) == 8 and o["references_total"] == 10
     assert "links" not in o and "cpes" not in o
+
+
+# ───────────────────────── CVE.org (cvelistV5) + CISA Vulnrichment ─────────────────────────
+
+def test_cvelist_url_por_bloques(radar):
+    assert radar.cvelist_url("CVE-2026-97229").endswith("/cves/2026/97xxx/CVE-2026-97229.json")
+    assert radar.cvelist_url("CVE-2026-118527").endswith("/cves/2026/118xxx/CVE-2026-118527.json")
+    assert radar.cvelist_url("CVE-2024-1234").endswith("/cves/2024/1xxx/CVE-2024-1234.json")
+
+
+def test_parse_cvelist_registro_real(radar):
+    out = radar.parse_cvelist(load_fixture("cvelist_CVE-2026-97229.json"))
+    assert out["ssvc"]["exploitation"] == "active" and out["ssvc"]["automatable"] == "yes"
+    assert out["ssvc"]["technical_impact"] == "total"
+    assert out["cna_cvss"]["score"] == 10.0 and out["cna_cvss"]["vector"].startswith("CVSS:3.1/")
+
+
+def test_parse_ssvc_valores_hostiles(radar):
+    assert radar.parse_ssvc({"options": [{"Exploitation": "<script>"}]}) is None
+    s = radar.parse_ssvc({"options": [{"Exploitation": "POC"}, {"Automatable": "maybe"}], "version": "2.0.3"})
+    assert s == {"exploitation": "poc", "automatable": None, "technical_impact": None, "version": "2.0.3"}
+
+
+def test_fetch_cvelist_404_es_sin_dato(radar, fake_get):
+    fake_get({"97xxx/CVE-2026-97229": load_fixture("cvelist_CVE-2026-97229.json")})   # el resto → 404
+    out = radar.fetch_cvelist(["CVE-2026-97229", "CVE-2026-118527"])
+    assert set(out) == {"CVE-2026-97229"}
+
+
+# ───────────────────────── exploits verificados ─────────────────────────
+
+def test_index_metasploit_solo_exploits(radar):
+    idx = radar.index_metasploit(load_fixture("metasploit_extracto.json"))
+    assert list(idx) == ["CVE-2026-97229"]                     # el auxiliary del extracto no cuenta
+    e = idx["CVE-2026-97229"][0]
+    assert e["source"] == "metasploit" and e["verified"] is True
+    assert e["url"].startswith("https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/")
+
+
+def test_index_metasploit_ruta_hostil(radar):
+    data = {"x": {"type": "exploit", "path": "../../javascript:alert(1)", "references": ["CVE-2026-1111"]},
+            "y": {"type": "exploit", "path": "/modules/exploits/a.rb", "references": ["CVE-2026-2222", "<img>", "CVE-1"]}}
+    idx = radar.index_metasploit(data)
+    assert list(idx) == ["CVE-2026-2222"]
+
+
+def test_index_nuclei_real_y_hostil(radar):
+    text = load_fixture("nuclei_extracto.jsonl") + '{"ID":"CVE-2026-3333","file_path":"javascript:alert(1)"}\nbasura\n'
+    idx = radar.index_nuclei(text)
+    assert len(idx) == 3 and "CVE-2026-3333" not in idx
+    e = next(iter(idx.values()))[0]
+    assert e["source"] == "nuclei" and e["url"].startswith("https://github.com/projectdiscovery/nuclei-templates/blob/main/")
+
+
+def test_index_exploitdb_verified(radar):
+    idx = radar.index_exploitdb(load_fixture("exploitdb_extracto.csv"))
+    assert idx["CVE-2009-3699"][0] == {"source": "exploitdb", "url": "https://www.exploit-db.com/exploits/16929",
+                                       "name": idx["CVE-2009-3699"][0]["name"], "verified": True}
+    assert idx["CVE-2014-9349"][0]["verified"] is False
+
+
+def test_fuente_de_exploits_caida_no_tumba_el_resto(radar, fake_get, monkeypatch):
+    texts = {radar.NUCLEI_URL: load_fixture("nuclei_extracto.jsonl"), radar.EDB_URL: load_fixture("exploitdb_extracto.csv")}
+
+    def fake_text(url):
+        if url == radar.MSF_URL:
+            raise RuntimeError("HTTP 503")
+        return texts[url]
+    monkeypatch.setattr(radar, "_get_text", fake_text)
+    status = {}
+    idx = radar.fetch_exploit_indexes(status)
+    assert status == {"metasploit": "error: RuntimeError", "nuclei": "ok", "exploitdb": "ok"}
+    assert "CVE-2009-3699" in idx
+
+
+def test_pick_exploits_verificados_primero_sin_duplicados(radar):
+    e = lambda s, v, u: {"source": s, "url": u, "name": "n", "verified": v}  # noqa: E731
+    out = radar.pick_exploits([e("exploitdb", False, "https://a"), e("metasploit", True, "https://b"), e("nuclei", True, "https://b")])
+    assert [x["url"] for x in out] == ["https://b", "https://a"]
+
+
+def test_sanitize_exploits_y_ssvc(radar):
+    h = hostile()
+    h["exploits"] = [{"source": "metasploit", "url": "javascript:x", "name": "a", "verified": True},
+                     {"source": "otro", "url": "https://ok.com", "name": "a"},
+                     {"source": "nuclei", "url": "https://github.com/x.yaml", "name": "<b>" * 100, "verified": "sí"}]
+    h["ssvc"] = {"exploitation": "active", "automatable": "<x>", "technical_impact": "total"}
+    r = radar.sanitize_cve(h)
+    assert [x["source"] for x in r["exploits"]] == ["nuclei"] and r["exploits"][0]["verified"] is False
+    assert r["ssvc"] == {"exploitation": "active", "automatable": None, "technical_impact": "total", "version": None}
+    h2 = hostile(); h2["ssvc"] = {"exploitation": "<script>"}
+    assert radar.sanitize_cve(h2)["ssvc"] is None
+
+
+# ───────────────────────── CERT-EU: CVE desde la página del aviso ─────────────────────────
+
+class _Stream:
+    def __init__(self, body: str):
+        self.body, self.status_code = body.encode(), 200
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def raise_for_status(self): pass
+    def iter_content(self, n): yield from (self.body[i:i + n] for i in range(0, len(self.body), n))
+
+
+def test_page_cves_mismo_dominio(radar, monkeypatch):
+    page = load_fixture("certeu_aviso_2026-019.html")
+    monkeypatch.setattr(radar.HTTP, "get", lambda url, **kw: _Stream(page))
+    feed = "https://cert.europa.eu/publications/security-advisories-rss"
+    assert radar.page_cves("https://cert.europa.eu/publications/security-advisories/2026-019/", feed) == ["CVE-2026-110264"]
+    # Un enlace del RSS a otro dominio (o no http) no se descarga
+    assert radar.page_cves("https://evil.example/aviso", feed) == []
+    assert radar.page_cves("javascript:alert(1)", feed) == []
+
+
+def test_page_cves_tope_de_tamano(radar, monkeypatch):
+    big = "x" * (radar.PAGE_MAX_BYTES + 10) + " CVE-2026-9999 "
+    monkeypatch.setattr(radar.HTTP, "get", lambda url, **kw: _Stream(big))
+    assert radar.page_cves("https://cert.europa.eu/a", "https://cert.europa.eu/rss") == []   # lo que pasa del tope no se lee
+
+
+def test_rss_certeu_real_extrae_cves_de_las_paginas(radar, monkeypatch):
+    rss, page = load_fixture("certeu_rss.xml"), load_fixture("certeu_aviso_2026-019.html")
+
+    class R:
+        def __init__(self, b): self.content, self.status_code = b.encode(), 200
+        def raise_for_status(self): pass
+
+    def get(url, **kw):
+        return _Stream(page) if kw.get("stream") else R(rss if "rss" in url else "")
+    monkeypatch.setattr(radar.HTTP, "get", get)
+    monkeypatch.setitem(radar.CONFIG, "rss", [f for f in radar.CONFIG["rss"] if f["nombre"] == "CERT-EU"])
+    from datetime import datetime, timezone
+    items = radar.fetch_rss(datetime(2026, 1, 1, tzinfo=timezone.utc))
+    assert items and all(i["source"] == "CERT-EU" and i["type"] == "aviso" for i in items)
+    assert all("CVE-2026-110264" in i["cves"] for i in items)    # todas leen la misma página simulada

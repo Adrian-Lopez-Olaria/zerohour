@@ -92,6 +92,16 @@ url = "https://www.incibe.es/incibe-cert/alerta-temprana/avisos-sci/feed"
 tipo = "aviso"
 idioma = "es"
 
+# CERT-EU solo publica avisos que considera graves (señal, no volumen). Su RSS casi nunca
+# trae el CVE: con leer_pagina se descarga la página del aviso (mismo dominio, timeout y
+# tamaño máximo) y se extraen solo los IDs de CVE con una regex.
+[[rss]]
+nombre = "CERT-EU"
+url = "https://cert.europa.eu/publications/security-advisories-rss"
+tipo = "aviso"
+idioma = "en"
+leer_pagina = true
+
 [[rss]]
 nombre = "BleepingComputer"
 url = "https://www.bleepingcomputer.com/feed/"
