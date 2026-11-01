@@ -6,7 +6,7 @@
 import { el, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  SEV, SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, panelHead, emptyBlock, cveHref, isProv, extLink,
+  SEV, SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, panelHead, emptyBlock, cveHref, isProv, extLink, langOf,
 } from './comunes.js';
 import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe } from '../globe.js';
@@ -33,11 +33,12 @@ function countUp(items) {
   requestAnimationFrame(step);
 }
 
-/** Delta frente a la media de los 7 días anteriores a la edición (▲ ámbar sube, ▼ verde baja). */
+/** Delta frente a la media de los 7 días anteriores a la edición (▲ ámbar sube, ▼ verde baja).
+    Sin 7 días completos de histórico no se muestra (ORDENES §1: no inventarlo). */
 function makeDelta(latest, index) {
   const prev = index ? index.days.filter((d) => d.date < latest.date).slice(-7) : [];
   return (value, pick) => {
-    if (!prev.length) return null;
+    if (prev.length < 7) return null;
     const avg = prev.reduce((a, d) => a + pick(d.stats), 0) / prev.length;
     if (!avg) return null;
     const p = Math.round((value - avg) / avg * 100);
@@ -223,7 +224,7 @@ function newsPanel(news) {
   return el('section', { class: 'panel', 'aria-labelledby': 'h-news' }, [
     panelHead('RSS-04', 'Avisos y prensa', shown.length < news.length ? `${shown.length} DE ${news.length}` : String(news.length), 'h-news'),
     el('ul', { class: 'news-list' }, shown.map((n) => el('li',
-      extLink(n.url, { class: 'news-list__a' }, [el('span', { text: n.title }), el('small', { text: n.source })])))),
+      extLink(n.url, { class: 'news-list__a' }, [el('span', { lang: langOf(n.lang), text: n.title }), el('small', { text: n.source })])))),
   ]);
 }
 

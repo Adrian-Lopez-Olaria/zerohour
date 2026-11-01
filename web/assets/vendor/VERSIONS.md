@@ -9,6 +9,8 @@ python scripts/vendor_globe.py --check
 
 ## globe.gl 2.46.2 (incluye three.js r185)
 
+> **Copia modificada.** `globe.gl-2.46.2.zh.min.js` no es el fichero original de npm: lleva el parche descrito en [«Por qué está parcheado»](#por-qué-está-parcheado), aplicado por `scripts/vendor_globe.py`. Se distribuye bajo la misma licencia MIT; se conservan los avisos de copyright (`LICENSE-globe.gl.txt`, `LICENSE-three.js.txt`) y la cabecera original del bundle (`// Version 2.46.2 globe.gl - https://github.com/vasturiano/globe.gl`), intacta debajo de la nota de modificación.
+
 | | |
 |---|---|
 | Paquete | [`globe.gl@2.46.2`](https://www.npmjs.com/package/globe.gl/v/2.46.2) · licencia MIT · publicado el 2026-08-22 |

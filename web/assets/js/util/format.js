@@ -37,7 +37,22 @@ export function parseIso(iso) {
 const fmtLong = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ });
 const fmtHM = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ });
 
+const fmtShort = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', timeZone: TZ });
+const fmtWeek = new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: TZ });
+const fmtYMD = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: TZ });
+
 export const dLong = (iso) => { const t = parseIso(iso); return t == null ? '' : fmtLong.format(t); };
+export const dShort = (iso) => { const t = parseIso(iso); return t == null ? '—' : fmtShort.format(t).replace('/', '.'); };
+export const dWeek = (iso) => { const t = parseIso(iso); return t == null ? '' : fmtWeek.format(t).replace('.', '').toUpperCase(); };
+export const dDay = (iso) => { const t = parseIso(iso); return t == null ? '' : pad(Number(fmtYMD.format(t).slice(8, 10))); };
+
+/** Días naturales desde hoy (hora de Madrid) hasta una fecha AAAA-MM-DD. Negativo si ya pasó; null si no es válida. */
+export function daysFromToday(ymd, now = Date.now()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+  const today = fmtYMD.format(now);
+  const toUtc = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+  return Math.round((toUtc(ymd) - toUtc(today)) / 86400000);
+}
 export const tLocal = (iso) => { const t = parseIso(iso); return t == null ? '--:--' : fmtHM.format(t); };
 export const tUTC = (iso) => { const t = parseIso(iso); return t == null ? '--:--' : new Date(t).toISOString().slice(11, 16); };
 export const hmUTC = (date) => `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;

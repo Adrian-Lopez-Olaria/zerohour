@@ -1,25 +1,45 @@
 /* =============================================================================
    main.js · arranque
-   Carga los datos, arranca relojes y barra de fuentes, inicializa el enrutado y
-   el refresco del mapa. Listado, detalle e histórico se conectan en la fase 5.
+   Carga los datos, arranca relojes y barra de fuentes, inicializa el enrutado
+   (briefing, listado, detalle, histórico) y el refresco del mapa.
    En desarrollo, ?fixtures=<nombre> carga un bundle de prueba (lo sirve
    dev_server; en producción esa ruta no existe).
    ============================================================================= */
-import { loadData, startMapRefresh } from './data.js';
+import { loadData, loadDay, startMapRefresh } from './data.js';
 import { initRouter } from './router.js';
 import { el, clear } from './util/dom.js';
 import { parseIso } from './util/format.js';
 import { icon } from './render/comunes.js';
 import { startClocks, renderSrcbar, renderSourceAlerts } from './render/cabecera.js';
 import { renderBriefing, refreshMapPanels } from './render/briefing.js';
+import { renderListado, requestSearchFocus } from './render/listado.js';
+import { renderDetalle } from './render/detalle.js';
+import { renderHistorico } from './render/historico.js';
 
 const params = new URLSearchParams(location.search);
 const fixture = params.get('fixtures');
 const SOURCE = fixture ? { bundle: `fixtures/${encodeURIComponent(fixture)}.json` } : { base: 'data/' };
+const DAY_BASE = fixture ? 'fixtures/' : 'data/';   // fixtures/days/… solo existe en desarrollo
 
-const state = { data: null, map: null };
+/* state.edition: la edición que muestran listado y detalle (hoy o un día del histórico) */
+const state = { data: null, map: null, edition: null, today: null };
 let tBase = null;          // instante de latest.generated_at (base del reloj T+)
 let briefingDone = false;
+let route = () => {};
+
+const view = (name) => document.getElementById('view-' + name);
+const ctx = {
+  state,
+  /** Abre en el listado la edición de un día (descarga data/days/AAAA-MM-DD.json si no es hoy). */
+  async openDay(date) {
+    state.edition = date === state.today.date ? state.today : { date, today: false, data: await loadDay(date, { base: DAY_BASE }) };
+    if (location.hash === '#listado') route(); else location.hash = '#listado';
+  },
+  backToToday() {
+    state.edition = state.today;
+    route();
+  },
+};
 
 function showError(err) {
   const box = document.getElementById('alerts');
@@ -57,11 +77,28 @@ async function boot() {
 
   state.data = data;
   state.map = data.map;
+  state.today = { date: data.latest.date, today: true, data: data.latest };
+  state.edition = state.today;
   tBase = parseIso(data.latest.generated_at);
   renderSrcbar(data.latest, state.map);
   renderSourceAlerts(data.latest);
 
-  initRouter({ briefing: showBriefing });
+  route = initRouter({
+    briefing: showBriefing,
+    listado: () => renderListado(view('listado'), ctx),
+    detalle: (id) => renderDetalle(view('detalle'), ctx, id),
+    historico: () => renderHistorico(view('historico'), ctx),
+  });
+
+  // Atajo "/": lleva al buscador del listado desde cualquier pantalla (guía §8)
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))) return;
+    e.preventDefault();
+    requestSearchFocus();
+    if (location.hash !== '#listado') location.hash = '#listado';
+  });
 
   if (data.map && !fixture) {
     startMapRefresh((m) => {

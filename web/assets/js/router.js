@@ -15,8 +15,9 @@ export function parseHash(hash) {
   h = h.trim();
   if (!h) return { view: 'briefing' };
   if (h === 'cve' || h.startsWith('cve/')) {
+    // "#cve" a secas → id undefined (abre la nº 1); un ID con formato inválido → null
     const id = h.slice(4);
-    return { view: 'detalle', id: ID_RE.test(id) ? id : null };
+    return { view: 'detalle', id: id === '' ? undefined : ID_RE.test(id) ? id : null };
   }
   return VIEWS.includes(h) ? { view: h } : { view: 'briefing' };
 }
@@ -27,6 +28,7 @@ export function parseHash(hash) {
  * Devuelve la función route() por si hace falta forzar un re-render.
  */
 export function initRouter(handlers = {}) {
+  let first = true;
   function route() {
     const { view, id } = parseHash(location.hash);
 
@@ -43,6 +45,15 @@ export function initRouter(handlers = {}) {
       try { fn(id); } catch (e) { console.error(`[router] fallo al pintar "${view}":`, e); }
     }
     window.scrollTo(0, 0);
+
+    // Accesibilidad: al cambiar de pantalla, el foco va al titular de la vista nueva
+    // (salvo en la carga inicial o si la vista ya colocó el foco dentro de sí misma).
+    const sec = document.getElementById('view-' + view);
+    if (!first && sec && !sec.contains(document.activeElement)) {
+      const h = sec.querySelector('h1');
+      if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
+    }
+    first = false;
   }
 
   window.addEventListener('hashchange', route);

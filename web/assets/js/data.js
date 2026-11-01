@@ -77,9 +77,9 @@ function normalizeCve(c, w) {
     description: str(c.description),
     cvss: num(c.cvss),
     severity: c.severity ? String(c.severity).toUpperCase() : null,
-    cvss_version: c.cvss_version ?? null,
-    vector: c.vector ?? null,
-    attack_vector: c.attack_vector ?? null,
+    cvss_version: c.cvss_version ? str(c.cvss_version) : null,
+    vector: c.vector ? str(c.vector) : null,
+    attack_vector: c.attack_vector ? str(c.attack_vector) : null,
     epss: num(c.epss),
     epss_percentile: num(c.epss_percentile),
     kev,
@@ -87,7 +87,8 @@ function normalizeCve(c, w) {
     news: arr(c.news).map((n) => ({ title: str(n.title), url: str(n.url), source: str(n.source), type: str(n.type), lang: str(n.lang), date: n.date ?? null })),
     ghsa: arr(c.ghsa),
     cwe: arr(c.cwe).map(str),
-    references: arr(c.references),
+    references: arr(c.references).map(normalizeRef).filter((r) => r.url),
+    exploit_refs: arr(c.exploit_refs).map(normalizeRef).filter((r) => r.url),
     tags: arr(c.tags).map(str),
     stack: arr(c.stack).map(str),
     score: num(c.score) ?? 0,
@@ -97,9 +98,18 @@ function normalizeCve(c, w) {
     },
     old_cve: c.old_cve === true,
   };
-  // El pipeline aportará score_breakdown (fase 6); mientras tanto se deriva de los pesos
-  out.score_breakdown = (c.score_breakdown && typeof c.score_breakdown === 'object') ? c.score_breakdown : deriveBreakdown(out, w);
+  // Si el JSON trae score_breakdown se usa tal cual; si no (ediciones antiguas), se deriva con
+  // los pesos, replicando la fórmula de radar.py (comprobado: cuadra con el score en 453 de 453).
+  const fromPipeline = !!(c.score_breakdown && typeof c.score_breakdown === 'object');
+  out.score_breakdown = fromPipeline ? c.score_breakdown : deriveBreakdown(out, w);
+  out.breakdown_source = fromPipeline ? 'pipeline' : 'derivado';
   return out;
+}
+
+/** Referencia de NVD: {url, tags}. También acepta una URL suelta. */
+function normalizeRef(r) {
+  if (typeof r === 'string') return { url: r, tags: [] };
+  return { url: str(r && r.url), tags: arr(r && r.tags).map(str) };
 }
 
 function normalizeStats(s) {
@@ -155,7 +165,12 @@ export function normalizeMap(raw) {
 
 export function normalizeIndex(raw) {
   raw = raw || {};
-  const days = arr(raw.days).map((d) => ({ date: str(d.date), stats: normalizeStats(d.stats), top: arr(d.top) }));
+  // top de cada día: [{id, score}] (el pipeline guarda el top 3)
+  const days = arr(raw.days).map((d) => ({
+    date: str(d.date),
+    stats: normalizeStats(d.stats),
+    top: arr(d.top).map((t) => (typeof t === 'string' ? { id: t, score: null } : { id: str(t && t.id), score: num(t && t.score) })).filter((t) => t.id),
+  })).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.date));
   // El pipeline los da en orden descendente; la web los quiere ascendentes (antiguo → reciente)
   days.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   return { updated_at: raw.updated_at ?? null, days };

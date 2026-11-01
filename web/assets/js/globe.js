@@ -1,8 +1,9 @@
 /* =============================================================================
    globe.js · globo 3D (globe.gl autoalojado) con respaldo de vista plana en SVG
-   - La librería se carga en diferido (tras el evento load y en un hueco libre del
-     hilo principal) con import() dinámico: no es un sink de Trusted Types, así
-     que no hace falta ninguna política; solo script-src 'self'.
+   - La librería se carga en diferido (tras el evento load, en un hueco libre del
+     hilo principal y cuando la zona del globo está en pantalla) con import()
+     dinámico: no es un sink de Trusted Types, así que no hace falta ninguna
+     política; solo script-src 'self'.
    - Sin WebGL, o si la librería/tierra no llegan en 9 s → proyección plana.
    - Se pausa cuando no está en pantalla (vista oculta, scroll o pestaña).
    ============================================================================= */
@@ -202,6 +203,9 @@ async function mount() {
     const [, land] = await withTimeout(Promise.all([import(LIB_URL), loadLand()]), TIMEOUT_MS);
     S.land = land;
     if (!S.zone.isConnected) return;
+    // Crear el globo es lo caro (cientos de ms de hilo principal): si mientras se descargaba
+    // el usuario cambió de pantalla, se espera a que la zona vuelva a verse.
+    await new Promise((r) => whenOnScreen(S.zone, r));
     createGlobe();
   } catch (e) {
     console.warn('[zerohour] globo no disponible, se usa la vista plana:', e && e.message);
@@ -210,18 +214,30 @@ async function mount() {
   }
 }
 
+/** Ejecuta fn la primera vez que el nodo está en pantalla (o a 200 px de entrar). */
+function whenOnScreen(node, fn) {
+  const io = new IntersectionObserver((es) => {
+    if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(); }
+  }, { rootMargin: '200px 0px' });
+  io.observe(node);
+}
+
 /**
  * Programa el montaje del globo para después del contenido principal: tras el evento
- * load y en el primer hueco libre (requestIdleCallback), para no competir con el LCP.
+ * load, en el primer hueco libre (requestIdleCallback) y solo cuando la zona se ve.
+ * Así no compite con el LCP, no bloquea otra pantalla si el usuario ya se fue del
+ * briefing (montarlo cuesta cientos de ms) y en móvil, donde queda bajo el top 10,
+ * no se descarga hasta que se baja hasta él.
  */
 export function scheduleGlobe(zone, map) {
   if (S.scheduled || !zone) return;
   S.scheduled = true;
   S.zone = zone;
   S.map = map;
+  const start = () => whenOnScreen(zone, () => { mount(); });
   const go = () => {
-    if ('requestIdleCallback' in window) requestIdleCallback(() => { mount(); }, { timeout: 2000 });
-    else setTimeout(() => { mount(); }, 200);
+    if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 2000 });
+    else setTimeout(start, 200);
   };
   if (document.readyState === 'complete') go();
   else addEventListener('load', go, { once: true });

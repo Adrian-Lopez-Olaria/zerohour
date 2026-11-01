@@ -5,7 +5,7 @@
    ============================================================================= */
 import { el, svg, safeUrl } from '../util/dom.js';
 import { sevKey, ID_RE } from '../data.js';
-import { clamp, scoreVar } from '../util/format.js';
+import { clamp, scoreVar, dLong } from '../util/format.js';
 
 export const SEV = Object.freeze({
   CRITICAL: { label: 'CRÍTICA', bars: 4 },
@@ -101,6 +101,33 @@ export function emptyBlock(title, text, tight = false) {
     tight ? null : icon('empty', 'empty__glyph'),
     title ? el('h3', { text: title }) : null,
     el('p', { text }),
+  ]);
+}
+
+const AV_LABEL = { NETWORK: 'RED', ADJACENT_NETWORK: 'ADYACENTE', ADJACENT: 'ADYACENTE', LOCAL: 'LOCAL', PHYSICAL: 'FÍSICO' };
+/** Vector de ataque de NVD → etiqueta corta (sin dato: PENDIENTE). */
+export const avLabel = (v) => AV_LABEL[String(v || '').toUpperCase()] || 'PENDIENTE';
+
+const LANG_RE = /^[a-z]{2,3}(-[A-Za-z]{2})?$/;
+/** Valor seguro para el atributo lang (viene de los datos): solo códigos tipo "es" o "en-GB". */
+export const langOf = (l) => (LANG_RE.test(String(l || '')) ? String(l) : null);
+
+/** "host/ruta" legible de una URL http(s) ya validada; '' si no lo es. */
+export function hostPath(url) {
+  const safe = safeUrl(url);
+  if (!safe) return '';
+  const u = new URL(safe);
+  const p = (u.pathname + u.search).replace(/\/$/, '');
+  return u.host + (p.length > 48 ? p.slice(0, 47) + '…' : p);
+}
+
+/** Aviso de que se está viendo una edición pasada, con vuelta a hoy. */
+export function editionBanner(edition, onBack) {
+  if (!edition || edition.today) return null;
+  return el('div', { class: 'edition', role: 'status' }, [
+    el('b', { text: 'EDICIÓN HISTÓRICA' }),
+    el('span', { text: dLong(edition.date) }),
+    el('button', { type: 'button', class: 'btn btn--ghost edition__back', text: 'VOLVER A HOY', on: { click: onBack } }),
   ]);
 }
 
