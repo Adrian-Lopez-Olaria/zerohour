@@ -1,0 +1,4 @@
+# Ficheros de terceros con hash fijado en VERSIONS.md: sin conversión de finales de línea,
+# para que el SHA-256 del repo, del despliegue y de una copia en Windows sea el mismo.
+web/assets/vendor/* -text
+web/assets/geo/* -text

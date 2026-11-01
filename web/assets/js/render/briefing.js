@@ -9,6 +9,7 @@ import {
   SEV, SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, panelHead, emptyBlock, cveHref, isProv, extLink,
 } from './comunes.js';
 import { renderRadar } from '../radar.js';
+import { scheduleGlobe, updateGlobe } from '../globe.js';
 import { nf, pad, fmtCvss, fmtPctl, dLong, tLocal, tUTC, scoreVar, prefersReducedMotion } from '../util/format.js';
 
 const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 137: 'NETBIOS', 443: 'HTTPS', 445: 'SMB', 2222: 'SSH-ALT', 2323: 'TELNET-ALT', 3306: 'MYSQL', 3389: 'RDP', 5060: 'SIP', 8000: 'HTTP-ALT', 8080: 'HTTP-ALT', 9000: 'HTTP-ALT' };
@@ -103,7 +104,7 @@ function copyBlock(latest, index, top, empty, counters) {
   ]);
 }
 
-/* ───────── zona del globo (contenedor + HUD; el globo llega en la fase 4) ───────── */
+/* ───────── zona del globo (contenedor + HUD; globe.js monta el globo o la vista plana) ───────── */
 
 function globeSummary(map) {
   if (!map || !map.points.length) return 'Mapa de origen de ataques no disponible en esta lectura.';
@@ -128,14 +129,16 @@ function globeHud(map) {
         el('span', [el('i', { class: 'hud-dot hud-dot--mid' }), '1.000–2.999']),
         el('span', [el('i', { class: 'hud-dot hud-dot--lo' }), '< 1.000']),
       ]),
+      el('span', { class: 'hud-drag', text: prefersReducedMotion() ? 'ARRASTRA PARA GIRAR' : 'ARRASTRA PARA GIRAR · AUTOGIRO 0,35' }),
     ]),
     el('div', { class: 'hud-ticks' }),
   ]);
 }
 
 function globeZone(map) {
-  return el('div', { class: 'globe-zone', id: 'globe-zone' }, [
-    el('div', { class: 'globe', id: 'globe', role: 'img', 'aria-label': globeSummary(map) }),
+  // El texto alternativo va en la zona (no en #globe) para que siga ahí en la vista plana
+  return el('div', { class: 'globe-zone', id: 'globe-zone', role: 'img', 'aria-label': globeSummary(map) }, [
+    el('div', { class: 'globe', id: 'globe' }),
     el('div', { class: 'globe-fallback', id: 'globe-flat', 'aria-hidden': 'true' }),
     globeHud(map),
   ]);
@@ -249,6 +252,7 @@ export function renderBriefing(root, state) {
 
   if (animate) countUp(counters);
   animated = true;
+  scheduleGlobe(document.getElementById('globe-zone'), map);
 }
 
 /** Tras refrescar map.json: re-pinta solo lo que depende del mapa (sin animaciones ni perder el foco del resto). */
@@ -258,6 +262,7 @@ export function refreshMapPanels(state) {
   swap('panel-cty', countriesPanel(map));
   swap('panel-ports', portsPanel(map));
   swap('globe-hud', globeHud(map));
-  const g = document.getElementById('globe');
-  if (g) g.setAttribute('aria-label', globeSummary(map));
+  const zone = document.getElementById('globe-zone');
+  if (zone) zone.setAttribute('aria-label', globeSummary(map));
+  updateGlobe(map);
 }

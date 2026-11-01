@@ -39,9 +39,33 @@
 .kpi__seg--MEDIUM { background: var(--sev-medium); } .kpi__seg--LOW { background: var(--sev-low); }
 .kpi__seg--UNSCORED { background: var(--sev-unscored); }
 
-/* ---------- Zona del globo (el globo se monta en la fase 4) ---------- */
+/* ---------- Zona del globo (globe.js monta el globo 3D o la vista plana) ---------- */
 .globe-zone { grid-area: globe; position: relative; min-height: 640px; }
-.globe { position: absolute; inset: 0; }
+.globe { position: absolute; inset: 0; cursor: grab; }
+.globe:active { cursor: grabbing; }
+.globe canvas { outline: none; }
+.globe-zone:not(.is-globe) .hud-drag { display: none; }
+.globe-zone.is-flat .globe-fallback { display: block; }
+.globe-zone.is-flat .globe { display: none; }
+.globe-fallback svg { width: 100%; height: 100%; }
+.globe-fallback .note { position: absolute; top: -26px; right: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 9.5px; letter-spacing: .12em; color: var(--warn); }
+.ff-land { fill: rgba(159, 217, 196, .42); }
+.ff-dot { transform-box: fill-box; transform-origin: center; }
+.ff-ring { transform-box: fill-box; transform-origin: center; fill: none; animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: var(--d, 0s); }
+.ff-dot.ff--hi { fill: var(--sev-critical); } .ff-dot.ff--mid { fill: var(--warn); } .ff-dot.ff--lo { fill: var(--ok); }
+.ff-ring.ff--hi { stroke: var(--sev-critical); } .ff-ring.ff--mid { stroke: var(--warn); } .ff-ring.ff--lo { stroke: var(--ok); }
+
+/* Marcador de ataque sobre el globo (capa htmlElementsData de globe.gl) */
+.gm { position: relative; width: 0; height: 0; pointer-events: none; }
+.gm--hi { --c: var(--sev-critical); } .gm--mid { --c: var(--warn); } .gm--lo { --c: var(--ok); }
+.gm__dot { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; background: var(--c); box-shadow: 0 0 calc(var(--s) * 1.4) var(--c); animation: gm-in 700ms var(--ease-out) both; animation-delay: var(--d); }
+.gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; border: 1px solid var(--c); animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: calc(var(--d) + 700ms); opacity: 0; }
+.gm__ring--2 { animation-delay: calc(var(--d) + 1800ms); }
+.gm__lbl { position: absolute; left: calc(var(--s) / 2 + 6px); top: -7px; white-space: nowrap; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 9.5px; letter-spacing: .1em; color: var(--text-1); text-shadow: 0 0 4px var(--bg-0), 0 0 2px var(--bg-0); animation: gm-in 700ms var(--ease-out) both; animation-delay: var(--d); }
+.gm__lbl em { font-style: normal; color: var(--c); }
+@keyframes gm-in { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.5); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes gm-ring { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .gm__ring, .ff-ring { display: none; } }
 .globe-hud { position: absolute; inset: 0; pointer-events: none; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 9.5px; letter-spacing: .14em; color: var(--text-3); text-transform: uppercase; }
 .globe-hud > * { position: absolute; }
 .hud-tl { top: 6px; left: 0; display: grid; gap: 4px; }
