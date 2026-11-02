@@ -116,7 +116,7 @@ Crea `netlify.toml` en la raíz:
 - **`SECURITY.md`** con la política de reporte de vulnerabilidades.
 - **`LICENSE`:** recomiéndame una (MIT, por ejemplo).
 - **Avisos legales en el pie:**
-  - Atribución de las fuentes (NVD, CISA KEV, FIRST EPSS, GitHub Advisories, INCIBE-CERT, SANS ISC, ip-api).
+  - Atribución de las fuentes (NVD, CVE.org/CISA Vulnrichment, CISA KEV, FIRST EPSS, GitHub Advisories, Metasploit, Nuclei, Exploit-DB, PoC-in-GitHub, INCIBE-CERT, CERT-EU, SANS ISC y DB-IP Lite (esta última con la atribución CC BY 4.0 que exige su licencia)).
   - La frase que exigen las condiciones de uso de NVD: *"This product uses the NVD API but is not endorsed or certified by the NVD."*
 
 ---

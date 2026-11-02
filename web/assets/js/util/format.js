@@ -22,6 +22,7 @@ export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 /* ───────── bandas del score ZEROHOUR (marcas 40 / 70 / 85 de la guía) ───────── */
 export const scoreBand = (s) => (s >= 85 ? 'critical' : s >= 70 ? 'high' : s >= 40 ? 'medium' : 'low');
 export const scoreVar = (s) => `var(--sev-${scoreBand(s)})`;
+export const verdictBand = (s) => (s >= 85 ? 3 : s >= 70 ? 2 : s >= 40 ? 1 : 0);
 export const verdict = (s) => (s >= 85 ? 'ACTUAR HOY' : s >= 70 ? 'ESTA SEMANA' : s >= 40 ? 'PLANIFICAR' : 'VIGILAR');
 
 /* ───────── fechas ───────── */

@@ -5,7 +5,7 @@
    ============================================================================= */
 import { el, svg, safeUrl } from '../util/dom.js';
 import { sevKey, ID_RE } from '../data.js';
-import { clamp, scoreVar, dLong } from '../util/format.js';
+import { clamp, scoreVar, dLong, verdictBand } from '../util/format.js';
 
 export const SEV = Object.freeze({
   CRITICAL: { label: 'CRÍTICA', bars: 4 },
@@ -56,6 +56,11 @@ export function icon(name, cls) {
 /** Enlace interno a la ficha; null si el ID no cumple ^CVE-\d{4}-\d{4,7}$. */
 export const cveHref = (id) => (ID_RE.test(String(id)) ? '#cve/' + id : null);
 export const isProv = (c) => c.cvss == null;
+
+/** Orden de urgencia (= rank_key de radar.py): primero el veredicto, que puede venir de un mínimo,
+    y dentro de cada veredicto la suma real de filas: el mínimo no adelanta a quien tiene más mérito. */
+export const byUrgency = (a, b) => verdictBand(b.score) - verdictBand(a.score) || b.rows_sum - a.rows_sum
+  || (b.cvss ?? -1) - (a.cvss ?? -1) || a.id.localeCompare(b.id);
 
 /** Etiqueta de severidad: barras 1–4 + texto (sin puntuar = barras huecas). */
 export function sevTag(severity) {

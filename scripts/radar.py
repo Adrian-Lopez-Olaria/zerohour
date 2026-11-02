@@ -802,14 +802,15 @@ def _breakdown_raw(rec: dict) -> dict[str, float]:
 
 
 def score_floor(rec: dict) -> dict | None:
-    """Mínimo que corresponde a la CVE (o None): explotada → 70; explotada y en tu stack o con
-    ransomware → 85 (config: [puntuacion.minimos])."""
+    """Mínimo que corresponde a la CVE (o None): explotada → 70; explotada y además en tu stack,
+    con ransomware o con exploit verificado → 85 (config: [puntuacion.minimos])."""
     ex = exploitation(rec)
     if not ex:
         return None
     m = CONFIG["puntuacion"].get("minimos", {})
     agg = [k for k, on in (("stack", bool(rec.get("stack"))),
-                           ("ransomware", bool((rec.get("kev") or {}).get("ransomware")))) if on]
+                           ("ransomware", bool((rec.get("kev") or {}).get("ransomware"))),
+                           ("exploit", has_verified_exploit(rec))) if on]
     value = (m.get("explotada_critica") if agg else None) or m.get("explotada")
     return {"value": int(value), "exploited_by": ex, "aggravating": agg} if value else None
 
@@ -828,6 +829,25 @@ def breakdown(rec: dict) -> dict:
     if f and _round_half_up(sum(b.values())) < f["value"]:
         b["floor"] = f
     return b
+
+
+# Tramos de veredicto de la guía de estilo (los mismos que verdict() en la web)
+VERDICT_BANDS = (85, 70, 40)   # ACTUAR HOY · ESTA SEMANA · PLANIFICAR · (por debajo) VIGILAR
+
+
+def verdict_band(s: float) -> int:
+    return sum(1 for b in VERDICT_BANDS if s >= b)        # 3, 2, 1 o 0
+
+
+def rows_sum(rec: dict) -> float:
+    """Suma real de las filas del desglose, sin el mínimo."""
+    return sum(v for k, v in (rec.get("score_breakdown") or breakdown(rec)).items() if k != "floor")
+
+
+def rank_key(rec: dict) -> tuple:
+    """Orden del informe: primero el veredicto (el mínimo decide la urgencia) y, dentro de cada
+    veredicto, la suma real de filas (el mínimo no adelanta a quien tiene más mérito propio)."""
+    return (verdict_band(rec["score"]), rows_sum(rec), rec.get("cvss") or 0)
 
 
 def score(rec: dict) -> int:
@@ -1091,7 +1111,7 @@ def build_daily() -> None:
     news = [n for n in (sanitize_news(x) for x in news) if n]
     ghsa = [a for a in (sanitize_ghsa(x) for x in ghsa) if a]
 
-    ordered = sorted(recs.values(), key=lambda r: (r["score"], r.get("cvss") or 0), reverse=True)
+    ordered = sorted(recs.values(), key=rank_key, reverse=True)
     new_only = [r for r in ordered if not r.get("old_cve")]
     kev_new = [r for r in ordered if r["id"] in kev_new_ids]
 

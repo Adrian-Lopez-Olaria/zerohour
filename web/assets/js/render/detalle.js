@@ -8,7 +8,7 @@
 import { el, svg, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  chips, sevTag, panelHead, emptyBlock, cveHref, isProv, icon, extLink, hostPath, langOf, editionBanner, who,
+  chips, sevTag, panelHead, emptyBlock, cveHref, isProv, icon, extLink, hostPath, langOf, editionBanner, who, byUrgency,
 } from './comunes.js';
 import {
   nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, scoreBand, scoreVar, verdict, daysFromToday, prefersReducedMotion,
@@ -61,7 +61,7 @@ const REF_PRIORITY = ['Vendor Advisory', 'Patch', 'Mitigation', 'Release Notes',
 
 let sortedCache = { cves: null, list: [] };
 function byScore(cves) {
-  if (sortedCache.cves !== cves) sortedCache = { cves, list: cves.slice().sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)) };
+  if (sortedCache.cves !== cves) sortedCache = { cves, list: cves.slice().sort(byUrgency) };
   return sortedCache.list;
 }
 
@@ -121,7 +121,8 @@ function floorNote(c, keys) {
   if (!f) return null;
   const sum = Math.round(keys.reduce((a, k) => a + (Number(c.score_breakdown[k]) || 0), 0));
   const why = f.exploited_by === 'kev' ? 'está en el catálogo KEV de CISA' : 'CISA la marca como explotada (SSVC «active»)';
-  const agg = f.aggravating.map((a) => (a === 'stack' ? 'afecta a tu stack' : 'se usa en campañas de ransomware'));
+  const AGG = { stack: 'afecta a tu stack', ransomware: 'se usa en campañas de ransomware', exploit: 'tiene un exploit verificado' };
+  const agg = f.aggravating.map((a) => AGG[a]).filter(Boolean);
   return el('p', { class: 'bd-floor', role: 'note' }, [
     el('b', { text: `MÍNIMO POR EXPLOTACIÓN ACTIVA · ${f.value}` }),
     `Las filas suman ${nf(sum)}, pero ${why}${agg.length ? ' y ' + agg.join(' y ') : ''}: una CVE explotada nunca queda por debajo de ${f.value} («${verdict(f.value).toLowerCase()}»).`,

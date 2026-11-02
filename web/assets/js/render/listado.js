@@ -10,14 +10,14 @@
 import { el, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, emptyBlock, cveHref, isProv, icon, avLabel, editionBanner, whoLine,
+  SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, emptyBlock, cveHref, isProv, icon, avLabel, editionBanner, whoLine, byUrgency,
 } from './comunes.js';
 import { nf, fmtCvss, fmtPctl, dLong } from '../util/format.js';
 
 const PAGE = 60;
 const DEBOUNCE_MS = 140;
 const SORTS = {
-  score: (a, b) => b.score - a.score || a.id.localeCompare(b.id),
+  score: byUrgency,
   cvss: (a, b) => (b.cvss ?? -1) - (a.cvss ?? -1) || b.score - a.score,
   epss: (a, b) => (b.epss_percentile ?? -1) - (a.epss_percentile ?? -1) || b.score - a.score,
 };

@@ -116,15 +116,16 @@ function normalizeCve(c, w) {
     out.score_floor = null;
   }
   out.breakdown_source = fromPipeline ? 'pipeline' : 'derivado';
+  out.rows_sum = Object.values(out.score_breakdown).reduce((a, v) => a + (Number(v) || 0), 0);   // sin el mínimo
   return out;
 }
 
-/** Mínimo de puntuación aplicado por el pipeline: {value, exploited_by: kev|ssvc, aggravating: [stack|ransomware]}. */
+/** Mínimo de puntuación aplicado por el pipeline: {value, exploited_by: kev|ssvc, aggravating: [stack|ransomware|exploit]}. */
 function normalizeFloor(f) {
   if (!f || typeof f !== 'object') return null;
   const value = num(f.value);
   if (value == null || value < 0 || value > 100 || !['kev', 'ssvc'].includes(f.exploited_by)) return null;
-  return { value, exploited_by: f.exploited_by, aggravating: arr(f.aggravating).filter((a) => a === 'stack' || a === 'ransomware') };
+  return { value, exploited_by: f.exploited_by, aggravating: arr(f.aggravating).filter((a) => ['stack', 'ransomware', 'exploit'].includes(a)) };
 }
 
 /** Referencia de NVD: {url, tags}. También acepta una URL suelta. */

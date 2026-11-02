@@ -297,6 +297,53 @@ def test_minimo_ssvc_active_70(radar):
     assert radar.score(r) == 70 and radar.breakdown(r)["floor"]["exploited_by"] == "ssvc"
 
 
+VER = {"source": "metasploit", "url": "https://x", "name": "m", "verified": True}
+
+
+def test_minimo_kev_mas_exploit_verificado_85(radar):
+    r = c(cvss=7.8, epss_percentile=0.97, kev=KEV, exploits=[VER])     # 23.4 + 19.4 + 25 + 15 = 82.8 → 85
+    assert radar.score(r) == 85
+    assert radar.breakdown(r)["floor"] == {"value": 85, "exploited_by": "kev", "aggravating": ["exploit"]}
+
+
+def test_exploit_sin_verificar_no_agrava(radar):
+    edb = {"source": "exploitdb", "url": "https://z", "name": "e", "verified": False}
+    r = c(cvss=5.0, kev=KEV, exploits=[edb], poc=[{"url": "https://y"}])
+    assert radar.score(r) == 70 and radar.breakdown(r)["floor"]["aggravating"] == []
+
+
+def test_varios_agravantes_constan_todos(radar):
+    r = c(cvss=5.0, kev={"ransomware": True}, stack=["x"], exploits=[VER])
+    assert radar.breakdown(r)["floor"]["aggravating"] == ["stack", "ransomware", "exploit"]
+
+
+def _ranked(radar, recs):
+    for r in recs.values():
+        r["score"], r["score_breakdown"] = radar.score(r), radar.breakdown(r)
+    return [k for k, _ in sorted(recs.items(), key=lambda kv: radar.rank_key(kv[1]), reverse=True)]
+
+
+def test_orden_por_veredicto_y_suma_real_de_filas(radar):
+    """El top del 31-10: GitLab (90), Linux (83→85) y VMware ESXi (49→85), en ese orden."""
+    recs = {
+        "vmware": c(cvss=2.7, epss_percentile=0.53, kev=KEV, stack=["vmware"]),            # filas 49 → 85
+        "cisco": c(cvss=8.6, epss_percentile=0.57, kev=KEV),                                # filas 62 → 70
+        "linux": c(cvss=7.8, epss_percentile=0.97, kev=KEV, exploits=[VER]),                # filas 83 → 85
+        "gitlab": c(cvss=10.0, epss_percentile=0.98, kev=KEV, exploits=[VER]),              # filas 90
+        "sin_explotar": c(cvss=9.8, epss_percentile=0.99, exploits=[VER], stack=["x"]),     # filas 69 → planificar
+    }
+    assert _ranked(radar, recs) == ["gitlab", "linux", "vmware", "cisco", "sin_explotar"]
+    assert [radar.score(recs[k]) for k in ("gitlab", "linux", "vmware")] == [90, 85, 85]
+
+
+def test_el_minimo_no_adelanta_dentro_del_mismo_veredicto(radar):
+    """Con el mismo veredicto, manda la suma real: 72 sin mínimo va antes que 55 subida a 70."""
+    recs = {"subida": c(cvss=7.0, epss_percentile=0.45, kev=KEV),                           # 55 → 70
+            "propia": c(cvss=9.0, epss_percentile=0.9, kev=KEV)}                            # 27 + 18 + 25 = 70
+    recs["propia"]["epss_percentile"] = 1.0                                                 # 27 + 20 + 25 = 72
+    assert _ranked(radar, recs) == ["propia", "subida"]
+
+
 def test_si_ya_supera_el_minimo_no_cambia(radar):
     ver = {"source": "metasploit", "url": "https://x", "name": "m", "verified": True}
     r = c(cvss=10.0, epss_percentile=0.98, kev=KEV, exploits=[ver])  # 30 + 19.6 + 25 + 15 = 89.6

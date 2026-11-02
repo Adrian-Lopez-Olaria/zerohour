@@ -89,7 +89,8 @@ stack = 5                # afecta a tu stack
 # para que la web lo muestre: no es una nota inflada sin explicación.
 [puntuacion.minimos]
 explotada = 70           # KEV o SSVC "active" → al menos "ESTA SEMANA"
-explotada_critica = 85   # explotada y además en tu stack o con ransomware → "ACTUAR HOY"
+explotada_critica = 85   # explotada y además en tu stack, con ransomware o con exploit
+                         # verificado → "ACTUAR HOY"
 
 # Fuentes RSS: avisos y noticias. Se enlazan a las CVE que mencionen.
 [[rss]]
