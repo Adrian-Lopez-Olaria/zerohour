@@ -7,8 +7,13 @@ __pycache__/
 .cache/
 .pytest_cache/
 
-# ── Build de Netlify (data/ se copia aquí en el build; no se versiona) ──
+# ── Datos: viven en la rama deploy, nunca en main (fase 6.4) ──
+/data/
 web/data/
+# Carpetas temporales del workflow de publicación
+/_deploy/
+/_prev/
+/_prev-index.json
 
 # ── Node / Playwright (fase 8) ──
 node_modules/

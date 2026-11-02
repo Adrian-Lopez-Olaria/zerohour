@@ -1,3 +1,15 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Radar CVE · recolecta los datos y publica el sitio en la rama `deploy`
+#
+# main  = solo código (sin datos: su historial no crece).
+# deploy = el sitio montado (web/ de main + datos), regenerado entero en cada
+#          publicación como un commit huérfano. Netlify publica esa rama.
+#
+# Dos jobs con permisos separados:
+#   recolectar · contents: read  · instala dependencias y procesa datos de terceros
+#   publicar   · contents: write · solo git y biblioteca estándar; el único que escribe,
+#                                  y solo en la rama deploy (force-push), nunca en main
+# ─────────────────────────────────────────────────────────────────────────────
 name: Radar CVE
 
 on:
@@ -6,64 +18,172 @@ on:
     - cron: "17 5 * * *"
     # Mapa de ataques: cada 3 horas
     - cron: "41 */3 * * *"
+  # Cambios de código en main: se regenera deploy con los datos que ya había
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "netlify.toml"
+      - "scripts/montar_deploy.py"
+      - "scripts/publicar_deploy.sh"
+      - "scripts/validar_datos.py"
+      - ".github/workflows/radar.yml"
   workflow_dispatch:
     inputs:
       mode:
         description: "Qué ejecutar"
         type: choice
-        options: [all, daily, map]
+        options: [all, daily, map, deploy]
         default: all
 
-permissions:
-  contents: write   # para guardar los JSON en el repo
-  models: read      # para el resumen con IA (GitHub Models), si lo activas
+permissions: {}          # nada por defecto: cada job pide lo justo
 
 concurrency:
-  group: radar-cve
+  group: radar-cve       # un solo run a la vez: nadie pisa la rama deploy de otro
   cancel-in-progress: false
 
 jobs:
-  radar:
+  recolectar:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false     # el código de pip no puede leer el token del disco
+
+      - name: Elegir modo
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          case "$EVENT" in
+            workflow_dispatch) mode="$INPUT_MODE" ;;
+            push)              mode="deploy" ;;
+            schedule)          if [ "$SCHEDULE" = "17 5 * * *" ]; then mode="daily"; else mode="map"; fi ;;
+            *)                 echo "Evento no previsto: $EVENT"; exit 1 ;;
+          esac
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+          echo "Modo: $mode"
+
+      # El histórico de 90 días vive en la rama deploy: se recupera de ahí antes de recolectar
+      - name: Recuperar los datos publicados (rama deploy)
+        id: prev
+        continue-on-error: true          # la primera vez la rama aún no existe
+        uses: actions/checkout@v4
+        with:
+          ref: deploy
+          path: _prev
+          persist-credentials: false
+          sparse-checkout: web/data
+
+      - name: Preparar data/ con lo publicado
+        run: |
+          mkdir -p data
+          if [ -d _prev/web/data ]; then
+            cp -r _prev/web/data/. data/
+            cp _prev/web/data/index.json _prev-index.json 2>/dev/null || true
+            echo "Datos previos: $(ls data/days 2>/dev/null | wc -l) días en el histórico"
+          else
+            echo "Sin rama deploy todavía: primera publicación"
+          fi
 
       - uses: actions/setup-python@v5
+        if: steps.mode.outputs.mode != 'deploy'
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Instalar dependencias
+        if: steps.mode.outputs.mode != 'deploy'
         run: pip install -r requirements.txt
 
-      - name: Elegir modo
-        id: mode
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "17 5 * * *" ]; then
-            echo "mode=daily" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=map" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Caché de la base de DB-IP (una descarga al mes)
+        if: steps.mode.outputs.mode == 'map' || steps.mode.outputs.mode == 'all'
+        uses: actions/cache@v4
+        with:
+          path: .cache/geo
+          key: dbip-${{ steps.mode.outputs.month }}
 
       - name: Ejecutar radar (${{ steps.mode.outputs.mode }})
-        run: python scripts/radar.py ${{ steps.mode.outputs.mode }}
+        if: steps.mode.outputs.mode != 'deploy'
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}   # solo lectura (contents: read): consulta de GHSA
+          MODE: ${{ steps.mode.outputs.mode }}
+        run: python scripts/radar.py "$MODE"
 
-      - name: Guardar datos en el repo
-        if: always()
+      - name: Validar los datos (si no cuadran, no se publica nada)
         run: |
-          git config user.name "radar-cve-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then
-            echo "Sin cambios"
-            exit 0
+          if [ -f _prev-index.json ]; then
+            python3 scripts/validar_datos.py data/ --previo _prev-index.json
+          else
+            python3 scripts/validar_datos.py data/
           fi
-          git commit -m "datos: ${{ steps.mode.outputs.mode }} $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git pull --rebase --autostash
-          git push
+
+      - name: Pasar los datos al job que publica
+        uses: actions/upload-artifact@v4
+        with:
+          name: datos
+          path: data/
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Copia de seguridad de los datos (7 días)
+        if: steps.mode.outputs.mode == 'daily' || steps.mode.outputs.mode == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: copia-datos-${{ github.run_id }}
+          path: data/
+          retention-days: 7
+
+  publicar:
+    needs: recolectar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write                    # el único permiso de escritura del workflow
+    env:
+      HAS_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: datos
+          path: data
+
+      - name: Validar otra vez (por si el artifact llegó mal)
+        run: python3 scripts/validar_datos.py data/
+
+      - name: Montar el sitio (web/ de main + datos)
+        run: python3 scripts/montar_deploy.py --web web --data data --out _deploy
+
+      - name: Publicar en la rama deploy (force-push solo a deploy)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MODE: ${{ needs.recolectar.outputs.mode }}
+          SHA: ${{ github.sha }}
+        run: |
+          b64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${b64}"      # Actions enmascara el token, no su base64: se añade a mano
+          export GIT_AUTH_HEADER="AUTHORIZATION: basic ${b64}"
+          bash scripts/publicar_deploy.sh _deploy "https://github.com/${REPO}.git" \
+            "deploy: ${MODE} · $(date -u +'%Y-%m-%d %H:%M') UTC · código ${SHA::7}"
+
+      # Plan B: si Netlify no despliega con los push del bot, se crea el secret
+      # NETLIFY_BUILD_HOOK y este paso le avisa. Sin el secret, no hace nada.
+      - name: Avisar a Netlify por build hook (solo si existe el secret)
+        if: env.HAS_HOOK == 'true'
+        env:
+          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: curl -fsS -X POST -d '{}' "$HOOK" > /dev/null && echo "✓ build hook avisado"
