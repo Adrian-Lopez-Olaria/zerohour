@@ -190,6 +190,9 @@ def campos_security_txt():
 def test_security_txt_rfc9116():
     c = campos_security_txt()
     assert c["Contact"] == ["mailto:zerohour.sec@gmail.com"]
+    assert c["Canonical"] == ["https://zerohour-cve.netlify.app/.well-known/security.txt"]
+    assert c["Policy"] == ["https://github.com/Adrian-Lopez-Olaria/zerohour/security/policy"]
+    assert "PENDIENTE" not in (WEB / ".well-known" / "security.txt").read_text(encoding="utf-8")
     assert len(c["Expires"]) == 1
     exp = dt.datetime.fromisoformat(c["Expires"][0].replace("Z", "+00:00"))
     ahora = dt.datetime.now(dt.timezone.utc)
