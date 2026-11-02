@@ -71,9 +71,15 @@ h1[tabindex="-1"]:focus { outline: none; }
 .chip svg { width: 11px; height: 11px; flex: none; }
 .chip--kev { --chip-bg: var(--sev-critical); --chip-b: var(--sev-critical); --chip-c: #12060A; }
 .chip--ransomware { --chip-bg: rgba(255, 79, 109, .12); --chip-b: var(--sev-critical); --chip-c: var(--sev-critical); border-style: double; border-width: 3px; height: 22px; }
+/* Nuevas (fase 6): ssvc = familia de KEV sin relleno; exploit = relleno ámbar sólido;
+   deteccion = ámbar con relleno tenue; poc queda como solo borde ámbar */
+.chip--ssvc { --chip-b: var(--sev-critical); --chip-c: var(--sev-critical); }
+.chip--exploit { --chip-bg: var(--warn); --chip-b: var(--warn); --chip-c: #1A1206; }
+.chip--deteccion { --chip-bg: rgba(255, 181, 71, .14); --chip-b: var(--warn); --chip-c: var(--warn); }
 .chip--poc { --chip-b: var(--warn); --chip-c: var(--warn); }
 .chip--stack { --chip-bg: var(--text-1); --chip-b: var(--text-1); --chip-c: var(--bg-0); }
 .chip--incibe { --chip-b: var(--warn); --chip-c: var(--warn); border-style: dashed; }
+.chip--certeu { --chip-b: var(--warn); --chip-c: var(--warn); border-style: dashed; }
 .chip--news { --chip-b: var(--line-3); --chip-c: var(--text-2); }
 .chip--remote { --chip-b: var(--text-3); --chip-c: var(--text-2); border-style: dotted; }
 .chip--library { --chip-b: var(--sev-low); --chip-c: var(--sev-low); }

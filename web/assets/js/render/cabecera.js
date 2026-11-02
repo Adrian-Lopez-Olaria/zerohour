@@ -2,11 +2,13 @@
    render/cabecera.js · relojes, barra de fuentes y avisos de fuente caída
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
-import { SOURCE_KEYS, interpretSource } from '../data.js';
+import { SOURCE_KEYS, EXTRA_SOURCE_KEYS, interpretSource } from '../data.js';
 import { TZ, fmtTplus, tUTC, hmUTC, nextBriefingRun, nextMapRun } from '../util/format.js';
 import { icon } from './comunes.js';
 
-const SOURCE_LABEL = { nvd: 'NVD', kev: 'KEV', epss: 'EPSS', ghsa: 'GHSA', poc: 'POC', rss: 'RSS' };
+const SOURCE_LABEL = { nvd: 'NVD', kev: 'KEV', epss: 'EPSS', ghsa: 'GHSA', poc: 'POC', rss: 'RSS', cvelist: 'CVE.ORG', metasploit: 'MSF', nuclei: 'NUCLEI', exploitdb: 'EXPLOIT-DB' };
+/** Fuentes a mostrar: las 6 de siempre y las de la fase 6 si la edición las trae. */
+const sourcesOf = (latest) => [...SOURCE_KEYS, ...EXTRA_SOURCE_KEYS.filter((k) => k in latest.sources_status)];
 
 // Qué se queda cojo cuando cae cada fuente (texto del aviso)
 const SOURCE_IMPACT = {
@@ -15,7 +17,11 @@ const SOURCE_IMPACT = {
   epss: 'El EPSS no suma en el score de esta edición: las puntuaciones salen más bajas.',
   ghsa: 'Pueden faltar avisos de GitHub Advisories en esta edición.',
   poc: 'Puede faltar la marca de exploit público (PoC) en esta edición.',
-  rss: 'Pueden faltar avisos de INCIBE-CERT y noticias en esta edición.',
+  rss: 'Pueden faltar avisos de INCIBE-CERT, CERT-EU y noticias en esta edición.',
+  cvelist: 'Falta el SSVC de CISA y el CVSS de respaldo del CNA: más CVE sin puntuar y sin la señal de explotación de CISA.',
+  metasploit: 'Pueden faltar exploits verificados de Metasploit en esta edición.',
+  nuclei: 'Pueden faltar plantillas de detección de Nuclei en esta edición.',
+  exploitdb: 'Pueden faltar exploits de Exploit-DB en esta edición.',
 };
 
 /**
@@ -59,7 +65,7 @@ export function renderSrcbar(latest, map) {
   const bar = document.getElementById('srcbar');
   if (!bar) return;
   clear(bar);
-  for (const k of SOURCE_KEYS) {
+  for (const k of sourcesOf(latest)) {
     const s = interpretSource(latest.sources_status[k]);
     const cls = s.state === 'error' ? ' src--fail' : s.state === 'partial' ? ' src--warn' : '';
     const title = s.state === 'error' ? s.msg : s.state === 'partial' ? 'Sin estado en esta lectura' : null;
@@ -80,7 +86,7 @@ export function renderSourceAlerts(latest) {
   if (!box) return;
   clear(box);
   const next = hmUTC(nextBriefingRun());
-  for (const k of SOURCE_KEYS) {
+  for (const k of sourcesOf(latest)) {
     const s = interpretSource(latest.sources_status[k]);
     if (s.state !== 'error') continue;
     box.appendChild(el('div', { class: 'alert', role: 'alert' }, [

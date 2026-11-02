@@ -54,7 +54,10 @@ function kpiBlock(st, delta, counters) {
     { k: 'CVE NUEVAS', v: st.new_cves, d: delta(st.new_cves, (s) => s.new_cves), cls: 'kpi--wide', split: st.new_cves > 0 },
     { k: 'CRÍTICAS', v: st.by_severity.CRITICAL, d: `${nf(st.by_severity.UNSCORED)} sin puntuar` },
     { k: 'EXPLOTADAS · KEV', v: st.kev_new, d: delta(st.kev_new, (s) => s.kev_new), cls: st.kev_new ? 'kpi--alert' : '' },
-    { k: 'CON POC', v: st.with_poc, d: delta(st.with_poc, (s) => s.with_poc) },
+    // Desde la fase 6 el contador es el de exploits verificados; las ediciones antiguas siguen con "CON POC"
+    st.with_exploit != null
+      ? { k: 'EXPLOIT VERIFICADO', v: st.with_exploit, d: `${nf(st.with_detection || 0)} con plantilla de detección · ${nf(Math.max(0, st.with_poc - st.with_exploit - (st.with_detection || 0)))} con PoC sin verificar` }
+      : { k: 'CON POC', v: st.with_poc, d: delta(st.with_poc, (s) => s.with_poc) },
     { k: 'AFECTAN A MI STACK', v: st.in_stack, d: `${nf(st.remote)} explotables en remoto`, cls: 'kpi--stack' },
   ];
   return el('dl', { class: 'kpis' }, kpis.map((k) => {
@@ -82,7 +85,7 @@ function copyBlock(latest, index, top, empty, counters) {
     const n = el('span', { class: 'n num', text: nf(st.kev_new) });
     counters.push({ node: n, to: st.kev_new });
     headline = [n, ` explotada${st.kev_new === 1 ? '' : 's'}`, el('br'), 'activamente.',
-      el('small', [el('b', { text: nf(st.in_stack) }), ' EN TU STACK · ', el('b', { text: nf(st.with_poc) }), ' CON EXPLOIT PÚBLICO'])];
+      el('small', [el('b', { text: nf(st.in_stack) }), ' EN TU STACK · ', el('b', { text: nf(st.with_exploit != null ? st.with_exploit : st.with_poc) }), st.with_exploit != null ? ' CON EXPLOIT VERIFICADO' : ' CON EXPLOIT PÚBLICO'])];
   }
   const summary = empty
     ? 'Sin datos de NVD para hoy. El listado y el top se rellenarán solos en la próxima lectura; mientras tanto, el histórico sigue disponible.'

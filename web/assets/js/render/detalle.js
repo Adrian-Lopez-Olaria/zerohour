@@ -121,7 +121,9 @@ function floorNote(c, keys) {
   if (!f) return null;
   const sum = Math.round(keys.reduce((a, k) => a + (Number(c.score_breakdown[k]) || 0), 0));
   const why = f.exploited_by === 'kev' ? 'está en el catálogo KEV de CISA' : 'CISA la marca como explotada (SSVC «active»)';
-  const AGG = { stack: 'afecta a tu stack', ransomware: 'se usa en campañas de ransomware', exploit: 'tiene un exploit verificado' };
+  const weaponized = c.exploits.some((e) => e.verified && e.source !== 'nuclei');
+  const AGG = { stack: 'afecta a tu stack', ransomware: 'se usa en campañas de ransomware',
+    exploit: weaponized ? 'tiene un exploit verificado' : 'tiene una plantilla de detección de Nuclei' };
   const agg = f.aggravating.map((a) => AGG[a]).filter(Boolean);
   return el('p', { class: 'bd-floor', role: 'note' }, [
     el('b', { text: `MÍNIMO POR EXPLOTACIÓN ACTIVA · ${f.value}` }),
@@ -171,6 +173,12 @@ function descPanel(c) {
   ]);
 }
 
+// Si NVD aún no puntúa, el pipeline usa el CVSS del CNA o el de CISA (Vulnrichment), y se dice
+const CVSS_SRC = {
+  cna: { short: 'CNA', title: 'CVSS DEL CNA · PENDIENTE DE NVD', text: 'NVD aún no la ha puntuado; se usa el CVSS que publicó quien asignó la CVE (CNA). Puede cambiar cuando NVD la analice.' },
+  adp: { short: 'CISA', title: 'CVSS DE CISA · PENDIENTE DE NVD', text: 'NVD aún no la ha puntuado; se usa el CVSS que añadió CISA (Vulnrichment). Puede cambiar cuando NVD la analice.' },
+};
+
 function cvssPanel(c) {
   const k = sevKey(c.severity);
   let body;
@@ -193,8 +201,11 @@ function cvssPanel(c) {
     ];
   }
   return el('section', { class: 'panel', 'aria-labelledby': 'h-cvss' }, [
-    panelHead('CVS-03', 'CVSS', c.cvss == null ? 'SIN PUNTUAR' : `v${c.cvss_version || '?'}`, 'h-cvss'),
-    el('div', { class: 'panel__body' }, body),
+    panelHead('CVS-03', 'CVSS', c.cvss == null ? 'SIN PUNTUAR' : `v${c.cvss_version || '?'}${CVSS_SRC[c.cvss_source] ? ' · ' + CVSS_SRC[c.cvss_source].short : ''}`, 'h-cvss'),
+    el('div', { class: 'panel__body' }, [
+      CVSS_SRC[c.cvss_source] ? el('p', { class: 'note unscored-note' }, [el('b', { text: CVSS_SRC[c.cvss_source].title }), CVSS_SRC[c.cvss_source].text]) : null,
+      ...body,
+    ]),
   ]);
 }
 
@@ -233,6 +244,26 @@ function kevPanel(c) {
   ]);
 }
 
+const SSVC_TXT = {
+  exploitation: { none: 'Sin explotación conocida', poc: 'PoC pública', active: 'Explotación activa' },
+  automatable: { yes: 'Sí', no: 'No' },
+  technical_impact: { partial: 'Parcial', total: 'Total' },
+};
+
+/** SSVC de CISA (Vulnrichment): la valoración de CISA sobre explotación, automatización e impacto. */
+function ssvcPanel(c) {
+  if (!c.ssvc) return null;
+  const row = (k, name) => el('div', { class: 'metric' + (['active', 'yes', 'total'].includes(c.ssvc[k]) ? ' hot' : '') }, [
+    el('dt', { text: name }), el('dd', { text: SSVC_TXT[k][c.ssvc[k]] || '—' })]);
+  return el('section', { class: 'panel', 'aria-labelledby': 'h-ssvc' }, [
+    panelHead('SSV-06', 'SSVC · valoración de CISA', 'VULNRICHMENT', 'h-ssvc'),
+    el('div', { class: 'panel__body' }, [
+      el('dl', { class: 'metrics metrics--3' }, [row('exploitation', 'EXPLOTACIÓN'), row('automatable', 'AUTOMATIZABLE'), row('technical_impact', 'IMPACTO TÉCNICO')]),
+      c.ssvc.exploitation === 'active' && !c.kev ? el('p', { class: 'label lk-sub', text: 'CISA LA DA POR EXPLOTADA AUNQUE AÚN NO ESTÁ EN KEV' }) : null,
+    ]),
+  ]);
+}
+
 function linkItem(url, title, meta, extra, ugc) {
   return extLink(url, { class: 'lk' }, [
     el('span', { class: 'lk__t', text: title }),
@@ -241,28 +272,46 @@ function linkItem(url, title, meta, extra, ugc) {
   ], { ugc });
 }
 
+const SRC_NAME = { metasploit: 'METASPLOIT', exploitdb: 'EXPLOIT-DB', nuclei: 'NUCLEI' };
+
+/**
+ * Código de ataque, de más a menos certeza: exploits verificados (Metasploit, Exploit-DB),
+ * plantillas de detección (Nuclei: no son exploits) y PoC sin verificar (con el aviso de las
+ * órdenes). Todo es código de terceros: textos como texto y enlaces con "nofollow ugc".
+ */
 function pocPanel(c) {
+  const verified = c.exploits.filter((e) => e.verified && e.source !== 'nuclei');
+  const templates = c.exploits.filter((e) => e.source === 'nuclei');
+  const edbUnverified = c.exploits.filter((e) => !e.verified && e.source !== 'nuclei');
   const pocs = c.poc.slice().sort((a, b) => b.stars - a.stars);
   const refs = c.exploit_refs;
-  const total = pocs.length + refs.length;
+  const unverified = pocs.length + refs.length + edbUnverified.length;
+  const total = verified.length + templates.length + unverified;
   const body = [];
   if (!total) body.push(el('p', { class: 'muted-line', text: 'Sin exploit público conocido.' }));
-  else {
+  if (verified.length) {
+    body.push(el('p', { class: 'label lk-sub', text: `EXPLOITS VERIFICADOS · ${verified.length}` }));
+    for (const e of verified) body.push(linkItem(e.url, e.name || hostPath(e.url), `${SRC_NAME[e.source]} · VERIFICADO`, null, true));
+  }
+  if (templates.length) {
+    body.push(el('p', { class: 'label lk-sub', text: `PLANTILLAS DE DETECCIÓN · ${templates.length}` }));
+    for (const e of templates) body.push(linkItem(e.url, e.name || hostPath(e.url), 'NUCLEI · PLANTILLA DE DETECCIÓN (NO ES UN EXPLOIT)', null, true));
+  }
+  if (unverified) {
+    body.push(el('p', { class: 'label lk-sub', text: `SIN VERIFICAR · ${unverified}` }));
     // Aviso obligatorio junto a las PoC (ORDENES §3.7)
     body.push(el('p', { class: 'note note--poc', role: 'note' }, [el('b', { text: 'AVISO' }), POC_WARNING]));
+    for (const e of edbUnverified) body.push(linkItem(e.url, e.name || hostPath(e.url), 'EXPLOIT-DB · SIN VERIFICAR', null, true));
     for (const p of pocs.slice(0, MAX_POC)) {
       body.push(linkItem(p.url, p.name || hostPath(p.url) || 'PoC sin nombre', hostPath(p.url) || 'ENLACE DESCARTADO (NO ES HTTP/HTTPS)',
         el('span', { class: 'lk__s' }, [icon('star'), ` ${nf(p.stars)}`]), true));
       if (p.description) body.push(el('p', { class: 'lk__d', text: p.description }));
     }
     if (pocs.length > MAX_POC) body.push(el('p', { class: 'label', text: `Y ${pocs.length - MAX_POC} MÁS EN GITHUB` }));
-    if (refs.length) {
-      body.push(el('p', { class: 'label lk-sub', text: 'REFERENCIAS DE EXPLOIT EN NVD' }));
-      for (const r of refs.slice(0, MAX_POC)) body.push(linkItem(r.url, hostPath(r.url) || 'Referencia descartada', r.tags.join(' · '), null, true));
-    }
+    for (const r of refs.slice(0, MAX_POC)) body.push(linkItem(r.url, hostPath(r.url) || 'Referencia descartada', `REFERENCIA DE NVD · ${r.tags.join(' · ')}`, null, true));
   }
   return el('section', { class: 'panel', 'aria-labelledby': 'h-poc' }, [
-    panelHead('POC-06', 'Exploits públicos', String(total), 'h-poc'),
+    panelHead('EXP-07', 'Exploits y PoC', String(total), 'h-poc'),
     el('div', { class: 'panel__body panel__body--list' }, body),
   ]);
 }
@@ -301,6 +350,8 @@ function linksPanel(c) {
     [c.links.mitre, 'CVE · CVE.ORG', 'cve.org ↗'],
     [`https://api.first.org/data/v1/epss?cve=${id}`, 'EPSS · FIRST', 'first.org ↗'],
     c.kev ? [`https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=${id}`, 'KEV · CISA', 'cisa.gov ↗'] : null,
+    // EUVD: la base europea de ENISA resuelve la CVE por su ID (formato verificado el 2026-11-01)
+    [`https://euvd.enisa.europa.eu/vulnerability/${id}`, 'EUVD · ENISA', 'euvd.enisa.europa.eu ↗'],
   ].filter(Boolean);
   const rank = (r) => { const i = REF_PRIORITY.findIndex((t) => r.tags.includes(t)); return i < 0 ? 99 : i; };
   const refs = c.references.filter((r) => !c.exploit_refs.some((e) => e.url === r.url)).sort((a, b) => rank(a) - rank(b)).slice(0, MAX_REFS);
@@ -377,7 +428,7 @@ export function renderDetalle(root, ctx, id) {
   root.appendChild(el('div', { class: 'det-grid' }, [
     el('div', { class: 'det-col' }, [scorePanel(c, ed.data.scoring_weights)]),
     el('div', { class: 'det-col' }, [descPanel(c), cvssPanel(c), epssPanel(c)]),
-    el('div', { class: 'det-col det-col--r' }, [kevPanel(c), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
+    el('div', { class: 'det-col det-col--r' }, [kevPanel(c), ssvcPanel(c), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
   ]));
 
   // La pestaña DETALLE de la navegación apunta a la última ficha vista

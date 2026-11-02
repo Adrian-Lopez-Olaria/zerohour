@@ -9,11 +9,13 @@ Todo corre gratis en **GitHub Actions**; la web (estática) lee los JSON de la c
 | Fuente | Qué aporta |
 |---|---|
 | [NVD (NIST)](https://nvd.nist.gov/developers/vulnerabilities) | CVE nuevas, descripción, CVSS, productos (CPE), CWE |
+| [CVE.org (cvelistV5)](https://github.com/CVEProject/cvelistV5) + [CISA Vulnrichment](https://github.com/cisagov/vulnrichment) | SSVC de CISA (explotación, automatizable, impacto) y CVSS del CNA o de CISA cuando NVD aún no puntúa |
 | [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | Explotación activa confirmada y uso en ransomware |
 | [EPSS (FIRST)](https://www.first.org/epss/) | Probabilidad de explotación en los próximos 30 días |
 | [GitHub Advisories](https://github.com/advisories) | Vulnerabilidades en librerías (npm, PyPI, Maven…) |
-| [PoC-in-GitHub](https://github.com/nomi-sec/PoC-in-GitHub) | Si existe PoC/exploit público |
-| [INCIBE-CERT](https://www.incibe.es/incibe-cert/alerta-temprana/avisos) + noticias (RSS) | Avisos en español y contexto |
+| [Metasploit](https://github.com/rapid7/metasploit-framework) · [Nuclei](https://github.com/projectdiscovery/nuclei-templates) · [Exploit-DB](https://gitlab.com/exploit-database/exploitdb) | Exploits verificados (módulos de Metasploit, exploits verificados de Exploit-DB) y plantillas de detección de Nuclei |
+| [PoC-in-GitHub](https://github.com/nomi-sec/PoC-in-GitHub) | PoC públicas **sin verificar** (algunas son falsas o maliciosas) |
+| [INCIBE-CERT](https://www.incibe.es/incibe-cert/alerta-temprana/avisos) · [CERT-EU](https://cert.europa.eu/publications/security-advisories) + noticias (RSS) | Avisos oficiales (CERT-EU solo publica los que considera graves) y contexto |
 | [SANS ISC / DShield](https://isc.sans.edu/) | IPs que más atacan y puertos más atacados (mapa) |
 | [DB-IP Lite](https://db-ip.com/db/lite.php) | Geolocalización **offline** de esas IPs: la base mensual se descarga por HTTPS, se verifica con el SHA-1 que publica DB-IP y se consulta en local (en el mapa solo se publican zonas, nunca IPs) |
 

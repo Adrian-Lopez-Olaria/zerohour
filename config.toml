@@ -49,6 +49,54 @@ wordpress = [
   '\bthis issue affects (?!wordpress:)[^:]{0,120}\bwordpress\b[^:]{0,120}:',
 ]
 
+# Grafía de marcas: NVD da fabricante y producto en minúsculas (gitlab, vmware…) y el pipeline
+# los capitaliza ("Gitlab"); este mapa corrige la grafía oficial. Clave en minúsculas; se aplica
+# a palabras o expresiones completas. Lo que no esté aquí se queda como antes.
+[marcas]
+"gitlab" = "GitLab"
+"github" = "GitHub"
+"vmware" = "VMware"
+"esxi" = "ESXi"
+"vcenter" = "vCenter"
+"vsphere" = "vSphere"
+"fortinet" = "Fortinet"
+"fortios" = "FortiOS"
+"fortigate" = "FortiGate"
+"fortimanager" = "FortiManager"
+"forticlient" = "FortiClient"
+"fortiweb" = "FortiWeb"
+"mikrotik" = "MikroTik"
+"routeros" = "RouterOS"
+"pfsense" = "pfSense"
+"wordpress" = "WordPress"
+"woocommerce" = "WooCommerce"
+"phpmyadmin" = "phpMyAdmin"
+"ios xe" = "IOS XE"
+"ios xr" = "IOS XR"
+"nx-os" = "NX-OS"
+"pan-os" = "PAN-OS"
+"qnap" = "QNAP"
+"qts" = "QTS"
+"synology" = "Synology"
+"dsm" = "DSM"
+"sonicwall" = "SonicWall"
+"sonicos" = "SonicOS"
+"netscaler" = "NetScaler"
+"openssl" = "OpenSSL"
+"openssh" = "OpenSSH"
+"macos" = "macOS"
+"iphone os" = "iPhone OS"
+"ipados" = "iPadOS"
+"jetbrains" = "JetBrains"
+"teamcity" = "TeamCity"
+"sap" = "SAP"
+"ibm" = "IBM"
+"hp" = "HP"
+"hpe" = "HPE"
+"d-link" = "D-Link"
+"tp-link" = "TP-Link"
+"zyxel" = "Zyxel"
+
 # Si NVD aún no da fabricante ni producto, se intenta deducir de la descripción.
 # `regex` (sin distinguir mayúsculas) debe tener un grupo con nombre "producto".
 # Si ningún patrón casa, la web muestra el CNA (quién publicó la CVE).

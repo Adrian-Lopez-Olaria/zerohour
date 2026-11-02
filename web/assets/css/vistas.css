@@ -116,6 +116,7 @@ a.lrow:hover .trow__id { color: var(--ok); }
 .metric dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 9px; letter-spacing: .14em; color: var(--text-3); }
 .metric dd { margin: 4px 0 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; font-weight: 600; }
 .metric.hot dd { color: var(--sev-high); }
+.metrics--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .vector { margin: 12px 0 0; padding: 10px 12px; background: var(--bg-0); border: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; word-break: break-all; color: var(--text-2); }
 .bignums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 14px; }
 .bignum dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--text-3); }

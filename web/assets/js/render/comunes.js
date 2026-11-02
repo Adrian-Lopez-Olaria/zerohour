@@ -18,10 +18,14 @@ export const SEV_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED'];
 
 export const TAG = Object.freeze({
   kev: { short: 'KEV', long: 'EXPLOTADA', title: 'Explotada activamente (catálogo KEV de CISA)' },
+  ssvc: { short: 'SSVC', long: 'EXPLOTADA · SSVC', title: 'CISA la marca como explotada (SSVC «active»); aún no está en el catálogo KEV' },
   ransomware: { short: 'RANSOM', long: 'RANSOMWARE', title: 'Uso conocido en campañas de ransomware' },
-  poc: { short: 'POC', long: 'EXPLOIT PÚBLICO', title: 'Exploit o prueba de concepto pública' },
+  exploit: { short: 'EXPLOIT', long: 'EXPLOIT VERIFICADO', title: 'Exploit verificado: módulo de Metasploit o exploit verificado de Exploit-DB' },
+  deteccion: { short: 'DETECCIÓN', long: 'PLANTILLA DE DETECCIÓN', title: 'Plantilla de detección de Nuclei: hay una forma comprobada de disparar el fallo' },
+  poc: { short: 'POC', long: 'POC SIN VERIFICAR', title: 'PoC pública sin verificar (PoC-in-GitHub, Exploit-DB sin verificar o referencia de NVD)' },
   stack: { short: 'STACK', long: 'MI STACK', title: 'Afecta a productos de mi inventario' },
   incibe: { short: 'INCIBE', long: 'AVISO INCIBE', title: 'Aviso publicado por INCIBE-CERT' },
+  certeu: { short: 'CERT-EU', long: 'AVISO CERT-EU', title: 'Aviso de CERT-EU (solo publica los que considera graves)' },
   news: { short: 'NEWS', long: 'EN NOTICIAS', title: 'Cubierta por medios especializados' },
   remote: { short: 'RED', long: 'REMOTA', title: 'Explotable en remoto (vector de red)' },
   library: { short: 'LIB', long: 'LIBRERÍA', title: 'Librería o dependencia de software' },
@@ -33,10 +37,18 @@ export const TAG_ORDER = Object.keys(TAG);
 const FILLED = { fill: 'currentColor', stroke: 'none' };
 const ICON = {
   kev: [['circle', { cx: 8, cy: 8, r: 5.5 }], ['path', { d: 'M8 0.8v3.4M8 11.8v3.4M0.8 8h3.4M11.8 8h3.4' }], ['rect', { x: 6.9, y: 6.9, width: 2.2, height: 2.2, ...FILLED }]],
+  // ssvc: la retícula de KEV con el aro discontinuo y el centro hueco (misma familia, menos certeza)
+  ssvc: [['circle', { cx: 8, cy: 8, r: 5.5, 'stroke-dasharray': '2.4 1.9' }], ['path', { d: 'M8 0.8v3.4M8 11.8v3.4M0.8 8h3.4M11.8 8h3.4' }], ['circle', { cx: 8, cy: 8, r: 1.2 }]],
+  // exploit: el prompt de poc con una marca de verificación
+  exploit: [['path', { d: 'M2 3.5l3.5 3.5L2 10.5' }], ['path', { d: 'M7.6 11.2l2.2 2.3 4.6-5.3' }]],
+  // deteccion: esquinas de un visor con una línea de barrido (escáner, no arma)
+  deteccion: [['path', { d: 'M1.5 5V1.5H5M11 1.5h3.5V5M14.5 11v3.5H11M5 14.5H1.5V11' }], ['path', { d: 'M4 8h8' }]],
   ransomware: [['rect', { x: 2.5, y: 7, width: 11, height: 7.5 }], ['path', { d: 'M5 7V4.8a3 3 0 0 1 6 0V7' }], ['path', { d: 'M8 9.6v2.4' }]],
   poc: [['path', { d: 'M2.5 4l4 4-4 4M8.5 12.5h5.5' }]],
   stack: [['path', { d: 'M8 1.8 14.5 5 8 8.2 1.5 5Z' }], ['path', { d: 'M1.5 8.2 8 11.4l6.5-3.2M1.5 11.4 8 14.6l6.5-3.2' }]],
   incibe: [['path', { d: 'M8 1.2 14 3.5v4.2c0 3.4-2.6 6.1-6 7.1-3.4-1-6-3.7-6-7.1V3.5Z' }], ['path', { d: 'M8 4.8v4.4M8 10.8v1.4' }]],
+  // certeu: el escudo de los avisos oficiales con un aro de 8 puntos (la UE) en lugar de la exclamación
+  certeu: [['path', { d: 'M8 1.2 14 3.5v4.2c0 3.4-2.6 6.1-6 7.1-3.4-1-6-3.7-6-7.1V3.5Z' }], ['circle', { cx: 8, cy: 7.6, r: 2.6, 'stroke-dasharray': '0.9 1.14' }]],
   news: [['rect', { x: 1.5, y: 2.5, width: 13, height: 11 }], ['path', { d: 'M4 5.5h5M4 8h8M4 10.5h8' }], ['rect', { x: 10.5, y: 4.5, width: 2, height: 2, ...FILLED }]],
   remote: [['circle', { cx: 8, cy: 12, r: 1.3, ...FILLED }], ['path', { d: 'M4.6 8.8a4.8 4.8 0 0 1 6.8 0M2 6a8.5 8.5 0 0 1 12 0' }]],
   library: [['path', { d: 'M8 1.5 14 4.7v6.6L8 14.5 2 11.3V4.7Z' }], ['path', { d: 'M2 4.7 8 8l6-3.3M8 8v6.5' }]],
@@ -114,7 +126,11 @@ export function emptyBlock(title, text, tight = false) {
  * (quién publicó la CVE), marcado como tal. → { main, sub, viaCna }
  */
 export function who(c) {
-  if (c.vendor || c.product) return { main: c.vendor || c.product, sub: c.vendor ? c.product : '', viaCna: false };
+  if (c.vendor || c.product) {
+    // "GitLab / GitLab": si el producto se llama igual que el fabricante, no se repite
+    const same = c.vendor && c.product && c.vendor.toLowerCase() === c.product.toLowerCase();
+    return { main: c.vendor || c.product, sub: c.vendor && !same ? c.product : '', viaCna: false };
+  }
   if (c.cna) return { main: c.cna, sub: 'Publicada por este CNA; fabricante pendiente en NVD', viaCna: true };
   return { main: '', sub: '', viaCna: false };
 }

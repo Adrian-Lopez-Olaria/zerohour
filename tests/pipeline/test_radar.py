@@ -377,10 +377,38 @@ def test_redondeo_de_medios_hacia_arriba(radar):
 
 
 def test_etiquetas_nuevas(radar):
-    ver = {"source": "nuclei", "url": "https://x", "name": "n", "verified": True}
-    assert "ssvc" in radar.tags({**c(ssvc={"exploitation": "active"}), "news": []})
-    t = radar.tags({**c(kev=KEV, ssvc={"exploitation": "active"}, exploits=[ver], poc=[{"url": "https://y"}]), "news": []})
-    assert "kev" in t and "ssvc" not in t and "exploit" in t and "poc" not in t
+    nuclei = {"source": "nuclei", "url": "https://x", "name": "n", "verified": True}
+    msf = {"source": "metasploit", "url": "https://m", "name": "m", "verified": True}
+    tg = lambda **kw: radar.tags({**c(**kw), "news": kw.get("news", [])})  # noqa: E731
+    assert "ssvc" in tg(ssvc={"exploitation": "active"})
+    t = tg(kev=KEV, ssvc={"exploitation": "active"}, exploits=[nuclei], poc=[{"url": "https://y"}])
+    assert "kev" in t and "ssvc" not in t                          # KEV manda sobre SSVC
+    assert "deteccion" in t and "exploit" not in t and "poc" not in t   # solo Nuclei → plantilla de detección
+    t = tg(exploits=[nuclei, msf])
+    assert "exploit" in t and "deteccion" not in t                 # una sola etiqueta: la de más certeza
+    assert "poc" in tg(poc=[{"url": "https://y"}])
+    assert "certeu" in tg(news=[{"source": "CERT-EU", "type": "aviso", "lang": "en"}])
+
+
+def test_nuclei_puntua_como_verificado_aunque_se_rotule_deteccion(radar):
+    nuclei = {"source": "nuclei", "url": "https://x", "name": "n", "verified": True}
+    assert radar.breakdown(c(exploits=[nuclei]))["exploit"] == 15
+    assert radar.score_floor(c(kev=KEV, exploits=[nuclei]))["aggravating"] == ["exploit"]
+
+
+@pytest.mark.parametrize("raw, esperado", [
+    ("gitlab", "GitLab"), ("vmware", "VMware"), ("esxi", "ESXi"), ("fortios", "FortiOS"), ("fortigate", "FortiGate"),
+    ("mikrotik", "MikroTik"), ("routeros", "RouterOS"), ("pfsense", "pfSense"), ("wordpress", "WordPress"),
+    ("github", "GitHub"), ("phpmyadmin", "phpMyAdmin"), ("ios_xe", "IOS XE"),
+    ("wordpress_file_upload", "WordPress File Upload"),                 # dentro de un nombre compuesto
+    ("linux_kernel", "Linux Kernel"), ("acme_widget", "Acme Widget"),   # sin entrada en el mapa: como antes
+])
+def test_grafia_de_marcas(radar, raw, esperado):
+    assert radar.pretty(raw) == esperado
+
+
+def test_grafia_de_marcas_no_toca_subcadenas(radar):
+    assert radar.brand("Shpmyadmins") == "Shpmyadmins" and radar.brand("Gitlabber") == "Gitlabber"
 
 
 # ───────────────────────── DB-IP ─────────────────────────

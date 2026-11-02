@@ -22,7 +22,10 @@ const SORTS = {
   epss: (a, b) => (b.epss_percentile ?? -1) - (a.epss_percentile ?? -1) || b.score - a.score,
 };
 const SORT_LABEL = { score: 'SCORE', cvss: 'CVSS', epss: 'EPSS' };
-const FLAGS = [['kev', 'EXPLOTADA'], ['poc', 'CON POC'], ['stack', 'MI STACK']];
+const FLAGS = [['kev', 'EXPLOTADA'], ['poc', 'CON EXPLOIT O POC'], ['stack', 'MI STACK']];
+// Cada marca agrupa sus etiquetas: explotada = KEV o SSVC; código de ataque = exploit, detección o PoC
+const FLAG_TAGS = { kev: ['kev', 'ssvc'], poc: ['exploit', 'deteccion', 'poc'], stack: ['stack'] };
+const hasFlag = (c, k) => FLAG_TAGS[k].some((t) => c.tags.includes(t));
 
 const fresh = () => ({ q: '', vendor: -1, sort: 'score', sev: new Set(SEV_ORDER), kev: false, poc: false, stack: false });
 let LS = fresh();
@@ -88,7 +91,7 @@ function results() {
   const terms = LS.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const vendor = LS.vendor >= 0 ? V.vendors[LS.vendor] : null;
   return V.cves.filter((c) => LS.sev.has(sevKey(c.severity))
-    && (!LS.kev || c.tags.includes('kev')) && (!LS.poc || c.tags.includes('poc')) && (!LS.stack || c.tags.includes('stack'))
+    && (!LS.kev || hasFlag(c, 'kev')) && (!LS.poc || hasFlag(c, 'poc')) && (!LS.stack || hasFlag(c, 'stack'))
     && (vendor === null || c.vendor === vendor)
     && (!terms.length || terms.every((t) => V.hay.get(c).includes(t))))
     .sort(SORTS[LS.sort]);

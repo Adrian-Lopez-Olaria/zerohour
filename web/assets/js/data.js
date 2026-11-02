@@ -17,6 +17,10 @@ export function sevKey(severity) {
   return SEV_KEYS.includes(s) ? s : 'UNSCORED';
 }
 export const SOURCE_KEYS = ['nvd', 'kev', 'epss', 'ghsa', 'poc', 'rss'];
+// Fuentes de la fase 6: se muestran cuando la edición las trae (las ediciones antiguas no las tienen)
+export const EXTRA_SOURCE_KEYS = ['cvelist', 'metasploit', 'nuclei', 'exploitdb'];
+const SSVC_OK = { exploitation: ['none', 'poc', 'active'], automatable: ['yes', 'no'], technical_impact: ['partial', 'total'] };
+const EXPLOIT_SOURCES = ['metasploit', 'nuclei', 'exploitdb'];
 export const ID_RE = /^CVE-\d{4}-\d{4,7}$/;
 // Pesos por defecto (config.toml [puntuacion]); se usan si latest.json no trae scoring_weights todavía
 export const DEFAULT_WEIGHTS = Object.freeze({ cvss: 35, epss: 20, kev: 25, ransomware: 5, poc: 10, stack: 5 });
@@ -87,6 +91,11 @@ function normalizeCve(c, w) {
     epss_percentile: num(c.epss_percentile),
     kev,
     poc: arr(c.poc).map((p) => ({ url: str(p.url), name: str(p.name), stars: num(p.stars) || 0, description: str(p.description) })),
+    // Exploits indexados (fase 6): Metasploit, plantillas de Nuclei y Exploit-DB
+    exploits: arr(c.exploits).filter((e) => e && EXPLOIT_SOURCES.includes(e.source))
+      .map((e) => ({ source: e.source, url: str(e.url), name: str(e.name), verified: e.verified === true })),
+    ssvc: normalizeSsvc(c.ssvc),
+    cvss_source: ['nvd', 'cna', 'adp'].includes(c.cvss_source) ? c.cvss_source : null,
     news: arr(c.news).map((n) => ({ title: str(n.title), url: str(n.url), source: str(n.source), type: str(n.type), lang: str(n.lang), date: n.date ?? null })),
     ghsa: arr(c.ghsa),
     cwe: arr(c.cwe).map(str),
@@ -120,6 +129,13 @@ function normalizeCve(c, w) {
   return out;
 }
 
+/** SSVC de CISA (Vulnrichment): solo valores conocidos. */
+function normalizeSsvc(s) {
+  if (!s || typeof s !== 'object' || !SSVC_OK.exploitation.includes(s.exploitation)) return null;
+  const pick = (k) => (SSVC_OK[k].includes(s[k]) ? s[k] : null);
+  return { exploitation: s.exploitation, automatable: pick('automatable'), technical_impact: pick('technical_impact') };
+}
+
 /** Mínimo de puntuación aplicado por el pipeline: {value, exploited_by: kev|ssvc, aggravating: [stack|ransomware|exploit]}. */
 function normalizeFloor(f) {
   if (!f || typeof f !== 'object') return null;
@@ -145,6 +161,8 @@ function normalizeStats(s) {
     by_severity: by,
     kev_new: num(s.kev_new) || 0,
     with_poc: num(s.with_poc) || 0,
+    with_exploit: num(s.with_exploit),        // null en ediciones anteriores a la fase 6
+    with_detection: num(s.with_detection),
     in_stack: num(s.in_stack) || 0,
     remote: num(s.remote) || 0,
     ghsa: num(s.ghsa) || 0,

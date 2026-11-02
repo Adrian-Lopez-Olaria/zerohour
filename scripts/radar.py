@@ -309,7 +309,17 @@ def parse_cpe(cpe: str) -> tuple[str, str]:
 
 
 def pretty(name: str) -> str:
-    return name.replace("_", " ").strip().title() if name else ""
+    return brand(name.replace("_", " ").strip().title()) if name else ""
+
+
+def brand(text: str) -> str:
+    """Grafía oficial de marcas según [marcas] (config.toml): "Gitlab" → "GitLab", "Ios Xe" → "IOS XE".
+    Solo palabras o expresiones completas; lo que no está en el mapa se deja igual."""
+    if not text:
+        return text
+    for key in sorted(CONFIG.get("marcas", {}), key=len, reverse=True):   # primero las más largas
+        text = re.sub(r"(?<![\w-])" + re.escape(key) + r"(?![\w-])", CONFIG["marcas"][key], text, flags=re.I)
+    return text
 
 
 def parse_nvd(item: dict) -> dict:
@@ -864,14 +874,21 @@ def tags(rec: dict) -> list[str]:
             t.append("ransomware")
     elif exploitation(rec) == "ssvc":
         t.append("ssvc")             # explotada según CISA (SSVC), aún sin entrar en KEV
-    if has_verified_exploit(rec):
-        t.append("exploit")          # Metasploit, plantilla de Nuclei o Exploit-DB verificado
+    # Código de ataque: una sola etiqueta, la de más certeza. Nuclei puntúa como verificado, pero
+    # se rotula aparte: es una plantilla de detección, no un exploit.
+    srcs = {e["source"] for e in rec.get("exploits") or [] if e.get("verified")}
+    if srcs & {"metasploit", "exploitdb"}:
+        t.append("exploit")          # módulo de Metasploit o exploit verificado de Exploit-DB
+    elif "nuclei" in srcs:
+        t.append("deteccion")        # solo plantilla de detección de Nuclei
     elif has_unverified_poc(rec):
         t.append("poc")              # solo PoC sin verificar
     if rec.get("stack"):
         t.append("stack")
     if any(n["type"] == "aviso" and n["lang"] == "es" for n in rec.get("news", [])):
         t.append("incibe")
+    if any(n.get("source") == "CERT-EU" for n in rec.get("news", [])):
+        t.append("certeu")
     if any(n["type"] == "noticia" for n in rec.get("news", [])):
         t.append("news")
     if (rec.get("attack_vector") or "").upper() == "NETWORK":
@@ -1036,7 +1053,7 @@ def build_daily() -> None:
     for cid, r in recs.items():
         r["kev"] = kev.get(cid)
         if r["kev"] and not r.get("vendor"):  # NVD aún sin CPE: KEV sí trae fabricante/producto
-            r["vendor"], r["product"] = r["kev"]["vendor"] or "", r["kev"]["product"] or ""
+            r["vendor"], r["product"] = brand(r["kev"]["vendor"] or ""), brand(r["kev"]["product"] or "")
             r["vendor_source"] = "kev" if (r["vendor"] or r["product"]) else None
 
     # 3) EPSS
@@ -1128,8 +1145,9 @@ def build_daily() -> None:
             "new_cves": len(new_only),
             "by_severity": by_sev,
             "kev_new": len(kev_new),
-            "with_poc": sum(1 for r in ordered if {"poc", "exploit"} & set(r["tags"])),   # cualquier exploit o PoC
-            "with_exploit": sum(1 for r in ordered if "exploit" in r["tags"]),          # solo verificados
+            "with_poc": sum(1 for r in ordered if {"poc", "exploit", "deteccion"} & set(r["tags"])),  # cualquier código de ataque
+            "with_exploit": sum(1 for r in ordered if "exploit" in r["tags"]),         # exploit verificado
+            "with_detection": sum(1 for r in ordered if "deteccion" in r["tags"]),     # solo plantilla de Nuclei
             "in_stack": sum(1 for r in ordered if r["stack"]),
             "remote": sum(1 for r in new_only if "remote" in r["tags"]),
             "ghsa": len(ghsa),
