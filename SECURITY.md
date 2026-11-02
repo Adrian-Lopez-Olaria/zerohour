@@ -1,14 +1,16 @@
 # Política de seguridad
 
-> Borrador. La versión completa (canales, alcance y plazos) se cierra en la fase 7,
-> junto con `web/.well-known/security.txt` (RFC 9116) en la fase 4.
+> Borrador. La versión completa (plazos de respuesta y reconocimientos) se cierra en la fase 7.
+> El contacto ya está publicado en `/.well-known/security.txt` (RFC 9116).
 
 ## Reportar una vulnerabilidad
 
 ZEROHOUR es una web estática de inteligencia de vulnerabilidades. Si encuentras un
 problema de seguridad en el código o en el despliegue, repórtalo de forma privada.
 
-- **Contacto:** _(pendiente de confirmar en la fase 4; se reflejará aquí y en `security.txt`)_.
+- **Preferido:** *Report a vulnerability* en la pestaña **Security** del repositorio
+  (reporte privado de GitHub).
+- **Correo:** zerohour.sec@gmail.com
 - Por favor, no abras un *issue* público para fallos de seguridad.
 - Pruebas permitidas: solo no destructivas y de baja intensidad (nada de DoS ni
   escaneo agresivo; el alojamiento es Netlify). Ver `PENTEST-ZEROHOUR.md`.

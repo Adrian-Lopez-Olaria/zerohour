@@ -1,0 +1,12 @@
+# ZEROHOUR · política de divulgación responsable (RFC 9116)
+# Reporta de forma privada; no abras issues públicos para fallos de seguridad.
+# Pruebas permitidas: solo no destructivas y de baja intensidad (nada de DoS ni escaneo agresivo).
+
+Contact: mailto:zerohour.sec@gmail.com
+Expires: 2027-10-31T23:00:00.000Z
+Preferred-Languages: es, en
+
+# PENDIENTE (se rellena al crear el sitio en Netlify): descomentar con la URL definitiva.
+# Canonical: https://PENDIENTE.netlify.app/.well-known/security.txt
+# PENDIENTE (al subir el repo): política completa en GitHub, con el canal privado de reporte.
+# Policy: https://github.com/PENDIENTE/zerohour/security/policy

@@ -7,7 +7,7 @@ los datos (de la última recolección). Se regenera entera en cada publicación 
 huérfano, así que el historial de git no crece con los datos.
 
   _deploy/
-    netlify.toml          (de main, si existe: cabeceras y caché; ver fase 6.5)
+    netlify.toml          (de main: cabeceras de seguridad y caché; obligatorio)
     web/                  (de main, sin web/data/ local)
     web/data/             (datos: solo lo que la web usa, ver PUBLICABLE)
 
@@ -29,6 +29,9 @@ DAYS_GLOB = "days/????-??-??.json"
 def montar(web: Path, data: Path, out: Path, root: Path) -> dict:
     if not (web / "index.html").is_file():
         raise SystemExit(f"{web} no parece la web (falta index.html)")
+    # Sin netlify.toml el sitio saldría sin CSP ni cabeceras: no se monta
+    if not (root / "netlify.toml").is_file():
+        raise SystemExit(f"falta {root / 'netlify.toml'}: sin cabeceras de seguridad no se publica")
     if out.exists():
         shutil.rmtree(out)
     # Código: web/ entero salvo web/data (copia local de desarrollo, gitignored)
@@ -44,9 +47,8 @@ def montar(web: Path, data: Path, out: Path, root: Path) -> dict:
     dias = sorted(data.glob(DAYS_GLOB))
     for f in dias:
         shutil.copy2(f, dest / "days" / f.name)
-    if (root / "netlify.toml").is_file():
-        shutil.copy2(root / "netlify.toml", out / "netlify.toml")
-    return {"datos": copiados, "dias": len(dias), "netlify_toml": (out / "netlify.toml").is_file()}
+    shutil.copy2(root / "netlify.toml", out / "netlify.toml")
+    return {"datos": copiados, "dias": len(dias)}
 
 
 def main() -> int:
@@ -57,8 +59,7 @@ def main() -> int:
     ap.add_argument("--root", type=Path, default=Path("."), help="raíz del repo (para netlify.toml)")
     a = ap.parse_args()
     info = montar(a.web, a.data, a.out, a.root)
-    print(f"✓ sitio montado en {a.out}: {', '.join(info['datos'])} + {info['dias']} días"
-          + ("" if info["netlify_toml"] else " · ⚠ sin netlify.toml (se añade en la fase 6.5)"))
+    print(f"✓ sitio montado en {a.out}: netlify.toml + {', '.join(info['datos'])} + {info['dias']} días")
     return 0
 
 

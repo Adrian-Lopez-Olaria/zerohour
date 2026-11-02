@@ -112,6 +112,12 @@ def test_montar_solo_publica_la_lista_blanca(tmp_path):
     assert info["dias"] == 1
 
 
+def test_montar_exige_netlify_toml(tmp_path):
+    """Sin netlify.toml el sitio saldría sin CSP ni cabeceras: no se monta."""
+    with pytest.raises(SystemExit, match="netlify.toml"):
+        mon.montar(ROOT / "web", write_data(tmp_path / "data"), tmp_path / "_deploy", tmp_path)
+
+
 # ───────────────────────── force-push a deploy (repo bare local) ─────────────────────────
 
 def git(*args, cwd=None):
@@ -152,6 +158,7 @@ def test_publicar_es_huerfano_y_no_toca_main(tmp_path, remoto):
     assert git("--git-dir", str(remoto), "rev-parse", "main") == main_antes             # main intacta
     files = git("--git-dir", str(remoto), "ls-tree", "-r", "--name-only", "deploy").splitlines()
     assert "web/index.html" in files and "web/data/latest.json" in files
+    assert "netlify.toml" in files and "web/.well-known/security.txt" in files and "web/404.html" in files
     assert not any(f.startswith(("scripts/", "tests/", "design/")) or f.endswith((".py", ".toml.bak")) for f in files)
 
 
