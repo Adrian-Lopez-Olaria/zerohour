@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   recolectar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
     timeout-minutes: 25
     permissions:
       contents: read
@@ -72,10 +72,28 @@ jobs:
           echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
           echo "Modo: $mode"
 
-      # El histórico de 90 días vive en la rama deploy: se recupera de ahí antes de recolectar
+      # El histórico de 90 días vive en la rama deploy: se recupera de ahí antes de recolectar.
+      # La primera vez la rama no existe: se comprueba antes, en vez de dejar fallar el checkout.
+      - name: ¿Existe ya la rama deploy?
+        id: rama
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          b64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${b64}"
+          if git -c "http.extraheader=AUTHORIZATION: basic ${b64}"                ls-remote --exit-code --heads "https://github.com/${REPO}.git" deploy > /dev/null; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            rc=$?
+            if [ "$rc" -ne 2 ]; then echo "::error::No se pudo consultar el remoto (git ls-remote: $rc)"; exit "$rc"; fi
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+            echo "Rama deploy todavía inexistente: primera publicación"
+          fi
+
       - name: Recuperar los datos publicados (rama deploy)
         id: prev
-        continue-on-error: true          # la primera vez la rama aún no existe
+        if: steps.rama.outputs.existe == 'true'
         uses: actions/checkout@v4
         with:
           ref: deploy
@@ -169,7 +187,7 @@ jobs:
   publicar:
     needs: recolectar
     if: needs.recolectar.outputs.mode != 'nada'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
     timeout-minutes: 10
     permissions:
       contents: write                    # el único permiso de escritura del workflow

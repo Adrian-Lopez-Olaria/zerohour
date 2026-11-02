@@ -213,3 +213,28 @@ def test_workflow_si_no_hay_nada_no_valida_ni_publica():
     assert "nada" in pasos["Pasar los datos al job que publica"]["if"]
     assert w["jobs"]["publicar"]["if"] == "needs.recolectar.outputs.mode != 'nada'"
     assert w["jobs"]["recolectar"]["outputs"]["mode"].startswith("${{ steps.gate.outputs.mode }}")
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="necesita bash")
+@pytest.mark.parametrize("codigo_git, rc_esperado, existe", [
+    (0, 0, "true"),       # la rama deploy existe
+    (2, 0, "false"),      # no existe (primer run): caso esperado, sin error
+    (128, 128, None),     # fallo real (red, permisos): el run se pone en rojo
+])
+def test_workflow_comprueba_si_existe_deploy(tmp_path, codigo_git, rc_esperado, existe):
+    """El script real del paso «¿Existe ya la rama deploy?», con un git falso en el PATH."""
+    paso = next(s for s in _workflow()["jobs"]["recolectar"]["steps"] if s.get("id") == "rama")
+    falso = tmp_path / "bin"
+    falso.mkdir()
+    (falso / "git").write_text(f"#!/bin/sh\nexit {codigo_git}\n", newline="\n")
+    (falso / "git").chmod(0o755)
+    out = tmp_path / "out"
+    out.write_text("")
+    r = subprocess.run(["bash", "-e", "-c", paso["run"]], capture_output=True, text=True,
+                       env={"GH_TOKEN": "t", "REPO": "u/r", "GITHUB_OUTPUT": str(out),
+                            "PATH": f"{falso.as_posix()}:/usr/bin:/bin"})
+    assert r.returncode == rc_esperado, r.stdout + r.stderr
+    assert out.read_text().strip() == (f"existe={existe}" if existe else "")
+    pasos = {s.get("id"): s for s in _workflow()["jobs"]["recolectar"]["steps"]}
+    assert pasos["prev"]["if"] == "steps.rama.outputs.existe == 'true'"
+    assert "continue-on-error" not in pasos["prev"]
