@@ -71,13 +71,25 @@ regex = '^(?:The )?(?P<producto>.{2,250}?)\s+WordPress theme\b'
 nombre = "Tema WordPress"
 
 # Pesos de la puntuación propia (0-100). Juega con ellos: es tu "sello".
+# Seis filas con un máximo cada una; los máximos suman 100. Dentro de una fila no se suma
+# dos veces: "explotada" vale KEV o SSVC (lo mayor), "exploit" vale verificado o PoC.
 [puntuacion]
-cvss_max = 35          # CVSS 10 → 35 puntos
-epss_max = 20          # percentil EPSS 1.0 → 20 puntos
-kev = 25               # explotada activamente (CISA KEV)
-ransomware = 5         # usada en campañas de ransomware (según KEV)
-poc = 10               # hay PoC pública en GitHub
-stack = 5              # afecta a tu stack
+cvss_max = 30            # CVSS 10 → 30 (sin CVSS aún: valor neutro del 40 %)
+epss_max = 20            # percentil EPSS 1.0 → 20
+explotada_kev = 25       # en el catálogo KEV de CISA (explotación confirmada)
+explotada_ssvc = 20      # SSVC "active" de CISA (Vulnrichment) sin estar todavía en KEV
+ransomware = 5           # uso conocido en campañas de ransomware (según KEV)
+exploit_verificado = 15  # módulo de Metasploit, plantilla de Nuclei o exploit verificado de Exploit-DB
+exploit_poc = 6          # PoC sin verificar: PoC-in-GitHub, Exploit-DB sin verificar, referencia
+                         # de NVD con etiqueta Exploit o SSVC "poc"
+stack = 5                # afecta a tu stack
+
+# Mínimos: una CVE explotada nunca puede quedar en "PLANIFICAR". Si la suma de las filas
+# queda por debajo, el score sube al mínimo y el JSON lo indica (score_breakdown.floor),
+# para que la web lo muestre: no es una nota inflada sin explicación.
+[puntuacion.minimos]
+explotada = 70           # KEV o SSVC "active" → al menos "ESTA SEMANA"
+explotada_critica = 85   # explotada y además en tu stack o con ransomware → "ACTUAR HOY"
 
 # Fuentes RSS: avisos y noticias. Se enlazan a las CVE que mencionen.
 [[rss]]

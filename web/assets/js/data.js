@@ -105,9 +105,26 @@ function normalizeCve(c, w) {
   // Si el JSON trae score_breakdown se usa tal cual; si no (ediciones antiguas), se deriva con
   // los pesos, replicando la fórmula de radar.py (comprobado: cuadra con el score en 453 de 453).
   const fromPipeline = !!(c.score_breakdown && typeof c.score_breakdown === 'object');
-  out.score_breakdown = fromPipeline ? c.score_breakdown : deriveBreakdown(out, w);
+  if (fromPipeline) {
+    // Filas numéricas por un lado; el mínimo aplicado (si lo hay) por otro, validado
+    const rows = {};
+    for (const [k, v] of Object.entries(c.score_breakdown)) if (k !== 'floor' && num(v) != null) rows[k] = v;
+    out.score_breakdown = rows;
+    out.score_floor = normalizeFloor(c.score_breakdown.floor);
+  } else {
+    out.score_breakdown = deriveBreakdown(out, w);
+    out.score_floor = null;
+  }
   out.breakdown_source = fromPipeline ? 'pipeline' : 'derivado';
   return out;
+}
+
+/** Mínimo de puntuación aplicado por el pipeline: {value, exploited_by: kev|ssvc, aggravating: [stack|ransomware]}. */
+function normalizeFloor(f) {
+  if (!f || typeof f !== 'object') return null;
+  const value = num(f.value);
+  if (value == null || value < 0 || value > 100 || !['kev', 'ssvc'].includes(f.exploited_by)) return null;
+  return { value, exploited_by: f.exploited_by, aggravating: arr(f.aggravating).filter((a) => a === 'stack' || a === 'ransomware') };
 }
 
 /** Referencia de NVD: {url, tags}. También acepta una URL suelta. */
@@ -136,7 +153,13 @@ function normalizeStats(s) {
 
 export function normalizeLatest(raw) {
   raw = raw || {};
-  const weights = (raw.scoring_weights && typeof raw.scoring_weights === 'object') ? { ...DEFAULT_WEIGHTS, ...raw.scoring_weights } : { ...DEFAULT_WEIGHTS };
+  // Si la edición trae sus pesos, se usan SOLOS (las filas del dial son exactamente esas);
+  // DEFAULT_WEIGHTS solo vale para ediciones antiguas sin scoring_weights.
+  const weights = {};
+  if (raw.scoring_weights && typeof raw.scoring_weights === 'object') {
+    for (const [k, v] of Object.entries(raw.scoring_weights)) if (num(v) != null && v > 0) weights[k] = v;
+  }
+  if (!Object.keys(weights).length) Object.assign(weights, DEFAULT_WEIGHTS);
   const cves = arr(raw.cves).map((c) => normalizeCve(c, weights));
   const byId = new Map(cves.map((c) => [c.id, c]));
   // top y kev_new: listas de IDs que apuntan a cves (esquema ligero de la fase 6); las ediciones

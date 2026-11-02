@@ -760,37 +760,80 @@ def infer_vendor(rec: dict) -> None:
     rec["vendor_source"] = "cna" if rec.get("cna") else None
 
 
+def exploitation(rec: dict) -> str | None:
+    """'kev' si está en KEV; si no, 'ssvc' si CISA la marca con SSVC "active"; si no, None."""
+    if rec.get("kev"):
+        return "kev"
+    return "ssvc" if (rec.get("ssvc") or {}).get("exploitation") == "active" else None
+
+
+def has_verified_exploit(rec: dict) -> bool:
+    return any(e.get("verified") for e in rec.get("exploits") or [])
+
+
+def has_unverified_poc(rec: dict) -> bool:
+    return bool(rec.get("poc") or rec.get("exploit_refs") or rec.get("exploits")
+                or (rec.get("ssvc") or {}).get("exploitation") == "poc")
+
+
 def scoring_weights() -> dict[str, int]:
-    """Máximo de cada fila del desglose (lo que pinta el dial de la web)."""
+    """Máximo de cada fila del desglose (lo que pinta el dial de la web). Suman 100."""
     w = CONFIG["puntuacion"]
-    return {"cvss": w["cvss_max"], "epss": w["epss_max"], "kev": w["kev"],
-            "ransomware": w["ransomware"], "poc": w["poc"], "stack": w["stack"]}
+    return {"cvss": w["cvss_max"], "epss": w["epss_max"],
+            "explotada": max(w["explotada_kev"], w["explotada_ssvc"]), "ransomware": w["ransomware"],
+            "exploit": max(w["exploit_verificado"], w["exploit_poc"]), "stack": w["stack"]}
 
 
 def _breakdown_raw(rec: dict) -> dict[str, float]:
-    w = scoring_weights()
+    w = CONFIG["puntuacion"]
     kev = rec.get("kev") or {}
+    ex = exploitation(rec)
     return {
         # Sin CVSS todavía (muy habitual el primer día): valor neutro del 40 %
-        "cvss": (rec["cvss"] / 10 if rec.get("cvss") is not None else 0.4) * w["cvss"],
-        "epss": (rec.get("epss_percentile") or 0) * w["epss"],
-        "kev": w["kev"] if kev else 0,
+        "cvss": (rec["cvss"] / 10 if rec.get("cvss") is not None else 0.4) * w["cvss_max"],
+        "epss": (rec.get("epss_percentile") or 0) * w["epss_max"],
+        # Una sola fila de explotación: KEV o SSVC "active", nunca las dos
+        "explotada": w["explotada_kev"] if ex == "kev" else w["explotada_ssvc"] if ex == "ssvc" else 0,
         "ransomware": w["ransomware"] if kev.get("ransomware") else 0,
-        "poc": w["poc"] if (rec.get("poc") or rec.get("exploit_refs")) else 0,
+        # Una sola fila de exploit: verificado o, si no, PoC sin verificar
+        "exploit": w["exploit_verificado"] if has_verified_exploit(rec) else w["exploit_poc"] if has_unverified_poc(rec) else 0,
         "stack": w["stack"] if rec.get("stack") else 0,
     }
 
 
-def breakdown(rec: dict) -> dict[str, float]:
-    """Puntos obtenidos en cada fila (4 decimales). El score sale de ESTOS valores, así que la
-    web (que suma el desglose) y el pipeline nunca discrepan."""
-    return {k: round(v, 4) for k, v in _breakdown_raw(rec).items()}
+def score_floor(rec: dict) -> dict | None:
+    """Mínimo que corresponde a la CVE (o None): explotada → 70; explotada y en tu stack o con
+    ransomware → 85 (config: [puntuacion.minimos])."""
+    ex = exploitation(rec)
+    if not ex:
+        return None
+    m = CONFIG["puntuacion"].get("minimos", {})
+    agg = [k for k, on in (("stack", bool(rec.get("stack"))),
+                           ("ransomware", bool((rec.get("kev") or {}).get("ransomware")))) if on]
+    value = (m.get("explotada_critica") if agg else None) or m.get("explotada")
+    return {"value": int(value), "exploited_by": ex, "aggravating": agg} if value else None
+
+
+def _round_half_up(x: float) -> int:
+    # Los .5 suben, como Math.round en la web (round() de Python va al par: 58.5 → 58)
+    return math.floor(x + 0.5)
+
+
+def breakdown(rec: dict) -> dict:
+    """Puntos de cada fila (4 decimales) y, SOLO si se aplica un mínimo, la clave "floor":
+    {"value": 70|85, "exploited_by": "kev"|"ssvc", "aggravating": ["stack", "ransomware"]}.
+    El score sale de estos mismos valores, así que la web y el pipeline nunca discrepan."""
+    b: dict = {k: round(v, 4) for k, v in _breakdown_raw(rec).items()}
+    f = score_floor(rec)
+    if f and _round_half_up(sum(b.values())) < f["value"]:
+        b["floor"] = f
+    return b
 
 
 def score(rec: dict) -> int:
-    # Redondeo de los .5 hacia arriba, como Math.round en la web (round() de Python va al par:
-    # 58.5 → 58, que no es lo que nadie espera ver)
-    return min(100, math.floor(sum(breakdown(rec).values()) + 0.5))
+    b = breakdown(rec)
+    raw = _round_half_up(sum(v for k, v in b.items() if k != "floor"))
+    return min(100, max(raw, b["floor"]["value"]) if "floor" in b else raw)
 
 
 def tags(rec: dict) -> list[str]:
@@ -799,8 +842,12 @@ def tags(rec: dict) -> list[str]:
         t.append("kev")
         if rec["kev"].get("ransomware"):
             t.append("ransomware")
-    if rec.get("poc") or rec.get("exploit_refs"):
-        t.append("poc")
+    elif exploitation(rec) == "ssvc":
+        t.append("ssvc")             # explotada según CISA (SSVC), aún sin entrar en KEV
+    if has_verified_exploit(rec):
+        t.append("exploit")          # Metasploit, plantilla de Nuclei o Exploit-DB verificado
+    elif has_unverified_poc(rec):
+        t.append("poc")              # solo PoC sin verificar
     if rec.get("stack"):
         t.append("stack")
     if any(n["type"] == "aviso" and n["lang"] == "es" for n in rec.get("news", [])):
@@ -876,7 +923,9 @@ def linkedin_post(rep: dict, date: str) -> str:
         bits = []
         if "kev" in r["tags"]:
             bits.append("🔥 explotada activamente")
-        if "poc" in r["tags"]:
+        if "exploit" in r["tags"]:
+            bits.append("💣 exploit verificado")
+        elif "poc" in r["tags"]:
             bits.append("💣 PoC pública")
         if r.get("cvss") is not None:
             bits.append(f"CVSS {r['cvss']}")
@@ -1059,7 +1108,8 @@ def build_daily() -> None:
             "new_cves": len(new_only),
             "by_severity": by_sev,
             "kev_new": len(kev_new),
-            "with_poc": sum(1 for r in ordered if "poc" in r["tags"]),
+            "with_poc": sum(1 for r in ordered if {"poc", "exploit"} & set(r["tags"])),   # cualquier exploit o PoC
+            "with_exploit": sum(1 for r in ordered if "exploit" in r["tags"]),          # solo verificados
             "in_stack": sum(1 for r in ordered if r["stack"]),
             "remote": sum(1 for r in new_only if "remote" in r["tags"]),
             "ghsa": len(ghsa),

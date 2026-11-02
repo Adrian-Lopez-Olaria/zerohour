@@ -229,40 +229,111 @@ def test_sanitize_ghsa(radar):
     assert radar.sanitize_ghsa({**ok, "url": "javascript:x"}) is None
 
 
-# ───────────────────────── puntuación: desglose y pesos ─────────────────────────
+# ───────────────────────── puntuación: pesos, desglose y mínimos ─────────────────────────
 
-def test_score_igual_que_antes_en_las_453_reales(radar, real_cves):
-    """El desglose no cambia ningún score del día 31, salvo empates exactos en .5, que antes
-    round() de Python mandaba al par y ahora suben (como Math.round en la web)."""
-    distintos = [(c["id"], c["score"], radar.score(c)) for c in real_cves if radar.score(c) != c["score"]]
-    for cid, antes, ahora in distintos:
-        raw = sum(radar._breakdown_raw(next(c for c in real_cves if c["id"] == cid)).values())
-        assert abs(raw - int(raw) - 0.5) < 1e-6 and ahora == antes + 1, (cid, antes, ahora, raw)
-    assert len(distintos) <= 5
+KEV = {"ransomware": False}
 
 
-def test_desglose_suma_el_score_como_lo_suma_la_web(radar, real_cves):
-    import math
-    for c in real_cves:
-        assert math.floor(sum(radar.breakdown(c).values()) + 0.5) == radar.score(c)   # = Math.round()
+def c(**kw):
+    """CVE mínima para puntuar: sin señales salvo las que se pasen."""
+    base = {"cvss": None, "epss_percentile": None, "kev": None, "ssvc": None, "exploits": [], "poc": [], "exploit_refs": [], "stack": []}
+    base.update(kw)
+    return base
 
 
-def test_redondeo_de_medios_hacia_arriba(radar):
-    # cvss 7.0 → 24.5 · KEV 25 · nada más → 49.5 → 50 (antes: round(49.5) = 50) y 48.5 → 49 (antes 48)
-    assert radar.score({"cvss": 7.0, "kev": {"ransomware": False}}) == 50
-    assert radar.score({"cvss": 6.71428571, "kev": {"ransomware": False}, "epss_percentile": 0}) == 49
+def rows(b):
+    return {k: v for k, v in b.items() if k != "floor"}
 
 
 def test_scoring_weights_desde_config(radar):
-    w = radar.scoring_weights()
-    p = radar.CONFIG["puntuacion"]
-    assert w == {"cvss": p["cvss_max"], "epss": p["epss_max"], "kev": p["kev"], "ransomware": p["ransomware"], "poc": p["poc"], "stack": p["stack"]}
+    w, p = radar.scoring_weights(), radar.CONFIG["puntuacion"]
+    assert w == {"cvss": 30, "epss": 20, "explotada": 25, "ransomware": 5, "exploit": 15, "stack": 5}
+    assert w["explotada"] == max(p["explotada_kev"], p["explotada_ssvc"]) and w["exploit"] == max(p["exploit_verificado"], p["exploit_poc"])
     assert sum(w.values()) == 100
-    assert set(radar.breakdown({"cvss": None}).keys()) == set(w)
+    assert set(rows(radar.breakdown(c()))) == set(w)
 
 
 def test_sin_cvss_cuenta_40_por_ciento(radar):
-    assert radar.breakdown({"cvss": None})["cvss"] == round(0.4 * radar.scoring_weights()["cvss"], 2)
+    assert radar.breakdown(c())["cvss"] == round(0.4 * 30, 4)
+
+
+def test_kev_y_ssvc_no_se_suman_dos_veces(radar):
+    b = radar.breakdown(c(kev=KEV, ssvc={"exploitation": "active"}))
+    assert b["explotada"] == 25                                      # KEV manda; SSVC no suma encima
+    assert radar.breakdown(c(ssvc={"exploitation": "active"}))["explotada"] == 20
+
+
+def test_exploit_verificado_y_poc_no_se_suman(radar):
+    ver = {"source": "metasploit", "url": "https://x", "name": "m", "verified": True}
+    assert radar.breakdown(c(exploits=[ver], poc=[{"url": "https://y"}]))["exploit"] == 15
+    assert radar.breakdown(c(poc=[{"url": "https://y"}]))["exploit"] == 6
+    assert radar.breakdown(c(ssvc={"exploitation": "poc"}))["exploit"] == 6
+    edb_sin_verificar = {"source": "exploitdb", "url": "https://z", "name": "e", "verified": False}
+    assert radar.breakdown(c(exploits=[edb_sin_verificar]))["exploit"] == 6
+
+
+# Mínimos (lo pedido en el punto de control A)
+
+def test_minimo_kev_sin_mas_70(radar):
+    r = c(cvss=5.0, kev=KEV)                       # 15 + 0 + 25 = 40 → sube a 70
+    assert radar.score(r) == 70
+    assert radar.breakdown(r)["floor"] == {"value": 70, "exploited_by": "kev", "aggravating": []}
+
+
+def test_minimo_kev_mas_stack_85(radar):
+    r = c(cvss=5.0, kev=KEV, stack=["vmware"])     # 15 + 25 + 5 = 45 → 85
+    assert radar.score(r) == 85
+    assert radar.breakdown(r)["floor"] == {"value": 85, "exploited_by": "kev", "aggravating": ["stack"]}
+
+
+def test_minimo_kev_mas_ransomware_85(radar):
+    r = c(cvss=5.0, kev={"ransomware": True})      # 15 + 25 + 5 = 45 → 85
+    assert radar.score(r) == 85
+    assert radar.breakdown(r)["floor"]["aggravating"] == ["ransomware"]
+
+
+def test_minimo_ssvc_active_70(radar):
+    r = c(cvss=4.0, ssvc={"exploitation": "active"})
+    assert radar.score(r) == 70 and radar.breakdown(r)["floor"]["exploited_by"] == "ssvc"
+
+
+def test_si_ya_supera_el_minimo_no_cambia(radar):
+    ver = {"source": "metasploit", "url": "https://x", "name": "m", "verified": True}
+    r = c(cvss=10.0, epss_percentile=0.98, kev=KEV, exploits=[ver])  # 30 + 19.6 + 25 + 15 = 89.6
+    assert radar.score(r) == 90 and "floor" not in radar.breakdown(r)
+
+
+def test_sin_explotacion_no_hay_minimo(radar):
+    r = c(cvss=9.8, stack=["vmware"], poc=[{"url": "https://y"}])
+    assert "floor" not in radar.breakdown(r) and radar.score(r) == round(29.4 + 6 + 5)
+
+
+def test_minimos_configurables(radar, monkeypatch):
+    monkeypatch.setitem(radar.CONFIG["puntuacion"], "minimos", {"explotada": 60, "explotada_critica": 75})
+    assert radar.score(c(cvss=5.0, kev=KEV)) == 60
+    assert radar.score(c(cvss=5.0, kev=KEV, stack=["x"])) == 75
+
+
+def test_score_coherente_con_desglose_en_las_453_reales(radar, real_cves):
+    """El score es la suma de filas redondeada (.5 hacia arriba, como Math.round) o el mínimo."""
+    import math
+    for r in real_cves:
+        b = radar.breakdown(r)
+        suma = math.floor(sum(rows(b).values()) + 0.5)
+        assert radar.score(r) == (max(suma, b["floor"]["value"]) if "floor" in b else suma)
+        if radar.exploitation(r):
+            assert radar.score(r) >= 70                              # una explotada nunca es "PLANIFICAR"
+
+
+def test_redondeo_de_medios_hacia_arriba(radar):
+    assert radar.score(c(cvss=5.0, epss_percentile=0.375)) == 23     # 15 + 7.5 = 22.5 → 23 (round() daría 22)
+
+
+def test_etiquetas_nuevas(radar):
+    ver = {"source": "nuclei", "url": "https://x", "name": "n", "verified": True}
+    assert "ssvc" in radar.tags({**c(ssvc={"exploitation": "active"}), "news": []})
+    t = radar.tags({**c(kev=KEV, ssvc={"exploitation": "active"}, exploits=[ver], poc=[{"url": "https://y"}]), "news": []})
+    assert "kev" in t and "ssvc" not in t and "exploit" in t and "poc" not in t
 
 
 # ───────────────────────── DB-IP ─────────────────────────

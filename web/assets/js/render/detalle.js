@@ -14,7 +14,8 @@ import {
   nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, scoreBand, scoreVar, verdict, daysFromToday, prefersReducedMotion,
 } from '../util/format.js';
 
-const BD_LABEL = { cvss: 'CVSS', epss: 'EPSS', kev: 'KEV', ransomware: 'RANSOM', poc: 'POC', stack: 'STACK' };
+// kev/poc: filas de las ediciones anteriores a la fase 6; explotada/exploit: las actuales
+const BD_LABEL = { cvss: 'CVSS', epss: 'EPSS', kev: 'KEV', explotada: 'EXPLOTADA', ransomware: 'RANSOM', poc: 'POC', exploit: 'EXPLOIT', stack: 'STACK' };
 const POC_WARNING = 'PoC públicas sin verificar: algunas son falsas o contienen malware. No las ejecutes fuera de un laboratorio aislado.';
 const MAX_POC = 10;
 const MAX_REFS = 8;
@@ -106,10 +107,24 @@ function scorePanel(c, weights) {
     panelHead('SCR-01', 'Score ZEROHOUR', isProv(c) ? 'PROVISIONAL' : 'FINAL', 'h-score'),
     el('div', { class: 'gauge-wrap' }, [gauge(c.score), el('span', { class: 'verdict', text: verdict(c.score) })]),
     el('dl', { class: 'breakdown' }, rows),
+    floorNote(c, keys),
     el('p', { class: 'label bd-foot' }, [
       `PESOS MÁXIMOS: ${weightsLine}`,
       c.breakdown_source === 'derivado' ? el('span', { class: 'bd-foot__src', text: ' · DESGLOSE RECALCULADO CON ESOS PESOS' }) : null,
     ]),
+  ]);
+}
+
+/** Si el pipeline aplicó un mínimo, se dice con todas las letras y con la suma real de las filas. */
+function floorNote(c, keys) {
+  const f = c.score_floor;
+  if (!f) return null;
+  const sum = Math.round(keys.reduce((a, k) => a + (Number(c.score_breakdown[k]) || 0), 0));
+  const why = f.exploited_by === 'kev' ? 'está en el catálogo KEV de CISA' : 'CISA la marca como explotada (SSVC «active»)';
+  const agg = f.aggravating.map((a) => (a === 'stack' ? 'afecta a tu stack' : 'se usa en campañas de ransomware'));
+  return el('p', { class: 'bd-floor', role: 'note' }, [
+    el('b', { text: `MÍNIMO POR EXPLOTACIÓN ACTIVA · ${f.value}` }),
+    `Las filas suman ${nf(sum)}, pero ${why}${agg.length ? ' y ' + agg.join(' y ') : ''}: una CVE explotada nunca queda por debajo de ${f.value} («${verdict(f.value).toLowerCase()}»).`,
   ]);
 }
 

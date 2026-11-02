@@ -93,7 +93,7 @@ a.lrow:hover .trow__id { color: var(--ok); }
 .verdict { display: flex; align-items: center; gap: 10px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; font-weight: 600; letter-spacing: .16em; color: var(--sc); }
 .verdict::before { content: ""; width: 8px; height: 8px; background: var(--sc); }
 .breakdown { display: grid; gap: 8px; margin: 0; padding: 0 18px 12px; }
-.bd { display: grid; grid-template-columns: 58px 1fr 64px; gap: 10px; align-items: center; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; }
+.bd { display: grid; grid-template-columns: 76px 1fr 64px; gap: 10px; align-items: center; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; }
 .bd dt, .bd dd { margin: 0; }
 .bd__k { color: var(--text-3); letter-spacing: .1em; }
 .bd--on .bd__k { color: var(--text-2); }
@@ -102,6 +102,8 @@ a.lrow:hover .trow__id { color: var(--ok); }
 .bd__v { text-align: right; font-variant-numeric: tabular-nums; }
 .bd__v small { color: var(--text-3); font-size: inherit; }
 .bd-foot { margin: 0; padding: 0 18px 16px; line-height: 1.6; }
+.bd-floor { margin: 0 18px 14px; padding: 10px 12px; border-left: 2px solid var(--sev-critical); background: rgba(255, 79, 109, .07); font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.bd-floor b { display: block; margin-bottom: 3px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; letter-spacing: .14em; color: var(--sev-critical); }
 
 .desc-en { margin: 0; font-size: 15.5px; line-height: 1.65; color: var(--text-2); overflow-wrap: anywhere; }
 .note { margin: 0 0 14px; padding: 14px 16px; border-left: 2px solid var(--warn); background: var(--warn-dim); font-size: 14.5px; line-height: 1.55; }
