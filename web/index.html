@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZEROHOUR — Inteligencia de vulnerabilidades</title>
-<meta name="description" content="Briefing diario de vulnerabilidades: NVD, CISA KEV, EPSS, GitHub Advisories, PoC públicas e INCIBE-CERT, puntuado de 0 a 100.">
+<meta name="description" content="Briefing diario de vulnerabilidades: NVD, CISA KEV y SSVC, EPSS, exploits verificados, GitHub Advisories, INCIBE-CERT y CERT-EU, puntuado de 0 a 100.">
 <meta name="theme-color" content="#050A0A">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050A0A'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%234CF2A3' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E3EEEA' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E3EEEA'/%3E%3Cpath d='M16 17.5V7.4' stroke='%234CF2A3' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%234CF2A3'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
 
@@ -88,13 +88,14 @@
       <div>
         <div class="lockup" aria-label="ZEROHOUR"><svg aria-hidden="true"><use href="#logo"/></svg><span class="brand__name" aria-hidden="true">ZERO<i class="brand__sep"></i>HOUR</span></div>
         <p class="label foot__by">Inteligencia de vulnerabilidades<br>por Adrián López Olaria</p>
-        <p>Un briefing de vulnerabilidades que se compila solo cada mañana: NVD, CISA KEV, FIRST EPSS, GitHub Advisories, PoC públicas, INCIBE-CERT y prensa especializada. Web estática; los datos son JSON que regenera un job programado.</p>
+        <p>Un briefing de vulnerabilidades que se compila solo cada mañana: NVD, CISA KEV y SSVC, FIRST EPSS, exploits de Metasploit, Exploit-DB y Nuclei, PoC públicas, GitHub Advisories, avisos de INCIBE-CERT y CERT-EU y prensa especializada. Web estática; los datos son JSON que regenera un job programado.</p>
         <p class="foot__sign">Diseño y desarrollo: <b>Adrián López Olaria</b> · Castellón</p>
       </div>
       <div>
         <h3>CÓMO SE PUNTÚA</h3>
-        <p class="formula">score = 3,5 · CVSS<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 20 · EPSS (percentil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 25 · KEV + 5 · ransomware<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 10 · PoC + 5 · stack</p>
-        <p>Una CVE sin puntuar aún en NVD no suma 0 por CVSS: se le asigna un valor neutro del 40 % y su score es provisional (marcado con *) hasta que NVD la analice.</p>
+        <p class="formula">score = 3 · CVSS<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 20 · EPSS (percentil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 25 · explotada (KEV; SSVC activa: 20)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 5 · ransomware<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 15 · exploit verificado (PoC: 6)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 5 · stack</p>
+        <p>Una CVE explotada nunca baja de 70, ni de 85 si además afecta al stack, se usa en ransomware o tiene exploit verificado.</p>
+        <p>Una CVE sin puntuar aún no suma 0 por CVSS: se le asigna un valor neutro del 40 % y su score es provisional (marcado con *) hasta que se analice.</p>
       </div>
       <div>
         <h3>FUENTES</h3>
