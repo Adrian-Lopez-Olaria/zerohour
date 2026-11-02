@@ -49,7 +49,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      mode: ${{ steps.mode.outputs.mode }}
+      mode: ${{ steps.gate.outputs.mode }}     # "nada" si no hay nada que publicar
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,8 +84,14 @@ jobs:
           sparse-checkout: web/data
 
       - name: Preparar data/ con lo publicado
+        id: prep
         run: |
           mkdir -p data
+          if [ -f _prev/web/data/latest.json ]; then
+            echo "previos=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "previos=false" >> "$GITHUB_OUTPUT"
+          fi
           if [ -d _prev/web/data ]; then
             cp -r _prev/web/data/. data/
             cp _prev/web/data/index.json _prev-index.json 2>/dev/null || true
@@ -94,32 +100,48 @@ jobs:
             echo "Sin rama deploy todavía: primera publicación"
           fi
 
+      # Sin datos publicados todavía, "deploy" (push a main) y "map" no tienen informe que
+      # publicar: el run acaba en verde con un aviso, sin validar ni publicar nada.
+      - name: ¿Hay algo que publicar?
+        id: gate
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+          PREVIOS: ${{ steps.prep.outputs.previos }}
+        run: |
+          if [ "$PREVIOS" != "true" ] && { [ "$MODE" = "deploy" ] || [ "$MODE" = "map" ]; }; then
+            echo "::notice::Aún no hay datos publicados: lanza primero un run manual en modo all. Este run ($MODE) no publica nada."
+            echo "mode=nada" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-python@v5
-        if: steps.mode.outputs.mode != 'deploy'
+        if: contains(fromJSON('["daily","map","all"]'), steps.gate.outputs.mode)
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Instalar dependencias
-        if: steps.mode.outputs.mode != 'deploy'
+        if: contains(fromJSON('["daily","map","all"]'), steps.gate.outputs.mode)
         run: pip install -r requirements.txt
 
       - name: Caché de la base de DB-IP (una descarga al mes)
-        if: steps.mode.outputs.mode == 'map' || steps.mode.outputs.mode == 'all'
+        if: steps.gate.outputs.mode == 'map' || steps.gate.outputs.mode == 'all'
         uses: actions/cache@v4
         with:
           path: .cache/geo
           key: dbip-${{ steps.mode.outputs.month }}
 
-      - name: Ejecutar radar (${{ steps.mode.outputs.mode }})
-        if: steps.mode.outputs.mode != 'deploy'
+      - name: Ejecutar radar (${{ steps.gate.outputs.mode }})
+        if: contains(fromJSON('["daily","map","all"]'), steps.gate.outputs.mode)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}   # solo lectura (contents: read): consulta de GHSA
-          MODE: ${{ steps.mode.outputs.mode }}
+          MODE: ${{ steps.gate.outputs.mode }}
         run: python scripts/radar.py "$MODE"
 
       - name: Validar los datos (si no cuadran, no se publica nada)
+        if: steps.gate.outputs.mode != 'nada'
         run: |
           if [ -f _prev-index.json ]; then
             python3 scripts/validar_datos.py data/ --previo _prev-index.json
@@ -128,6 +150,7 @@ jobs:
           fi
 
       - name: Pasar los datos al job que publica
+        if: steps.gate.outputs.mode != 'nada'
         uses: actions/upload-artifact@v4
         with:
           name: datos
@@ -136,7 +159,7 @@ jobs:
           if-no-files-found: error
 
       - name: Copia de seguridad de los datos (7 días)
-        if: steps.mode.outputs.mode == 'daily' || steps.mode.outputs.mode == 'all'
+        if: steps.gate.outputs.mode == 'daily' || steps.gate.outputs.mode == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: copia-datos-${{ github.run_id }}
@@ -145,6 +168,7 @@ jobs:
 
   publicar:
     needs: recolectar
+    if: needs.recolectar.outputs.mode != 'nada'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

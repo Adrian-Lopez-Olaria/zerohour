@@ -179,3 +179,37 @@ def test_el_script_solo_puede_empujar_a_deploy():
     assert asignaciones == ['"refs/heads/deploy"']                         # una sola asignación, fija a deploy
     pushes = [ln for ln in s.splitlines() if re.search(r"\bgit\b.*\bpush\b", ln)]
     assert len(pushes) == 2 and all('"HEAD:${TARGET}"' in ln for ln in pushes)   # todo push va a TARGET
+
+
+# ───────────────────────── workflow: sin datos publicados todavía ─────────────────────────
+
+def _workflow():
+    import yaml
+    return yaml.safe_load((ROOT / ".github/workflows/radar.yml").read_text(encoding="utf-8"))
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="necesita bash")
+@pytest.mark.parametrize("modo, previos, esperado", [
+    ("deploy", "false", "nada"), ("map", "false", "nada"),      # primer push de main / cron del mapa
+    ("all", "false", "all"), ("daily", "false", "daily"),        # estos crean la primera edición
+    ("deploy", "true", "deploy"), ("map", "true", "map"),
+])
+def test_workflow_no_publica_sin_datos_previos(tmp_path, modo, previos, esperado):
+    """El script real del paso «¿Hay algo que publicar?», ejecutado con bash."""
+    paso = next(s for s in _workflow()["jobs"]["recolectar"]["steps"] if s.get("id") == "gate")
+    out = tmp_path / "out"
+    out.write_text("")
+    r = subprocess.run(["bash", "-c", paso["run"]], capture_output=True, text=True,
+                       env={"MODE": modo, "PREVIOS": previos, "GITHUB_OUTPUT": str(out), "PATH": "/usr/bin:/bin"})
+    assert r.returncode == 0
+    assert out.read_text().strip() == f"mode={esperado}"
+    assert ("::notice::" in r.stdout) == (esperado == "nada")
+
+
+def test_workflow_si_no_hay_nada_no_valida_ni_publica():
+    w = _workflow()
+    pasos = {s.get("name", ""): s for s in w["jobs"]["recolectar"]["steps"]}
+    assert "nada" in pasos["Validar los datos (si no cuadran, no se publica nada)"]["if"]
+    assert "nada" in pasos["Pasar los datos al job que publica"]["if"]
+    assert w["jobs"]["publicar"]["if"] == "needs.recolectar.outputs.mode != 'nada'"
+    assert w["jobs"]["recolectar"]["outputs"]["mode"].startswith("${{ steps.gate.outputs.mode }}")
