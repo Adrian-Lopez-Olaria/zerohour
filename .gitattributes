@@ -2,3 +2,6 @@
 # para que el SHA-256 del repo, del despliegue y de una copia en Windows sea el mismo.
 web/assets/vendor/* -text
 web/assets/geo/* -text
+
+# Scripts de shell: siempre LF (bash no acepta CRLF), también en copias de Windows
+*.sh text eol=lf
