@@ -1,5 +1,5 @@
 /* =============================================================================
-   render/briefing.js · SEC-01 BRIEFING
+   render/briefing.js · BRIEFING
    Titular, resumen, contadores, radar, top 10, países, puertos y prensa.
    El globo (zona GLB-01) se monta en la fase 4; aquí se deja su contenedor y HUD.
    ============================================================================= */
@@ -77,32 +77,17 @@ function kpiBlock(st, delta, counters) {
 
 function copyBlock(latest, index, top, empty, counters) {
   const st = latest.stats;
-  let headline;
-  if (empty) {
-    headline = ['Sin CVE', el('br'), 'todavía.',
-      el('small', { text: 'NVD publica en lotes; la primera tanda suele llegar pasadas las 02:00 UTC.' })];
-  } else {
-    const n = el('span', { class: 'n num', text: nf(st.kev_new) });
-    counters.push({ node: n, to: st.kev_new });
-    headline = [n, ` explotada${st.kev_new === 1 ? '' : 's'}`, el('br'), 'activamente.',
-      el('small', [el('b', { text: nf(st.in_stack) }), ' EN TU STACK · ', el('b', { text: nf(st.with_exploit != null ? st.with_exploit : st.with_poc) }), st.with_exploit != null ? ' CON EXPLOIT VERIFICADO' : ' CON EXPLOIT PÚBLICO'])];
-  }
+  // v2: la fecha, la edición y el T+ viven en la franja; sin titular grande
   const summary = empty
-    ? 'Sin datos de NVD para hoy. El listado y el top se rellenarán solos en la próxima lectura; mientras tanto, el histórico sigue disponible.'
+    ? 'Sin datos de NVD para hoy todavía. El listado y el top se rellenarán solos en la próxima lectura; mientras tanto, el histórico sigue disponible.'
     : latest.summary;
 
   return el('div', { class: 'copy' }, [
-    el('p', { class: 'eyebrow' }, [
-      el('b', { text: 'SEC-01 / BRIEFING' }),
-      latest.date ? el('span', { text: dLong(latest.date) }) : null,
-      latest.generated_at ? el('span', { text: `EDICIÓN ${tLocal(latest.generated_at)} HORA PENINSULAR` }) : null,
-      el('span', { class: 'tplus' }, ['T+', el('b', { class: 'js-tplus', text: '00:00:00' }), ' DESDE LA ÚLTIMA ACTUALIZACIÓN']),
-    ]),
-    el('h1', { class: 'hero-h', id: 'h-brief' }, headline),
+    el('h1', { class: 'sr-only', id: 'h-brief', text: latest.date ? `Briefing del ${dLong(latest.date)}` : 'Briefing del día' }),
     el('p', { class: 'summary', text: summary }),
     kpiBlock(st, makeDelta(latest, index), counters),
     el('div', { class: 'copy__actions' }, [
-      el('a', { class: 'btn', href: '#listado', text: `Ver las ${nf(st.new_cves)} CVE` }),
+      el('a', { class: 'btn btn--primary', href: '#listado', text: `Ver las ${nf(st.new_cves)} CVE` }),
       top[0] && cveHref(top[0].id) ? el('a', { class: 'link', href: cveHref(top[0].id), text: 'Ficha de la nº 1 →' }) : null,
     ]),
   ]);
@@ -124,7 +109,7 @@ function globeHud(map) {
   const countries = map ? new Set(map.points.map((p) => p.cc)).size : 0;
   return el('div', { class: 'globe-hud', id: 'globe-hud', 'aria-hidden': 'true' }, [
     el('div', { class: 'hud-tl' }, [
-      el('span', ['GLB-01 / ', el('b', { text: 'ORIGEN DE ATAQUES · 24 H' })]),
+      el('span', el('b', { text: 'ORIGEN DE ATAQUES' })),
       el('span', { text: map ? `${nf(total)} EVENTOS · ${countries} PAÍSES · LECTURA ${tUTC(map.updated_at)} UTC` : 'SIN LECTURA DEL MAPA' }),
     ]),
     el('div', { class: 'hud-bl' }, [
@@ -135,7 +120,6 @@ function globeHud(map) {
       ]),
       el('span', { class: 'hud-drag', text: prefersReducedMotion() ? 'ARRASTRA PARA GIRAR' : 'ARRASTRA PARA GIRAR · AUTOGIRO 0,35' }),
     ]),
-    el('div', { class: 'hud-ticks' }),
   ]);
 }
 
@@ -244,7 +228,6 @@ export function renderBriefing(root, state) {
 
   clear(root);
   root.appendChild(el('div', { class: 'brief' }, [
-    el('div', { class: 'brief__sweep', 'aria-hidden': 'true' }),
     copyBlock(latest, index, top, empty, counters),
     globeZone(map),
     el('aside', { class: 'radar-panel panel', 'aria-labelledby': 'h-radar' }, [

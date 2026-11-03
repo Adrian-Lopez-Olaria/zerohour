@@ -87,8 +87,8 @@ export function renderRadar(top) {
     'aria-label': `Radar de urgencia: ${top.length} CVE del top. Distancia al centro según el score (centro = 100) y ángulo según el fabricante. ${inner.length} en el anillo interior (score 85 o más).`,
   }, [
     svg('defs', [svg('linearGradient', { id: 'zh-radar-sw', x1: 0, y1: 0, x2: 1, y2: 0 }, [
-      svg('stop', { offset: 0, 'stop-color': '#4CF2A3', 'stop-opacity': 0 }),
-      svg('stop', { offset: 1, 'stop-color': '#4CF2A3', 'stop-opacity': 0.28 }),
+      svg('stop', { offset: 0, 'stop-color': '#38D996', 'stop-opacity': 0 }),
+      svg('stop', { offset: 1, 'stop-color': '#38D996', 'stop-opacity': 0.28 }),
     ])]),
     svg('circle', { class: 'radar__disc', cx: C, cy: C, r: R }),
     ...ticks, ...sectors, ...rings,

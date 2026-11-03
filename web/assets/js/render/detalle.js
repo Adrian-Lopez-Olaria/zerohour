@@ -1,5 +1,5 @@
 /* =============================================================================
-   render/detalle.js · SEC-03 FICHA DE UNA CVE
+   render/detalle.js · FICHA DE UNA CVE
    - Dial y desglose desde score_breakdown + scoring_weights: una fila por cada
      peso que traiga el JSON (hoy 6, ransomware incluido); nada fijo en el código.
    - PoC: texto 100 % hostil, aviso de "sin verificar" y rel="… nofollow ugc".
@@ -369,7 +369,6 @@ function linksPanel(c) {
 
 function notFound(root, ctx, id) {
   const ed = ctx.state.edition;
-  root.appendChild(el('p', { class: 'eyebrow' }, [el('b', { text: 'SEC-03 / FICHA' })]));
   root.appendChild(el('h1', { class: 'sr-only', id: 'h-det', text: id ? `${id}: no está en esta edición` : 'Ficha no encontrada' }));
   root.appendChild(el('div', { class: 'panel panel--gap' }, [
     emptyBlock(id ? `${id} no está en esta edición` : 'Identificador no válido',
@@ -390,7 +389,6 @@ export function renderDetalle(root, ctx, id) {
   const banner = editionBanner(ed, ctx.backToToday);
 
   if (!list.length) {
-    root.appendChild(el('p', { class: 'eyebrow' }, [el('b', { text: 'SEC-03 / FICHA' })]));
     root.appendChild(el('h1', { class: 'sr-only', id: 'h-det', text: 'Sin fichas' }));
     if (banner) root.appendChild(banner);
     root.appendChild(el('div', { class: 'panel panel--gap' }, emptyBlock('No hay fichas que mostrar', 'Las fichas aparecen cuando NVD publica las primeras CVE del día.')));
@@ -407,8 +405,8 @@ export function renderDetalle(root, ctx, id) {
   const dash = c.id.lastIndexOf('-');
 
   root.appendChild(el('nav', { class: 'crumbs', 'aria-label': 'Ruta' }, [
-    el('span', { class: 'eyebrow' }, [
-      el('b', { text: 'SEC-03 / FICHA' }), el('a', { href: '#listado', text: 'LISTADO' }), el('span', { 'aria-hidden': 'true', text: '/' }),
+    el('span', { class: 'crumbs__path' }, [
+      el('a', { href: '#listado', text: 'LISTADO' }), el('span', { 'aria-hidden': 'true', text: '/' }),
       el('span', { class: 'crumbs__cur', 'aria-current': 'page', text: c.id }), el('span', { text: `Nº ${pad(i + 1)} DE ${list.length} POR SCORE` }),
     ]),
     el('span', { class: 'crumbs__nav' }, [navBtn(prev, '← ANTERIOR', 'prev'), navBtn(next, 'SIGUIENTE →', 'next')]),

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZEROHOUR — Inteligencia de vulnerabilidades</title>
 <meta name="description" content="Briefing diario de vulnerabilidades: NVD, CISA KEV y SSVC, EPSS, exploits verificados, GitHub Advisories, INCIBE-CERT y CERT-EU, puntuado de 0 a 100.">
-<meta name="theme-color" content="#050A0A">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050A0A'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%234CF2A3' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E3EEEA' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E3EEEA'/%3E%3Cpath d='M16 17.5V7.4' stroke='%234CF2A3' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%234CF2A3'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#10161D">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230A0E13'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%2338D996' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E6EBF1' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E6EBF1'/%3E%3Cpath d='M16 17.5V7.4' stroke='%2338D996' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%2338D996'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
 
 <!-- Precarga solo la fuente del titular (Big Shoulders); el resto con font-display: swap -->
 <link rel="preload" href="assets/fonts/big-shoulders-display-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -14,7 +14,6 @@
 <link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/fuentes.css">
 <link rel="stylesheet" href="assets/css/base.css">
-<link rel="stylesheet" href="assets/css/fondo.css">
 <link rel="stylesheet" href="assets/css/componentes.css">
 <link rel="stylesheet" href="assets/css/cabecera.css">
 <link rel="stylesheet" href="assets/css/briefing.css">
@@ -25,15 +24,6 @@
 
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
-
-<!-- Fondo por capas: base · retícula · grano · viñeta -->
-<div class="bg bg__base" aria-hidden="true"></div>
-<div class="bg bg__grid" aria-hidden="true"></div>
-<div class="bg bg__grain" aria-hidden="true"></div>
-<div class="bg bg__vignette" aria-hidden="true"></div>
-<div class="frame" aria-hidden="true">
-  <span class="frame__ruler frame__ruler--l"></span><span class="frame__ruler frame__ruler--r"></span>
-</div>
 
 <!-- Logotipo: la «hora cero». Esfera de cronómetro parada en 00:00 que es a la vez pantalla de radar -->
 <svg class="logo-defs" width="0" height="0" aria-hidden="true">
@@ -48,6 +38,9 @@
   </symbol>
 </svg>
 
+<!-- v2: dos barras opacas y sticky. Cabecera (marca, navegación, relojes) y franja de edición
+     (fecha, edición, T+ y estado de las fuentes), que pinta render/cabecera.js -->
+<div class="top">
 <header class="hdr">
   <div class="wrap hdr__row">
     <a class="brand" href="#briefing" aria-label="ZEROHOUR, ir al briefing">
@@ -56,25 +49,27 @@
       <span class="brand__by">Inteligencia de vulnerabilidades<br>por Adrián López Olaria</span>
     </a>
     <nav class="nav" aria-label="Secciones">
-      <a class="nav__a" href="#briefing" data-view="briefing"><small>SEC-01</small>BRIEFING</a>
-      <a class="nav__a" href="#listado" data-view="listado"><small>SEC-02</small>LISTADO</a>
-      <a class="nav__a" href="#cve" data-view="detalle"><small>SEC-03</small>DETALLE</a>
-      <a class="nav__a" href="#historico" data-view="historico"><small>SEC-04</small>HISTÓRICO</a>
+      <a class="nav__a" href="#briefing" data-view="briefing">BRIEFING</a>
+      <a class="nav__a" href="#listado" data-view="listado">LISTADO</a>
+      <a class="nav__a" href="#cve" data-view="detalle">DETALLE</a>
+      <a class="nav__a" href="#historico" data-view="historico">HISTÓRICO</a>
     </nav>
     <div class="clocks" aria-live="off">
-      <span class="tplus" title="Tiempo desde la última actualización del briefing">T+<b class="js-tplus">00:00:00</b></span>
-      <span class="clk-utc">UTC <b id="clk-utc">--:--:--</b></span>
-      <span class="clk-loc">LOCAL <b id="clk-loc">--:--:--</b></span>
-      <span class="pilot">LIVE</span>
+      <span class="clk">UTC <b id="clk-utc">--:--:--</b></span>
+      <span class="clk">LOCAL <b id="clk-loc">--:--:--</b></span>
+      <span class="live">LIVE</span>
     </div>
-    <!-- El T+ visible cambia cada segundo sin anunciarse; aquí, un resumen que solo cambia cada hora -->
-    <span class="sr-only" id="tplus-sr" aria-live="polite"></span>
   </div>
-  <div class="srcbar"><div class="wrap srcbar__row" id="srcbar" role="group" aria-label="Estado de las fuentes"></div></div>
 </header>
+<div class="strip">
+  <div class="wrap strip__row" id="strip"></div>
+  <!-- El T+ visible cambia cada segundo sin anunciarse; aquí, un resumen que solo cambia cada hora -->
+  <span class="sr-only" id="tplus-sr" aria-live="polite"></span>
+</div>
+</div>
 
 <main id="main" class="wrap" tabindex="-1">
-  <!-- Las vistas se pintan desde los JSON (briefing: fase 3; listado, detalle e histórico: fase 5) -->
+  <!-- Las vistas se pintan desde los JSON del pipeline -->
   <div id="alerts"></div>
   <section class="view" id="view-briefing" aria-labelledby="h-brief"></section>
   <section class="view" id="view-listado" aria-labelledby="h-list" hidden></section>
@@ -92,13 +87,13 @@
         <p class="foot__sign">Diseño y desarrollo: <b>Adrián López Olaria</b> · Castellón</p>
       </div>
       <div>
-        <h3>CÓMO SE PUNTÚA</h3>
+        <h3>Cómo se puntúa</h3>
         <p class="formula">score = 3 · CVSS<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 20 · EPSS (percentil)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 25 · explotada (KEV; SSVC activa: 20)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 5 · ransomware<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 15 · exploit verificado (PoC: 6)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 5 · stack</p>
         <p>Una CVE explotada nunca baja de 70, ni de 85 si además afecta al stack, se usa en ransomware o tiene exploit verificado.</p>
         <p>Una CVE sin puntuar aún no suma 0 por CVSS: se le asigna un valor neutro del 40 % y su score es provisional (marcado con *) hasta que se analice.</p>
       </div>
       <div>
-        <h3>FUENTES</h3>
+        <h3>Fuentes</h3>
         <p>
           <a class="link" href="https://nvd.nist.gov/" target="_blank" rel="noopener noreferrer">NVD</a> ·
           <a class="link" href="https://www.cve.org/" target="_blank" rel="noopener noreferrer">CVE.org</a> / <a class="link" href="https://github.com/cisagov/vulnrichment" target="_blank" rel="noopener noreferrer">CISA Vulnrichment</a> ·

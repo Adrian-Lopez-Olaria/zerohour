@@ -69,9 +69,10 @@ export function chartSvg(win, all, selDate, onPick) {
   }, out);
 }
 
-/** Tabla equivalente, solo para lectores de pantalla. */
+/** Tabla equivalente, solo para lectores de pantalla. Va dentro de un div.sr-only: una tabla
+    ignora width: 1px (se ensancha hasta su contenido mínimo) y creaba scroll horizontal en móvil. */
 export function chartTable(win) {
-  return el('table', { class: 'sr-only' }, [
+  return el('div', { class: 'sr-only' }, el('table', [
     el('caption', { text: 'CVE por día y severidad' }),
     el('thead', el('tr', ['Día', 'CVE', 'Críticas', 'Altas', 'Medias', 'Bajas', 'Sin puntuar', 'Nuevas en KEV'].map((t) => el('th', { scope: 'col', text: t })))),
     el('tbody', win.map((d) => el('tr', [
@@ -80,5 +81,5 @@ export function chartTable(win) {
       ...SEV_ORDER.map((k) => el('td', { text: nf(d.stats.by_severity[k]) })),
       el('td', { text: nf(d.stats.kev_new) }),
     ]))),
-  ]);
+  ]));
 }

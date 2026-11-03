@@ -1,9 +1,9 @@
 /* =============================================================================
-   render/cabecera.js · relojes, barra de fuentes y avisos de fuente caída
+   render/cabecera.js · relojes, franja de edición (fuentes) y avisos de fuente caída
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
 import { SOURCE_KEYS, EXTRA_SOURCE_KEYS, interpretSource } from '../data.js';
-import { TZ, fmtTplus, tUTC, hmUTC, nextBriefingRun, nextMapRun } from '../util/format.js';
+import { TZ, fmtTplus, tUTC, tLocal, dMid, dShort, hmUTC, nextBriefingRun, nextMapRun } from '../util/format.js';
 import { icon } from './comunes.js';
 
 const SOURCE_LABEL = { nvd: 'NVD', kev: 'KEV', epss: 'EPSS', ghsa: 'GHSA', poc: 'POC', rss: 'RSS', cvelist: 'CVE.ORG', metasploit: 'MSF', nuclei: 'NUCLEI', exploitdb: 'EXPLOIT-DB' };
@@ -60,24 +60,54 @@ export function startClocks(getBase) {
   return () => clearInterval(id);
 }
 
-/** Barra de fuentes: piloto + estado por fuente y hora de la lectura del mapa. */
-export function renderSrcbar(latest, map) {
-  const bar = document.getElementById('srcbar');
+/**
+ * Franja de edición (v2): «LUN 02 NOV 2026 · EDICIÓN 13:47 · T+…» y el estado de las fuentes.
+ * Desde 1180 px las fuentes van en línea; por debajo, en un <details> («10/10 FUENTES OK ▾»)
+ * que abre la lista completa (sin JS: el CSS decide cuál se ve). Si alguna cae, el resumen
+ * pasa a «N FUENTES CON ERROR» en rojo y el aviso .alert sigue apareciendo debajo.
+ */
+export function renderStrip(latest, map) {
+  const bar = document.getElementById('strip');
   if (!bar) return;
   clear(bar);
-  for (const k of sourcesOf(latest)) {
-    const s = interpretSource(latest.sources_status[k]);
-    const cls = s.state === 'error' ? ' src--fail' : s.state === 'partial' ? ' src--warn' : '';
-    const title = s.state === 'error' ? s.msg : s.state === 'partial' ? 'Sin estado en esta lectura' : null;
-    bar.appendChild(el('span', { class: 'src' + cls, title }, [
+  const keys = sourcesOf(latest);
+  const st = keys.map((k) => [k, interpretSource(latest.sources_status[k])]);
+  const errs = st.filter(([, s]) => s.state === 'error').length;
+  const warns = st.filter(([, s]) => s.state === 'partial').length;
+  const okN = st.filter(([, s]) => s.state === 'ok').length;
+  const cls = (s) => (s.state === 'error' ? ' src--fail' : s.state === 'partial' ? ' src--warn' : '');
+  const lectura = map && map.updated_at ? `MAPA ${tUTC(map.updated_at)} UTC · PRÓXIMA ≈${hmUTC(nextMapRun())} UTC` : 'MAPA SIN LECTURA';
+
+  const tp = el('span', { class: 'tplus', title: 'Tiempo desde la última actualización del briefing' }, ['T+', el('b', { class: 'js-tplus', text: '--:--:--' })]);
+  bar.appendChild(el('span', { class: 'strip__ed' }, latest.generated_at ? [
+    el('span', { class: 'ed-long' }, [el('b', { text: dMid(latest.date) }), ' · EDICIÓN ', el('b', { text: tLocal(latest.generated_at) }), ' · ']),
+    el('span', { class: 'ed-short', 'aria-hidden': 'true' }, [el('b', { text: dShort(latest.date) }), ' · ', el('b', { text: tLocal(latest.generated_at) }), ' · ']),
+    tp,
+  ] : [el('b', { text: 'SIN EDICIÓN' })]));
+
+  bar.appendChild(el('span', { class: 'srcs-inline', role: 'group', 'aria-label': 'Estado de las fuentes' }, [
+    ...st.map(([k, s]) => el('span', { class: 'src' + cls(s), title: s.state === 'error' ? s.msg : s.state === 'partial' ? 'Sin estado en esta lectura' : null }, [
       el('i', { 'aria-hidden': 'true' }),
       el('b', { text: SOURCE_LABEL[k] }),
       el('em', { text: s.label }),
       s.msg ? el('span', { class: 'sr-only', text: `: ${s.msg}` }) : null,
-    ]));
-  }
-  const lectura = map && map.updated_at ? tUTC(map.updated_at) : '--:--';
-  bar.appendChild(el('span', { class: 'srcbar__upd', text: `MAPA ${lectura} UTC · PRÓXIMA ≈${hmUTC(nextMapRun())} UTC` }));
+    ])),
+    el('span', { class: 'srcs-upd', text: map && map.updated_at ? `MAPA ${tUTC(map.updated_at)} UTC` : '' }),
+  ]));
+
+  bar.appendChild(el('details', { class: 'srcs' + (errs ? ' has-err' : '') + (warns ? ' has-warn' : '') }, [
+    el('summary', [el('i', { 'aria-hidden': 'true' }),
+      errs ? `${errs} FUENTE${errs > 1 ? 'S' : ''} CON ERROR` : `${okN}/${keys.length} FUENTES OK`]),
+    el('ul', { class: 'srcs__list' }, [
+      ...st.map(([k, s]) => el('li', [
+        el('i', { class: 'dot' + (s.state === 'error' ? ' dot--fail' : s.state === 'partial' ? ' dot--warn' : ''), 'aria-hidden': 'true' }),
+        el('b', { text: SOURCE_LABEL[k] }),
+        el('span', { text: s.label }),
+        s.msg ? el('small', { text: s.msg }) : null,
+      ])),
+      el('li', el('span', { class: 'srcs__upd', text: lectura })),
+    ]),
+  ]));
 }
 
 /** Un aviso por cada fuente en ERROR (la PARCIAL solo se marca en la barra). */

@@ -45,6 +45,9 @@ const fmtYMD = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-dig
 export const dLong = (iso) => { const t = parseIso(iso); return t == null ? '' : fmtLong.format(t); };
 export const dShort = (iso) => { const t = parseIso(iso); return t == null ? '—' : fmtShort.format(t).replace('/', '.'); };
 export const dWeek = (iso) => { const t = parseIso(iso); return t == null ? '' : fmtWeek.format(t).replace('.', '').toUpperCase(); };
+const fmtMid = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: TZ });
+/** «LUN 02 NOV 2026» (franja de edición). */
+export const dMid = (iso) => { const t = parseIso(iso); return t == null ? '—' : fmtMid.format(t).replace(/[.,]/g, '').replace(/\s+de\s+/g, ' ').toUpperCase(); };
 export const dDay = (iso) => { const t = parseIso(iso); return t == null ? '' : pad(Number(fmtYMD.format(t).slice(8, 10))); };
 
 /** Días naturales desde hoy (hora de Madrid) hasta una fecha AAAA-MM-DD. Negativo si ya pasó; null si no es válida. */

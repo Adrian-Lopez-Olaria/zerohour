@@ -105,9 +105,9 @@ export function sbar(c) {
   ]);
 }
 
+/** Cabecera de panel. v2: sin códigos de sección (el primer argumento se ignora). */
 export function panelHead(code, title, meta, id) {
   return el('div', { class: 'panel__head' }, [
-    el('span', { class: 'panel__code', text: code }),
     el('h2', { class: 'panel__title', id, text: title }),
     meta ? el('span', { class: 'panel__meta', text: meta }) : null,
   ]);

@@ -1,7 +1,9 @@
 /* =============================================================================
-   ERROR · página 404 (estática, sin JS). Reutiliza tokens, fondo, cabecera y botones.
+   ERROR · página 404 (estática, sin JS). Reutiliza tokens, cabecera y botones.
    ============================================================================= */
 .err { padding-top: var(--sp-7); padding-bottom: var(--sp-7); min-height: calc(100vh - 160px); }
+.eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
+.eyebrow b { color: var(--fail); font-weight: 600; }
 .err__grid { display: grid; grid-template-columns: minmax(160px, 260px) 1fr; align-items: center; gap: var(--sp-6) var(--sp-7); margin-top: var(--sp-6); }
 
 /* Radar apagado: anillos y cruz con la línea de los controles, barrido parado y sin contactos */

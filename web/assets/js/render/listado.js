@@ -1,5 +1,5 @@
 /* =============================================================================
-   render/listado.js · SEC-02 LISTADO
+   render/listado.js · LISTADO
    Buscador (términos con Y lógico), fabricante, orden, severidad y marcas.
    Rendimiento con el volumen real (cientos de CVE):
    - El DOM de cada fila se construye una vez y se reutiliza al filtrar.
@@ -209,10 +209,9 @@ function build(root, ctx, keepFocusOnReset = false) {
   const st = ed.data.stats;
 
   clear(root);
-  root.appendChild(el('div', { class: 'sec-title' }, [
-    el('p', { class: 'eyebrow eyebrow--full' }, [el('b', { text: 'SEC-02 / LISTADO' }), el('span', { text: dLong(ed.date) })]),
-    el('h1', { id: 'h-list', text: ed.today ? 'Todas las CVE del día' : 'CVE de esa edición' }),
-    el('span', { class: 'label', text: `${nf(st.new_cves)} PUBLICADAS · ${nf(cves.length)} EN ESTA EDICIÓN` }),
+  root.appendChild(el('div', { class: 'page-head' }, [
+    el('h1', { id: 'h-list', text: 'Listado' }),
+    el('span', { class: 'label', text: `${dLong(ed.date)} · ${nf(st.new_cves)} PUBLICADAS · ${nf(cves.length)} EN ESTA EDICIÓN` }),
   ]));
   const banner = editionBanner(ed, ctx.backToToday);
   if (banner) root.appendChild(banner);

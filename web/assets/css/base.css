@@ -1,11 +1,12 @@
 /* =============================================================================
    BASE · reset ligero, tipografía raíz, utilidades compartidas
+   v2: fondo liso --bg-0 (sin retícula, grano, viñeta ni reglas laterales)
    ============================================================================= */
 *, *::before, *::after { box-sizing: border-box; }
 html { color-scheme: dark; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; min-height: 100vh; color: var(--text-1); background: var(--bg-0);
-  font-family: var(--f-text); font-size: var(--fs-body); line-height: 1.55;
+  font-family: var(--f-text); font-size: var(--fs-body); line-height: 1.5;
   -webkit-font-smoothing: antialiased; overflow-x: clip;
 }
 ::selection { background: var(--ok); color: var(--bg-0); }
@@ -17,17 +18,15 @@ button, input, select { font: inherit; color: inherit; }
 .label { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); }
 .num { font-variant-numeric: tabular-nums lining-nums; }
 
-.link { color: var(--text-1); text-decoration: underline; text-decoration-color: var(--ok); text-underline-offset: 4px; }
-.link:hover { color: var(--ok); }
+.link { color: var(--text-1); text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; }
+.link:hover { text-decoration-color: var(--ok); }
 
 /* Accesibilidad: salto al contenido y texto solo para lectores de pantalla */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.skip { position: absolute; left: 12px; top: -48px; z-index: 50; padding: 10px 14px; background: var(--ok); color: var(--bg-0); font-family: var(--f-mono); font-size: 12px; }
-.skip:focus { top: 12px; }
+.skip { position: absolute; left: 12px; top: -48px; z-index: 60; padding: 10px 14px; background: var(--ok); color: var(--bg-0); font-family: var(--f-mono); font-size: 12px; }
+.skip:focus { top: 8px; }
 
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
-/* Los decorados grandes (barrido del briefing) no deben crear scroll horizontal. El clip del
-   body se propaga al viewport y ahí no basta; en main sí recorta (y clip no crea contenedor de scroll). */
 main { overflow-x: clip; }
 
 /* Definiciones SVG fuera de pantalla (símbolo del logo) — sin estilos inline por la CSP */

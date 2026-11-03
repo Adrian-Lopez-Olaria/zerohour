@@ -198,6 +198,9 @@ def build(argv=None) -> tuple[Server, Cfg]:
 
 
 def main(argv=None) -> int:
+    # En Windows, con la salida redirigida (cp1252), imprimir «·» o «→» tumbaba el servidor
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
     httpd, cfg = build(argv)
     print(f"ZEROHOUR dev · http://127.0.0.1:{httpd.server_port}/  (cabeceras de {cfg.netlify.name}: {len(cfg.rules)} reglas)")
     print(f"  web: {cfg.root}\n  datos: {cfg.data}"

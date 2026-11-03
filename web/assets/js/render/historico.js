@@ -1,5 +1,5 @@
 /* =============================================================================
-   render/historico.js · SEC-04 HISTÓRICO
+   render/historico.js · HISTÓRICO
    Selector de días (un solo punto de tabulación; flechas ←/→, Inicio y Fin),
    gráfica por severidad + KEV (7/14/30 días) y resumen del día elegido.
    Un día pasado puede abrirse en el listado: se descarga data/days/AAAA-MM-DD.json
@@ -141,12 +141,9 @@ export function renderHistorico(root, ctx) {
   const days = index ? index.days : [];
   clear(root);
 
-  const title = el('div', { class: 'sec-title' }, [
-    el('p', { class: 'eyebrow eyebrow--full' }, [
-      el('b', { text: 'SEC-04 / HISTÓRICO' }),
-      days.length ? el('span', { text: `${plural(days.length, 'EDICIÓN', 'EDICIONES')} · ${dShort(days[0].date)} – ${dShort(days[days.length - 1].date)}` }) : null,
-    ]),
-    el('h1', { id: 'h-hist', text: 'Tendencia' }),
+  const title = el('div', { class: 'page-head' }, [
+    el('h1', { id: 'h-hist', text: 'Histórico' }),
+    days.length ? el('span', { class: 'label', text: `${plural(days.length, 'EDICIÓN', 'EDICIONES')} · ${dShort(days[0].date)} – ${dShort(days[days.length - 1].date)}` }) : null,
   ]);
   root.appendChild(title);
 

@@ -5,15 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>404 · Ruta no encontrada — ZEROHOUR</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#050A0A">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050A0A'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%234CF2A3' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E3EEEA' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E3EEEA'/%3E%3Cpath d='M16 17.5V7.4' stroke='%234CF2A3' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%234CF2A3'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#10161D">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230A0E13'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%2338D996' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E6EBF1' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E6EBF1'/%3E%3Cpath d='M16 17.5V7.4' stroke='%2338D996' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%2338D996'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
 
 <!-- Página estática y sin JavaScript. Se sirve en CUALQUIER ruta que no exista
      (/a/b/c), así que todas las rutas son absolutas. Misma CSP que el resto del sitio. -->
 <link rel="stylesheet" href="/assets/css/tokens.css">
 <link rel="stylesheet" href="/assets/css/fuentes.css">
 <link rel="stylesheet" href="/assets/css/base.css">
-<link rel="stylesheet" href="/assets/css/fondo.css">
 <link rel="stylesheet" href="/assets/css/componentes.css">
 <link rel="stylesheet" href="/assets/css/cabecera.css">
 <link rel="stylesheet" href="/assets/css/error.css">
@@ -21,14 +20,6 @@
 
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
-
-<div class="bg bg__base" aria-hidden="true"></div>
-<div class="bg bg__grid" aria-hidden="true"></div>
-<div class="bg bg__grain" aria-hidden="true"></div>
-<div class="bg bg__vignette" aria-hidden="true"></div>
-<div class="frame" aria-hidden="true">
-  <span class="frame__ruler frame__ruler--l"></span><span class="frame__ruler frame__ruler--r"></span>
-</div>
 
 <svg class="logo-defs" width="0" height="0" aria-hidden="true">
   <symbol id="logo" viewBox="0 0 32 32">
@@ -53,7 +44,7 @@
 </header>
 
 <main id="main" class="wrap err" tabindex="-1">
-  <p class="eyebrow"><b>ERR-404 / RUTA</b><span>SIN CONTACTO EN ESTA DIRECCIÓN</span></p>
+  <p class="eyebrow"><b>HTTP 404</b><span>SIN CONTACTO EN ESTA DIRECCIÓN</span></p>
 
   <div class="err__grid">
     <!-- Radar apagado: barrido parado, sin blips -->
@@ -70,7 +61,7 @@
       <h1 class="err__h"><span class="err__code">404</span>Esta ruta no existe</h1>
       <p class="err__p">La dirección no corresponde a ninguna página de ZEROHOUR. Las fichas de cada CVE viven dentro del briefing, en enlaces del tipo <span class="mono">/#cve/CVE-AAAA-NNNN</span>.</p>
       <div class="err__actions">
-        <a class="btn" href="/#briefing">Ir al briefing</a>
+        <a class="btn btn--primary" href="/#briefing">Ir al briefing</a>
         <a class="btn btn--ghost" href="/#listado">Ver el listado</a>
       </div>
     </div>
