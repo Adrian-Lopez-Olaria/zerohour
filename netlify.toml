@@ -49,20 +49,22 @@
 
 # Nuestro código, la página y los datos: se guardan, pero se revalidan SIEMPRE (ETag → 304).
 # Sin paso de build no hay hashes en los nombres, así que un cambio se ve en la siguiente visita.
+# HTML con no-transform: defensa en profundidad para que ningún intermediario (ni funciones de
+# la zona de Cloudflare que inyectan scripts) reescriba la página; romperían la CSP.
 [[headers]]
   for = "/"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-cache, no-transform"
 
 [[headers]]
   for = "/index.html"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-cache, no-transform"
 
 [[headers]]
   for = "/404.html"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-cache, no-transform"
 
 [[headers]]
   for = "/assets/css/*"

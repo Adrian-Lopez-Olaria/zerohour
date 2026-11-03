@@ -4,7 +4,9 @@
 
 Briefing diario de vulnerabilidades: cada mañana cruza fuentes públicas, puntúa de 0 a 100 lo que de verdad importa y publica una web estática con el resultado. Además, cada 3 horas actualiza un mapa mundial de actividad de ataques.
 
-Todo corre gratis: el pipeline en **GitHub Actions** y la web en **Netlify**, con cabeceras de seguridad estrictas (CSP sin excepciones y Trusted Types).
+En producción en **<https://zerohour-cve.dev>**.
+
+Todo corre gratis: el pipeline en **GitHub Actions** y la web en **Cloudflare Workers** (solo ficheros estáticos), con cabeceras de seguridad estrictas (CSP sin excepciones y Trusted Types).
 
 ## Fuentes
 
@@ -35,12 +37,13 @@ main  ──(código: web/, scripts/, config.toml)──────────
 GitHub Actions ─ recolectar (solo lectura) ─ validar ─ publicar (solo escribe en deploy)
                                                            │  commit huérfano + force-push
                                                            ▼
-deploy  ──(sitio montado: web/ + web/data/ + netlify.toml)──► Netlify
+deploy  ──(web/ + web/data/ + web/_headers + wrangler.jsonc)──► desplegar ─ wrangler ─► Cloudflare
 ```
 
 - **`main` solo tiene código.** Los datos nunca se suben a `main`, así que su historial no crece cada día.
 - **`deploy` es el sitio ya montado** y tiene siempre **un único commit**: cada publicación lo reemplaza con un commit huérfano y *force-push*. El *force-push* solo existe hacia `deploy`: el destino está fijado en `scripts/publicar_deploy.sh` y un test lo comprueba.
-- **Dos jobs con permisos mínimos.** `recolectar` (`contents: read`) ejecuta el pipeline y recupera el histórico de 90 días **desde `deploy`**. `publicar` (`contents: write`) solo valida, monta y empuja.
+- **Tres jobs con permisos mínimos.** `recolectar` (`contents: read`) ejecuta el pipeline y recupera el histórico de 90 días **desde `deploy`**. `publicar` (`contents: write`) solo valida, monta y empuja, sin instalar nada. `desplegar` (`contents: read`) sube a Cloudflare exactamente ese commit de `deploy` con `wrangler`, instalado con `npm ci --ignore-scripts` desde un lockfile con hashes; es el único paso que ve el token de Cloudflare.
+- **Una sola fuente de cabeceras.** `netlify.toml` define la CSP, el resto de cabeceras y la caché; `scripts/montar_deploy.py` lo traduce al `_headers` de Cloudflare y los tests comprueban, ruta a ruta, que salen idénticas.
 - **Si los datos no pasan `scripts/validar_datos.py`, no se publica nada** y la web sigue con la edición anterior. Lo mismo si el histórico pierde días recientes.
 - **Un cambio de código en `main`** (web, `netlify.toml` o scripts de publicación) regenera `deploy` reutilizando los datos ya publicados.
 - Cada recolección diaria guarda además una copia de los datos como *artifact* durante 7 días.
@@ -50,13 +53,10 @@ deploy  ──(sitio montado: web/ + web/data/ + netlify.toml)──► Netlify
 1. **Repo público en GitHub** (minutos de Actions ilimitados). En **Settings → Actions → General → Workflow permissions** deja **Read repository contents** (solo lectura): el único job que escribe pide `contents: write` él mismo, y solo puede escribir en `deploy`.
 2. **Clave de NVD:** pide una gratuita en <https://nvd.nist.gov/developers/request-an-api-key> y guárdala en **Settings → Secrets and variables → Actions** como `NVD_API_KEY`. Funciona sin ella, pero mucho más lento.
 3. **Primera ejecución:** **Actions → Radar CVE → Run workflow** con el modo `all`. Crea la rama `deploy`. Desde ahí se ejecuta solo: briefing a las 05:17 UTC y mapa cada 3 horas.
-4. **Netlify:** importa el repo y configura:
-   - Rama de producción: **`deploy`**.
-   - Sin comando de build. Carpeta de publicación: **`web`**.
-   - *Branch deploys* y *Deploy Previews* **desactivados**, para que no se publiquen `main` ni las PR (por ejemplo, las de Dependabot).
-
-   Las cabeceras y la caché vienen en `netlify.toml`, que viaja dentro de la rama `deploy`.
-5. *(Solo si Netlify no despliega con el push del bot)*: crea un *build hook* en Netlify y guárdalo como secret `NETLIFY_BUILD_HOOK`. El workflow lo llama después de publicar.
+4. **Cloudflare:**
+   - Crea un API token con un único permiso: **Account → Workers Scripts → Edit**, limitado a tu cuenta. No necesita permisos de zona.
+   - En GitHub, **Settings → Environments → New environment** `cloudflare`, restringido a la rama `main`, con los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` y la variable `SITIO_URL` (la URL pública; el workflow comprueba allí que la edición nueva ya se sirve).
+   - El dominio propio se conecta desde el panel (**Workers & Pages → zerohour → Settings → Domains & Routes → Custom domain**), así el token sigue sin permisos de zona. En la zona, apaga todo lo que inyecte o reescriba HTML (Rocket Loader, Email Obfuscation, Web Analytics automático, Zaraz, Bot Fight Mode): rompería la CSP.
 
 ### Ejecutarlo en local
 
@@ -68,7 +68,7 @@ python scripts/radar.py daily                      # informe del día → data/
 python scripts/radar.py map                        # mapa de ataques → data/map.json
 python scripts/radar.py all                        # ambos
 
-python scripts/dev_server.py                       # http://127.0.0.1:8000 con las cabeceras de netlify.toml
+python scripts/dev_server.py                       # http://127.0.0.1:8000 con las cabeceras de producción
 python scripts/dev_server.py --dev                 # además /?fixtures=normal|vacio|error|xss (solo en local)
 python -m pytest tests/pipeline                    # tests del pipeline, la publicación y las cabeceras
 ```
@@ -192,10 +192,11 @@ Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y
   - Enlaces externos con `rel="noopener noreferrer"`, y los de PoC además con `nofollow ugc` y un aviso de que pueden ser maliciosas.
   - Sin `eval`, sin trackers y sin secretos en el frontend.
 - **Pipeline.** `radar.py` vuelve a sanear en origen: descarta URLs que no sean http(s), recorta textos y valida coordenadas, códigos de país y fechas. Es defensa en profundidad. Los datos se validan otra vez antes de publicar.
-- **Cabeceras (`netlify.toml`).**
+- **Cabeceras (`netlify.toml` → `_headers` de Cloudflare).**
   - CSP `default-src 'none'` con solo `'self'`, sin `unsafe-*` ni `blob:` y con `require-trusted-types-for 'script'`.
   - HSTS con *preload*, `nosniff`, `Referrer-Policy`, `Permissions-Policy` con todo desactivado, COOP, CORP y `X-Frame-Options: DENY`.
-  - Caché: inmutable solo en `vendor/` y fuentes. El resto se revalida siempre.
+  - Caché: inmutable solo en `vendor/` y fuentes. El resto se revalida siempre, y el HTML lleva `no-transform`.
+- **Dominio.** DNSSEC, CAA solo para las autoridades que usa Cloudflare, TLS 1.2 como mínimo y http → https. El dominio no envía correo: SPF `-all`, DMARC `p=reject` y MX nulo.
 - **Librerías de terceros.**
   - globe.gl y three.js van autoalojados, en versión fija, con su SHA-256 en `web/assets/vendor/VERSIONS.md`.
   - La copia está parcheada para cumplir la CSP con un script reproducible (`scripts/vendor_globe.py --check`).

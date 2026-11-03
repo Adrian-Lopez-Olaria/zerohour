@@ -13,10 +13,11 @@ problema de seguridad en el código o en el despliegue, repórtalo de forma priv
 - **Correo:** zerohour.sec@gmail.com
 - Por favor, no abras un *issue* público para fallos de seguridad.
 - Pruebas permitidas: solo no destructivas y de baja intensidad (nada de DoS ni
-  escaneo agresivo; el alojamiento es Netlify). Ver `PENTEST-ZEROHOUR.md`.
+  escaneo agresivo; el alojamiento es Cloudflare). Ver `PENTEST-ZEROHOUR.md`.
 
 ## Alcance
 
 Dentro: frontend `web/`, pipeline `scripts/radar.py`, `config.toml`,
-`.github/workflows/`, `netlify.toml`. Fuera: la infraestructura de Netlify, GitHub
+`.github/workflows/`, `netlify.toml`, `wrangler.jsonc` y el sitio publicado en
+<https://zerohour-cve.dev>. Fuera: la infraestructura de Cloudflare, GitHub
 y las APIs y datos de terceros (NVD, CISA, FIRST, SANS ISC, DB-IP…).

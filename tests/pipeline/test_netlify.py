@@ -94,7 +94,9 @@ def test_cache_inmutable_solo_en_vendor_y_fuentes():
         if ruta.startswith(("/assets/vendor/", "/assets/fonts/")):
             assert cc == "public, max-age=31536000, immutable", ruta
         elif ruta == "/no/existe":
-            assert cc is None                                         # 404: valor por defecto de Netlify
+            assert cc is None                                         # 404: valor por defecto de la plataforma
+        elif ruta in ("/", "/index.html", "/404.html"):
+            assert cc == "no-cache, no-transform", ruta               # HTML: que ningún proxy lo reescriba
         else:
             assert cc == "no-cache", ruta                             # código, página y datos: revalidar
 
@@ -175,7 +177,7 @@ def test_dev_server_manda_las_cabeceras_de_netlify(servidor):
         esperado = dev.dev_csp(v) if k == "Content-Security-Policy" else v
         assert h[k.lower()] == esperado, k
     assert "upgrade-insecure-requests" not in h["content-security-policy"]   # única diferencia
-    assert h["cache-control"] == "no-cache"
+    assert h["cache-control"] == "no-cache, no-transform"
     assert h["server"].startswith("zerohour-dev")
 
 
@@ -229,7 +231,7 @@ def campos_security_txt():
 def test_security_txt_rfc9116():
     c = campos_security_txt()
     assert c["Contact"] == ["mailto:zerohour.sec@gmail.com"]
-    assert c["Canonical"] == ["https://zerohour-cve.netlify.app/.well-known/security.txt"]
+    assert c["Canonical"] == ["https://zerohour-cve.dev/.well-known/security.txt"]
     assert c["Policy"] == ["https://github.com/Adrian-Lopez-Olaria/zerohour/security/policy"]
     assert "PENDIENTE" not in (WEB / ".well-known" / "security.txt").read_text(encoding="utf-8")
     assert len(c["Expires"]) == 1
