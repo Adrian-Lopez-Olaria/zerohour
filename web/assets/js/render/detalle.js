@@ -417,8 +417,8 @@ export function renderDetalle(root, ctx, id) {
     el('div', { class: 'det-sub' }, [
       (() => {
         const w = who(c);
-        if (w.viaCna) return el('h2', [`CNA · ${w.main}`, el('span', { text: ' · fabricante pendiente en NVD' })]);
-        return el('h2', [w.main || '—', w.sub ? el('span', { text: ` · ${w.sub}` }) : null]);
+        if (w.pending) return el('h2', [w.sub ? `${w.sub} · ` : null, el('span', { class: 'pend', text: w.pendingText })]);
+        return el('h2', [w.main, w.sub ? el('span', { text: ` · ${w.sub}` }) : null]);
       })(),
       sevTag(c.severity), chips(c.tags, true),
     ]),

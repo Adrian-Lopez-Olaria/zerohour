@@ -4,9 +4,8 @@
    El globo (zona GLB-01) se monta en la fase 4; aquí se deja su contenedor y HUD.
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
-import { sevKey } from '../data.js';
 import {
-  SEV, SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, panelHead, emptyBlock, cveHref, isProv, extLink, langOf, who, whoLine,
+  SEV_ORDER, panelHead, emptyBlock, cveHref, isProv, extLink, langOf, groupedRows,
 } from './comunes.js';
 import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe } from '../globe.js';
@@ -134,43 +133,41 @@ function globeZone(map) {
 
 /* ───────── top 10 ───────── */
 
-function topRow(c, i, animate) {
-  const href = cveHref(c.id);
-  const prov = isProv(c);
-  const tagsLong = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
-  const sev = SEV[sevKey(c.severity)].label.toLowerCase();
-  const w = who(c);
-  const label = `${i + 1}. ${c.id}, ${whoLine(c)}, score ${c.score}${prov ? ' provisional' : ''}, CVSS ${fmtCvss(c.cvss)} ${sev}, EPSS ${fmtPctl(c.epss_percentile)}${tagsLong.length ? ', ' + tagsLong.join(', ') : ''}`;
-  const cells = [
-    el('span', { class: 'trow__pos', 'aria-hidden': 'true', text: pad(i + 1) }),
-    el('span', { class: 'trow__id', text: c.id }),
-    el('span', { class: 'trow__prod' + (w.viaCna ? ' is-cna' : '') }, [el('b', { text: w.viaCna ? `CNA · ${w.main}` : (w.main || '—') }), el('span', { text: w.viaCna ? 'fabricante pendiente en NVD' : w.sub })]),
-    el('span', { class: 'trow__score' }, sbar(c)),
-    el('span', { class: 'trow__cvss' }, [el('span', { class: 'v', text: fmtCvss(c.cvss) }), sevTag(c.severity)]),
-    el('span', { class: 'trow__epss', text: fmtPctl(c.epss_percentile) }),
-    el('span', { class: 'trow__chips' }, chips(c.tags)),
-  ];
-  const attrs = { class: 'trow' + (animate ? ' is-in' : ''), style: { '--i': i, '--sc': scoreVar(c.score) } };
-  return el('li', href ? el('a', { ...attrs, href, 'aria-label': label }, cells) : el('div', attrs, cells));
-}
+const TOP_MOBILE = 5;                                   // en móvil: 5 visibles y «Ver las 10»
+const MOBILE = matchMedia('(max-width: 760px)');
+let topOpen = false;
 
-function topPanel(top, empty, animate) {
-  const body = empty
-    ? [emptyBlock('Nada que priorizar todavía', 'Cuando entre el primer lote de NVD aparecerán aquí las diez CVE con más score. Si una fuente falla, el top se calcula con las que respondan.')]
-    : [
-      el('div', { class: 'tbl__head label', 'aria-hidden': 'true' }, [
-        el('span', { text: 'Nº' }), el('span', { text: 'CVE' }), el('span', { text: 'FABRICANTE / PRODUCTO' }),
-        el('span', { text: 'SCORE 0–100' }), el('span', { text: 'CVSS' }), el('span', { class: 'tbl__r', text: 'EPSS' }), el('span', { text: 'ETIQUETAS' }),
-      ]),
-      el('ol', { class: 'tbl__rows' }, top.map((c, i) => topRow(c, i, animate))),
-      el('div', { class: 'tbl__foot' }, [
-        top.some(isProv) ? el('span', { class: 'label', text: '* SCORE PROVISIONAL: CVE SIN PUNTUAR EN NVD' }) : el('span'),
-        el('a', { class: 'link mono tbl__more', href: '#listado', text: 'LISTADO COMPLETO →' }),
-      ]),
-    ];
-  return el('section', { class: 'top panel', 'aria-labelledby': 'h-top' }, [
-    panelHead('TOP-10', 'Las que importan hoy', 'ORDEN: SCORE ZEROHOUR', 'h-top'), ...body,
+/** Top agrupado por veredicto, filas de dos líneas. En móvil, 2 chips + «+N» y solo 5 filas. */
+function topPanel(top, empty, st) {
+  const head = el('div', { class: 'panel__head' }, [
+    el('h2', { class: 'panel__title', id: 'h-top', text: 'Las que importan hoy' }),
+    el('span', { class: 'panel__meta' }, [`${top.length} DE ${nf(st.new_cves)} · `, el('a', { href: '#listado', text: 'LISTADO →' })]),
   ]);
+  if (empty || !top.length) {
+    return el('section', { class: 'panel top10', id: 'panel-top', 'aria-labelledby': 'h-top' }, [head,
+      emptyBlock('Nada que priorizar todavía', 'Cuando entre el primer lote de NVD aparecerán aquí las diez CVE con más score. Si una fuente falla, el top se calcula con las que respondan.')]);
+  }
+  const sec = el('section', { class: 'panel top10' + (topOpen ? ' is-open' : ''), id: 'panel-top', 'aria-labelledby': 'h-top' });
+  const rows = el('div', { class: 'rows', id: 'top-rows' }, groupedRows(top, { limit: TOP_MOBILE, chipsMax: MOBILE.matches ? 2 : 3 }));
+  const more = top.length > TOP_MOBILE ? el('button', {
+    type: 'button', class: 'btn', 'aria-expanded': String(topOpen), 'aria-controls': 'top-rows',
+    text: topOpen ? 'Ver solo las 5 primeras' : `Ver las ${top.length}`,
+    on: {
+      click: (e) => {
+        topOpen = !topOpen;
+        sec.classList.toggle('is-open', topOpen);
+        e.currentTarget.setAttribute('aria-expanded', String(topOpen));
+        e.currentTarget.textContent = topOpen ? 'Ver solo las 5 primeras' : `Ver las ${top.length}`;
+        // Al abrir, el foco pasa a la primera fila nueva (la 6.ª)
+        if (topOpen) { const a = sec.querySelector('li.is-extra a'); if (a) a.focus(); }
+      },
+    },
+  }) : null;
+  sec.append(head, rows, ...[
+    more ? el('div', { class: 'rows__more' }, more) : null,
+    top.some(isProv) ? el('div', { class: 'panel__foot' }, el('span', { class: 'label', text: '* Score provisional: NVD aún no ha puntuado la CVE' })) : null,
+  ].filter(Boolean));
+  return sec;
 }
 
 /* ───────── columna lateral: países, puertos, prensa ───────── */
@@ -234,12 +231,14 @@ export function renderBriefing(root, state) {
       panelHead('RDR-01', 'Radar de urgencia', 'TOP 10', 'h-radar'),
       empty || !top.length ? emptyBlock(null, 'Sin contactos.', true) : renderRadar(top),
     ]),
-    topPanel(top, empty, animate),
+    topPanel(top, empty, latest.stats),
     el('div', { class: 'side' }, [countriesPanel(map), portsPanel(map), newsPanel(latest.news)]),
   ]));
 
   if (animate) countUp(counters);
   animated = true;
+  // Al cruzar el ancho de móvil cambia el número de chips por fila: se rehace solo el top
+  if (!MOBILE.onchange) MOBILE.onchange = () => { const old = document.getElementById('panel-top'); if (old) old.replaceWith(topPanel(top, empty, latest.stats)); };
   scheduleGlobe(document.getElementById('globe-zone'), map);
 }
 

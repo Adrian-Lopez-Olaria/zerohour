@@ -101,31 +101,13 @@
 .radar-tip { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; min-height: 16px; color: var(--text-1); padding: 0 18px 4px; }
 
 /* ---------- Top 10 ---------- */
-.top { grid-area: top; align-self: start; }
+.top10 { grid-area: top; align-self: start; }
 .side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
-.tbl__head, .trow { display: grid; grid-template-columns: 40px 150px minmax(150px, 1fr) 170px 82px 62px minmax(180px, 230px); gap: 0 16px; align-items: center; }
-.tbl__head { padding: 10px 18px; border-bottom: 1px solid var(--line-2); }
-.tbl__r { text-align: right; }
-.tbl__rows { list-style: none; margin: 0; padding: 0; }
-.trow { position: relative; min-height: 58px; padding: 10px 18px; border-bottom: 1px solid var(--line-1); text-decoration: none; transition: background var(--t-fast); }
-.tbl__rows li:last-child .trow { border-bottom: 0; }
-a.trow:hover, a.trow:focus-visible { background: var(--bg-2); }
-a.trow:hover .trow__id { color: var(--ok); }
-.trow::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: var(--sc); opacity: 0; transition: opacity var(--t-fast); }
-a.trow:hover::before { opacity: 1; }
-.trow.is-in { animation: row-in var(--t-row) var(--ease-out) both; animation-delay: calc(var(--i) * var(--t-stagger)); }
-@keyframes row-in { from { opacity: 0; transform: translateX(-10px); } }
-.trow__pos { font-family: var(--f-display); font-weight: 800; font-size: 26px; line-height: 1; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .trow__id { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; font-weight: 600; letter-spacing: .02em; transition: color var(--t-fast); white-space: nowrap; }
 .trow__prod { min-width: 0; line-height: 1.3; }
 .trow__prod b { display: block; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trow__prod span { display: block; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trow__prod.is-cna b { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; font-weight: 500; color: var(--text-2); }
-.trow__cvss { display: grid; gap: 3px; justify-items: start; }
-.trow__cvss .v { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.trow__epss { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
-.tbl__foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; padding: 12px 18px; border-top: 1px solid var(--line-2); }
-.tbl__more { font-size: 11px; }
 
 /* ---------- Rankings (países y puertos) ---------- */
 .rank { list-style: none; margin: 0; padding: 4px 18px 14px; }
@@ -153,25 +135,13 @@ a.news-list__a:hover span { color: var(--ok); }
   .brief { grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); grid-template-areas: "copy globe" "top top" "side side"; }
   .side { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .radar-panel { width: 290px; }
-  .tbl__head, .trow { grid-template-columns: 36px 140px minmax(130px, 1fr) 150px 74px 58px minmax(150px, 190px); gap: 0 12px; }
-}
+  }
 @media (max-width: 980px) {
   .brief { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "top" "globe" "radar" "side"; }
   .globe-zone { min-height: 0; height: min(92vw, 520px); }
   .radar-panel { grid-area: radar; justify-self: stretch; width: auto; margin: 0; }
   .radar { max-width: 360px; margin: 0 auto; }
-  .tbl__head { display: none; }
-  .trow { grid-template-columns: 30px minmax(0, 1fr) 96px; grid-template-areas: "pos id score" "pos prod score" "pos meta meta"; gap: 3px 12px; padding: 12px 14px; }
-  .trow__pos { grid-area: pos; font-size: 22px; align-self: start; padding-top: 2px; }
-  .trow__id { grid-area: id; }
-  .trow__prod { grid-area: prod; }
-  .trow__score { grid-area: score; align-self: center; }
-  .trow__score .sbar { grid-template-columns: 1fr; gap: 4px; justify-items: end; }
-  .trow__score .sbar__track { width: 100%; }
-  .trow__score .sbar__n { font-size: 30px; order: -1; }
-  .trow__cvss, .trow__epss { display: none; }
-  .trow__chips { grid-area: meta; margin-top: 6px; }
-}
+        }
 @media (max-width: 760px) {
   .copy { gap: var(--sp-4); padding-top: 0; }
   .kpi { padding: 10px 10px 10px 0; }

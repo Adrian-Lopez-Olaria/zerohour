@@ -111,6 +111,7 @@ function normalizeCve(c, w) {
     },
     old_cve: c.old_cve === true,
   };
+  normalizeVendor(out);
   // Si el JSON trae score_breakdown se usa tal cual; si no (ediciones antiguas), se deriva con
   // los pesos, replicando la fórmula de radar.py (comprobado: cuadra con el score en 453 de 453).
   const fromPipeline = !!(c.score_breakdown && typeof c.score_breakdown === 'object');
@@ -127,6 +128,20 @@ function normalizeCve(c, w) {
   out.breakdown_source = fromPipeline ? 'pipeline' : 'derivado';
   out.rows_sum = Object.values(out.score_breakdown).reduce((a, v) => a + (Number(v) || 0), 0);   // sin el mínimo
   return out;
+}
+
+/* Contrato: vendor vacío cuando NVD aún no da fabricante, y la CNA en su propio campo. Ediciones
+   antiguas del histórico podían traer la CNA dentro de vendor («CNA · x» o vendor_source "cna"):
+   se reparte igual, para que la web nunca la presente como fabricante. */
+const CNA_PREFIX = /^CNA\s*[·:-]\s*/i;
+function normalizeVendor(c) {
+  if (CNA_PREFIX.test(c.vendor)) {
+    c.cna = c.cna || c.vendor.replace(CNA_PREFIX, '').trim();
+    c.vendor = '';
+  } else if (c.vendor_source === 'cna' && c.vendor) {
+    c.cna = c.cna || c.vendor;
+    c.vendor = '';
+  }
 }
 
 /** SSVC de CISA (Vulnrichment): solo valores conocidos. */

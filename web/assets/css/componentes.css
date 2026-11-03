@@ -132,3 +132,46 @@ h1[tabindex="-1"]:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* =============================================================================
+   FILAS DE CVE (.row) Y CABECERAS DE GRUPO (.grp) · top y listado (cambios-v2 §5)
+   Dos líneas: ID + fabricante · producto / severidad, CVSS, EPSS y chips (3 + «+N»).
+   Borde izquierdo de 3 px en el color del veredicto; VIGILAR atenuada.
+   ============================================================================= */
+.rows { display: flex; flex-direction: column; }
+.rows__list { list-style: none; margin: 0; padding: 0; }
+.rows__list > li { display: block; }
+.grp { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 24px; padding: 0 14px; background: var(--bg-0); border-bottom: 1px solid var(--line-1); }
+.grp__n { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 0 12px; align-items: center; min-height: 46px; padding: 5px 14px 5px 11px; border-left: 3px solid var(--vc); border-bottom: 1px solid var(--line-1); text-decoration: none; transition: background var(--t-fast); }
+a.row:hover, a.row:focus-visible { background: var(--bg-2); }
+a.row:hover .row__id { text-decoration: underline; text-decoration-color: var(--ok); text-underline-offset: 3px; }
+.row__n { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.row__main { min-width: 0; display: grid; gap: 2px; }
+.row__l1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.row__id { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-data); font-weight: 600; white-space: nowrap; }
+.row__vp { min-width: 0; font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pend { color: var(--text-3); font-weight: 400; font-style: italic; }
+.row__l2 { display: flex; align-items: center; gap: 10px; min-width: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.row__meta { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+.row__l2 .chips { flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.row__l2 .chip { height: 18px; }
+.row__l2 .chip--ransomware { height: 20px; }
+.row__desc { display: none; }
+.row.is-dim .row__vp, .row.is-dim .row__id { color: var(--text-2); }
+.rows__more { display: none; }
+@media (max-width: 760px) {
+  .row { grid-template-columns: 18px minmax(0, 1fr) auto; gap: 0 10px; padding: 8px 12px 8px 9px; align-items: start; }
+  .row__n { padding-top: 2px; }
+  .row__main { gap: 4px; }
+  .row__l1 { flex-wrap: wrap; gap: 0 8px; }
+  .row__vp { flex-basis: 100%; font-size: 13px; }
+  .row__meta { display: none; }
+  .row__l2 .chips { flex-wrap: wrap; }
+  .row__score { align-self: center; }
+  .top10 li.is-extra, .top10 .grp.is-extra { display: none; }
+  .top10.is-open li.is-extra { display: block; }
+  .top10.is-open .grp.is-extra { display: flex; }
+  .rows__more { display: flex; padding: 10px 12px; border-top: 1px solid var(--line-1); }
+  .rows__more .btn { width: 100%; }
+}

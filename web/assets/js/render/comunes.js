@@ -5,7 +5,7 @@
    ============================================================================= */
 import { el, svg, safeUrl } from '../util/dom.js';
 import { sevKey, ID_RE } from '../data.js';
-import { clamp, scoreVar, dLong, verdictBand } from '../util/format.js';
+import { clamp, scoreVar, dLong, verdictBand, pad, fmtCvss, fmtPctl } from '../util/format.js';
 
 export const SEV = Object.freeze({
   CRITICAL: { label: 'CRÍTICA', bars: 4 },
@@ -31,6 +31,20 @@ export const TAG = Object.freeze({
   library: { short: 'LIB', long: 'LIBRERÍA', title: 'Librería o dependencia de software' },
 });
 export const TAG_ORDER = Object.keys(TAG);
+
+/* Veredictos: cortes y textos sin cambios (85 / 70 / 40); v2 añade clase y forma propias */
+export const VERDICTS = Object.freeze([
+  { key: 'hoy', band: 3, label: 'ACTUAR HOY' },
+  { key: 'semana', band: 2, label: 'ESTA SEMANA' },
+  { key: 'planificar', band: 1, label: 'PLANIFICAR' },
+  { key: 'vigilar', band: 0, label: 'VIGILAR' },
+]);
+export const verdictOf = (score) => VERDICTS[3 - verdictBand(score)];
+
+/** Veredicto con su forma (■ ◧ □ ○): se lee sin depender del color. */
+export function vtag(v, extra) {
+  return el('span', { class: `vtag v-${v.key}` }, [v.label, extra]);
+}
 
 /* Iconos propios: viewBox 16, trazo 1,5 px, extremos rectos (guía §6).
    Se describen como datos [etiqueta, atributos] para montarlos con svg(). */
@@ -83,12 +97,95 @@ export function sevTag(severity) {
   ]);
 }
 
-/** Chips de etiqueta, en el orden fijo de la guía. Solo se pintan tags conocidos. */
-export function chips(tags, long = false) {
+/**
+ * Chips de etiqueta, en el orden aprobado. Solo se pintan tags conocidos.
+ * max: como mucho N chips y uno «+N» con el resto en title y en texto para lectores de pantalla.
+ */
+export function chips(tags, long = false, max = 0) {
   const list = TAG_ORDER.filter((t) => tags.includes(t));
-  if (!list.length) return el('span', { class: 'label', text: '—' });
-  return el('span', { class: 'chips' + (long ? ' chips--lg' : '') }, list.map((t) =>
-    el('span', { class: `chip chip--${t}`, title: TAG[t].title }, [icon(t), long ? TAG[t].long : TAG[t].short])));
+  if (!list.length) return long ? null : el('span', { class: 'label', text: '—' });
+  const shown = max ? list.slice(0, max) : list, rest = list.slice(shown.length);
+  const restTxt = rest.map((t) => TAG[t].long).join(' · ');
+  return el('span', { class: 'chips' + (long ? ' chips--lg' : '') }, [
+    ...shown.map((t) => el('span', { class: `chip chip--${t}`, title: TAG[t].title }, [icon(t), long ? TAG[t].long : TAG[t].short])),
+    rest.length ? el('span', { class: 'chip chip--more', title: restTxt }, [`+${rest.length}`, el('span', { class: 'sr-only', text: `: ${restTxt}` })]) : null,
+  ]);
+}
+
+/** Score v2: cifra en el color del veredicto + barra 64 × 4 con marcas 40/70/85; * si es provisional. */
+export function scoreCell(c) {
+  const prov = isProv(c), v = verdictOf(c.score);
+  const n = clamp(Math.round(c.score), 0, 100);
+  return el('span', {
+    class: `score v-${v.key}${prov ? ' score--prov' : ''}`, role: 'img',
+    'aria-label': `Score ${n} de 100${prov ? ', provisional' : ''}, ${v.label}`,
+  }, [
+    el('span', { class: 'score__n', 'aria-hidden': 'true' }, [String(n), prov ? el('sup', { text: '*' }) : null]),
+    el('span', { class: 'score__bar', 'aria-hidden': 'true', style: { '--v': n } }, el('i')),
+  ]);
+}
+
+/** Texto completo de una fila para lectores de pantalla (la fila es un único enlace). */
+export function rowLabel(c, pos) {
+  const tags = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
+  const k = sevKey(c.severity);
+  return `${pos ? pos + '. ' : ''}${c.id}, ${whoLine(c)}, score ${c.score}${isProv(c) ? ' provisional' : ''}, ${verdictOf(c.score).label.toLowerCase()}, `
+    + `${k === 'UNSCORED' ? 'sin puntuar' : `CVSS ${fmtCvss(c.cvss)} ${SEV[k].label.toLowerCase()}`}, EPSS ${fmtPctl(c.epss_percentile)}`
+    + (tags.length ? `, ${tags.join(', ')}` : '');
+}
+
+/** Fabricante · producto, o «Fabricante pendiente en NVD · CNA x» en cursiva. */
+export function vendorCell(c) {
+  const w = who(c);
+  return el('span', { class: 'row__vp' }, w.pending
+    ? [w.sub ? `${w.sub} · ` : null, el('span', { class: 'pend', text: w.pendingText })]
+    : w.line);
+}
+
+/**
+ * Fila de CVE v2 (top y listado): posición | ID + fabricante / severidad, CVSS, EPSS y chips | score.
+ * Borde izquierdo en el color del veredicto; VIGILAR atenuada. opts: { pos, chipsMax, desc, extra }.
+ */
+export function cveRow(c, opts = {}) {
+  const v = verdictOf(c.score), href = cveHref(c.id);
+  const cells = [
+    el('span', { class: 'row__n', 'aria-hidden': 'true', text: opts.pos ? pad(opts.pos) : '' }),
+    el('span', { class: 'row__main' }, [
+      el('span', { class: 'row__l1' }, [el('span', { class: 'row__id', text: c.id }), vendorCell(c)]),
+      el('span', { class: 'row__l2' }, [
+        el('span', { class: 'row__meta' }, [sevTag(c.severity), el('span', { text: `CVSS ${fmtCvss(c.cvss)}` }), el('span', { text: `EPSS ${fmtPctl(c.epss_percentile)}` })]),
+        c.tags.length ? chips(c.tags, false, opts.chipsMax || 3) : null,
+      ]),
+      opts.desc ? el('span', { class: 'row__desc', lang: 'en', text: c.description || '' }) : null,
+    ]),
+    el('span', { class: 'row__score' }, scoreCell(c)),
+  ];
+  const cls = `row v-${v.key}${v.key === 'vigilar' ? ' is-dim' : ''}`;
+  const row = href ? el('a', { class: cls, href, 'aria-label': rowLabel(c, opts.pos) }, cells) : el('div', { class: cls }, cells);
+  return el('li', { class: opts.extra ? 'is-extra' : null }, row);
+}
+
+/**
+ * Filas agrupadas por veredicto, en el orden recibido (ya por urgencia): una cabecera .grp
+ * «■ ACTUAR HOY ······ 2 CVE» cada vez que cambia. opts.limit: las filas desde ese índice
+ * llevan .is-extra (en móvil se ocultan hasta «Ver las 10»). opts.start: numeración.
+ */
+export function groupedRows(list, opts = {}) {
+  const out = [];
+  const start = opts.start || 0;
+  let i = 0;
+  while (i < list.length) {
+    const v = verdictOf(list[i].score);
+    let j = i;
+    while (j < list.length && verdictOf(list[j].score) === v) j++;
+    const total = opts.totals ? opts.totals[v.key] : j - i;
+    const extra = opts.limit != null && i >= opts.limit;
+    out.push(el('div', { class: 'grp' + (extra ? ' is-extra' : '') }, [vtag(v), el('span', { class: 'grp__n', text: `${total} CVE` })]));
+    out.push(el('ol', { class: 'rows__list', start: String(start + i + 1) }, list.slice(i, j).map((c, k) =>
+      cveRow(c, { ...opts, pos: opts.numbered === false ? 0 : start + i + k + 1, extra: opts.limit != null && i + k >= opts.limit }))));
+    i = j;
+  }
+  return out;
 }
 
 /** Barra de score 0–100 con marcas en 40/70/85; rayada y con * si es provisional. */
@@ -121,25 +218,25 @@ export function emptyBlock(title, text, tight = false) {
   ]);
 }
 
+export const PENDING_VENDOR = 'Fabricante pendiente en NVD';
+
 /**
- * Quién: fabricante y producto; si NVD aún no los da y no se han podido deducir, el CNA
- * (quién publicó la CVE), marcado como tal. → { main, sub, viaCna }
+ * Quién: fabricante y producto. Si NVD aún no da fabricante, NUNCA se presenta la CNA como tal:
+ * «Fabricante pendiente en NVD · CNA x» (la CNA es quien publicó la CVE, no quien la fabrica).
+ * → { main, sub, pending, pendingText, cna, line }
  */
 export function who(c) {
-  if (c.vendor || c.product) {
+  if (c.vendor) {
     // "GitLab / GitLab": si el producto se llama igual que el fabricante, no se repite
-    const same = c.vendor && c.product && c.vendor.toLowerCase() === c.product.toLowerCase();
-    return { main: c.vendor || c.product, sub: c.vendor && !same ? c.product : '', viaCna: false };
+    const same = c.product && c.vendor.toLowerCase() === c.product.toLowerCase();
+    const sub = same ? '' : c.product;
+    return { main: c.vendor, sub, pending: false, cna: c.cna, line: [c.vendor, sub].filter(Boolean).join(' · ') };
   }
-  if (c.cna) return { main: c.cna, sub: 'Publicada por este CNA; fabricante pendiente en NVD', viaCna: true };
-  return { main: '', sub: '', viaCna: false };
+  const pendingText = PENDING_VENDOR + (c.cna ? ` · CNA ${c.cna}` : '');
+  return { main: '', sub: c.product, pending: true, pendingText, cna: c.cna, line: [c.product, pendingText].filter(Boolean).join(' · ') };
 }
-/** Una línea: "Fabricante · Producto", "CNA · dominio" o "—". */
-export function whoLine(c) {
-  const w = who(c);
-  if (w.viaCna) return `CNA · ${w.main}`;
-  return [w.main, w.sub].filter(Boolean).join(' · ') || '—';
-}
+/** Una línea: «Fabricante · Producto» o «Fabricante pendiente en NVD · CNA x». */
+export const whoLine = (c) => who(c).line;
 
 const AV_LABEL = { NETWORK: 'RED', ADJACENT_NETWORK: 'ADYACENTE', ADJACENT: 'ADYACENTE', LOCAL: 'LOCAL', PHYSICAL: 'FÍSICO' };
 /** Vector de ataque de NVD → etiqueta corta (sin dato: PENDIENTE). */

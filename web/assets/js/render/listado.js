@@ -147,7 +147,7 @@ function buildControls() {
 
   const vendorSel = el('select', { id: 'vendor', on: { change: () => { LS.vendor = Number(vendorSel.value); paint(); } } }, [
     el('option', { value: '-1', text: 'todos' }),
-    ...V.vendors.map((v, i) => el('option', { value: String(i), text: v || '(sin fabricante)' })),
+    ...V.vendors.map((v, i) => el('option', { value: String(i), text: v || 'Pendiente en NVD' })),
   ]);
   vendorSel.value = String(LS.vendor);
 
