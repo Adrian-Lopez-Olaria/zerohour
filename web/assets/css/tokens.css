@@ -62,7 +62,7 @@
   --track-label: .08em;
 
   /* Espaciado y forma */
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
   --gutter: 24px;
   --gap: 12px;
   --maxw: 1440px;
@@ -72,17 +72,15 @@
   --strip-h: 32px;
   --navbar-h: 58px;
 
-  /* Movimiento: solo lo que dice que el sistema está vivo */
-  --t-fast: 120ms;
-  --t-row: 420ms;
-  --t-stagger: 45ms;
-  --t-count: 1100ms;
-  --t-blink: 1.6s;
-  --t-pulse: 2.4s;
-  --t-radar: 6s;
-  --t-gauge: 900ms;
-  --ease-out: cubic-bezier(.16, 1, .3, 1);
-  --ease-std: cubic-bezier(.4, 0, .2, 1);
+  /* Movimiento (cambios-v2 §11): solo lo que dice que el sistema está vivo. Se quedan el
+     barrido del radar y su destello, el piloto LIVE, el T+, un anillo de pulso por país y el
+     autogiro (0,3). Fuera: el barrido de fondo, el conteo de cifras, la entrada escalonada del
+     top, la aparición de los puntos del globo, el dial y la gráfica animados y el fundido entre
+     pantallas. Con prefers-reduced-motion, todo a cero (componentes.css y globe.js). */
+  --t-fast: 120ms;                         /* hover y foco */
+  --t-blink: 1.6s;                         /* piloto LIVE */
+  --t-pulse: 2.4s;                         /* anillo de pulso del globo: escala 1 → 2,6 */
+  --t-radar: 6s;                           /* una vuelta del barrido del radar */
 }
 @media (max-width: 760px) {
   :root { --gutter: 12px; --gap: 10px; --fs-kpi: 26px; --fs-score: 24px; --hdr-h: 48px; }
