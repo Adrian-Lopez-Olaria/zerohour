@@ -3,6 +3,7 @@ El force-push se prueba contra un repositorio bare LOCAL: no se toca GitHub."""
 import copy
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -103,12 +104,15 @@ def test_montar_solo_publica_la_lista_blanca(tmp_path):
     data = write_data(tmp_path / "data")
     (data / "linkedin.md").write_text("borrador")                  # borrador: no se publica
     (data / "days" / "notas.txt").write_text("x")                  # resto: no se publica
-    (tmp_path / "netlify.toml").write_text("[build]\n")
+    shutil.copy2(ROOT / "netlify.toml", tmp_path / "netlify.toml")
+    shutil.copy2(ROOT / "wrangler.jsonc", tmp_path / "wrangler.jsonc")
     out = tmp_path / "_deploy"
     info = mon.montar(web, data, out, tmp_path)
     pub = sorted(p.relative_to(out / "web" / "data").as_posix() for p in (out / "web" / "data").rglob("*") if p.is_file())
     assert pub == sorted(["latest.json", "index.json", "map.json", f"days/{DATE}.json"])
     assert (out / "web" / "index.html").is_file() and (out / "netlify.toml").is_file()
+    assert (out / "wrangler.jsonc").is_file()
+    assert (out / "web" / "_headers").read_text(encoding="utf-8") == mon.cabeceras_cloudflare(ROOT / "netlify.toml")
     assert info["dias"] == 1
 
 
@@ -116,6 +120,28 @@ def test_montar_exige_netlify_toml(tmp_path):
     """Sin netlify.toml el sitio saldría sin CSP ni cabeceras: no se monta."""
     with pytest.raises(SystemExit, match="netlify.toml"):
         mon.montar(ROOT / "web", write_data(tmp_path / "data"), tmp_path / "_deploy", tmp_path)
+
+
+def test_montar_exige_wrangler_jsonc(tmp_path):
+    shutil.copy2(ROOT / "netlify.toml", tmp_path / "netlify.toml")
+    with pytest.raises(SystemExit, match="wrangler.jsonc"):
+        mon.montar(ROOT / "web", write_data(tmp_path / "data"), tmp_path / "_deploy", tmp_path)
+
+
+@pytest.mark.parametrize("toml, motivo", [
+    ("", "no tiene"),                                                                    # sin reglas
+    ('[[headers]]\nfor = "assets/*"\n[headers.values]\nX = "1"\n', "no válida"),         # ruta relativa
+    ('[[headers]]\nfor = "/a/*/b/*"\n[headers.values]\nX = "1"\n', "no válida"),         # dos splats
+    ('[[headers]]\nfor = "/*"\n[headers.values]\n"X Y" = "1"\n', "no válida"),           # nombre con espacio
+    ('[[headers]]\nfor = "/*"\n[headers.values]\nX = "a\\nb"\n', "no válida"),           # salto de línea
+    ('[[headers]]\nfor = "/*"\n[headers.values]\nX = "' + "a" * 2000 + '"\n', "máximo"),
+    ("".join(f'[[headers]]\nfor = "/r{i}"\n[headers.values]\nX = "1"\n' for i in range(101)), "admite 100"),
+])
+def test_cabeceras_cloudflare_rechaza_lo_que_no_se_puede_traducir(tmp_path, toml, motivo):
+    """Si netlify.toml tiene algo que _headers no expresa (o pasa sus límites), no se publica."""
+    (tmp_path / "netlify.toml").write_text(toml, encoding="utf-8")
+    with pytest.raises(SystemExit, match=motivo):
+        mon.cabeceras_cloudflare(tmp_path / "netlify.toml")
 
 
 # ───────────────────────── force-push a deploy (repo bare local) ─────────────────────────
@@ -150,15 +176,20 @@ def montado(tmp_path, n):
 @pytest.mark.skipif(shutil.which("bash") is None, reason="necesita bash")
 def test_publicar_es_huerfano_y_no_toca_main(tmp_path, remoto):
     main_antes = git("--git-dir", str(remoto), "rev-parse", "main")
+    salida = tmp_path / "github_output"
     for n in (1, 2):                                        # dos publicaciones seguidas
+        salida.write_text("")
         subprocess.run(["bash", str(SCRIPTS / "publicar_deploy.sh"), str(montado(tmp_path, n)), str(remoto), f"deploy {n}"],
-                       check=True, capture_output=True, text=True)
+                       check=True, capture_output=True, text=True, env={**os.environ, "GITHUB_OUTPUT": str(salida)})
+    # El job desplegar sube a Cloudflare exactamente este commit
+    assert salida.read_text().strip() == f"commit={git('--git-dir', str(remoto), 'rev-parse', 'deploy')}"
     assert git("--git-dir", str(remoto), "rev-list", "--count", "deploy") == "1"      # siempre un solo commit
     assert git("--git-dir", str(remoto), "log", "-1", "--format=%s", "deploy") == "deploy 2"
     assert git("--git-dir", str(remoto), "rev-parse", "main") == main_antes             # main intacta
     files = git("--git-dir", str(remoto), "ls-tree", "-r", "--name-only", "deploy").splitlines()
     assert "web/index.html" in files and "web/data/latest.json" in files
     assert "netlify.toml" in files and "web/.well-known/security.txt" in files and "web/404.html" in files
+    assert "wrangler.jsonc" in files and "web/_headers" in files
     assert not any(f.startswith(("scripts/", "tests/", "design/")) or f.endswith((".py", ".toml.bak")) for f in files)
 
 
@@ -238,3 +269,44 @@ def test_workflow_comprueba_si_existe_deploy(tmp_path, codigo_git, rc_esperado, 
     pasos = {s.get("id"): s for s in _workflow()["jobs"]["recolectar"]["steps"]}
     assert pasos["prev"]["if"] == "steps.rama.outputs.existe == 'true'"
     assert "continue-on-error" not in pasos["prev"]
+
+
+# ───────────────────────── workflow: despliegue en Cloudflare ─────────────────────────
+
+def test_workflow_despliega_con_permisos_minimos():
+    w = _workflow()
+    pub, dep = w["jobs"]["publicar"], w["jobs"]["desplegar"]
+    assert w["permissions"] == {}
+    assert dep["needs"] == "publicar" and dep["permissions"] == {"contents": "read"}
+    assert dep["environment"]["name"] == "cloudflare"                       # secrets solo en ese entorno
+    assert pub["outputs"]["commit"] == "${{ steps.push.outputs.commit }}"
+    pasos = dep["steps"]
+    ref = next(s for s in pasos if s.get("with", {}).get("path") == "_deploy")["with"]["ref"]
+    assert ref == "${{ needs.publicar.outputs.commit }}"                    # el commit exacto de deploy
+    assert all(s["with"].get("persist-credentials") is False for s in pasos if "checkout" in s.get("uses", ""))
+    npm = next(s for s in pasos if "npm" in s.get("run", ""))
+    assert "npm ci --ignore-scripts" in npm["run"]                           # lockfile y sin scripts de terceros
+
+
+def test_workflow_secrets_de_cloudflare_solo_en_el_paso_de_despliegue():
+    assert "NETLIFY" not in (ROOT / ".github/workflows/radar.yml").read_text(encoding="utf-8")   # sin build hook
+    w = _workflow()
+    for nombre, job in w["jobs"].items():
+        for paso in job["steps"]:
+            if "CLOUDFLARE" in json.dumps(paso):
+                assert (nombre, paso.get("name")) == ("desplegar", "Desplegar en Cloudflare Workers")
+    paso = next(p for p in w["jobs"]["desplegar"]["steps"] if p.get("name") == "Desplegar en Cloudflare Workers")
+    assert paso["env"]["CLOUDFLARE_API_TOKEN"] == "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+    assert paso["env"]["CLOUDFLARE_ACCOUNT_ID"] == "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+    assert "wrangler deploy --config _deploy/wrangler.jsonc" in paso["run"]
+
+
+def test_wrangler_con_version_exacta_y_lockfile():
+    pkg = json.loads((ROOT / "despliegue/package.json").read_text(encoding="utf-8"))
+    lock = json.loads((ROOT / "despliegue/package-lock.json").read_text(encoding="utf-8"))
+    v = pkg["devDependencies"]["wrangler"]
+    assert re.fullmatch(r"\d+\.\d+\.\d+", v)                                  # sin ^ ni ~
+    assert set(pkg.get("dependencies", {})) | set(pkg["devDependencies"]) == {"wrangler"}
+    w = lock["packages"]["node_modules/wrangler"]
+    assert w["version"] == v and w["integrity"].startswith("sha512-")
+    assert all(p.get("integrity") or p.get("link") for k, p in lock["packages"].items() if k)

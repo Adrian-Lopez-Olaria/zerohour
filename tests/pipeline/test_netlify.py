@@ -3,6 +3,7 @@ El servidor se levanta en 127.0.0.1 con un puerto libre; no sale nada a la red."
 import datetime as dt
 import http.client
 import importlib.util
+import json
 import re
 import threading
 import tomllib
@@ -104,6 +105,44 @@ def test_patron_de_rutas_como_netlify():
     assert not dev.pattern("/assets/js/*").match("/assets/json")
     assert dev.pattern("/").match("/") and not dev.pattern("/").match("/index.html")
     assert not dev.pattern("/data/*").match("/database.json")
+
+
+# ───────────────────────── Cloudflare: _headers y wrangler.jsonc ─────────────────────────
+
+mon = _load("montar_deploy")
+
+
+def leer_headers_cf(texto):
+    """Parser del formato _headers de Cloudflare: ruta sin sangría, cabeceras sangradas."""
+    reglas, actual = [], None
+    for ln in texto.splitlines():
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        if not ln[0].isspace():
+            actual = (dev.pattern(ln.strip()), {})
+            reglas.append(actual)
+        else:
+            k, _, v = ln.strip().partition(":")
+            actual[1][k.strip()] = v.strip()
+    return reglas
+
+
+@pytest.mark.parametrize("ruta", rutas_publicadas())
+def test_headers_de_cloudflare_identicas_a_netlify_toml(ruta):
+    """Una sola fuente de verdad: el _headers generado da, ruta a ruta, las mismas cabeceras."""
+    cf = leer_headers_cf(mon.cabeceras_cloudflare(ROOT / "netlify.toml"))
+    assert dev.headers_for(ruta, cf) == dev.headers_for(ruta, RULES)
+
+
+def test_wrangler_solo_estaticos_y_sin_vistas_previas():
+    texto = (ROOT / "wrangler.jsonc").read_text(encoding="utf-8")
+    conf = json.loads("\n".join(ln for ln in texto.splitlines() if not ln.strip().startswith("//")))
+    assert "main" not in conf                                         # sin código de Worker
+    assert conf["assets"] == {"directory": "./web", "not_found_handling": "404-page",
+                              "html_handling": "auto-trailing-slash"}
+    assert conf["workers_dev"] is True and conf["preview_urls"] is False
+    assert conf["send_metrics"] is False
+    assert not set(conf) & {"routes", "route", "vars", "kv_namespaces", "r2_buckets", "d1_databases"}
 
 
 # ───────────────────────── dev_server ─────────────────────────

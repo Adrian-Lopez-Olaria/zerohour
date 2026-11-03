@@ -15,7 +15,7 @@ web/data/
 /_prev/
 /_prev-index.json
 
-# ── Node / Playwright (fase 8) ──
+# ── Node: wrangler (despliegue/) y Playwright (fase 8) ──
 node_modules/
 /test-results/
 /playwright-report/
@@ -23,5 +23,6 @@ node_modules/
 
 # ── Varios ──
 .netlify/
+.wrangler/
 .DS_Store
 Thumbs.db

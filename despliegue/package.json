@@ -1,0 +1,9 @@
+{
+  "name": "zerohour-despliegue",
+  "private": true,
+  "description": "Solo wrangler, versión exacta y lockfile con hashes: el job desplegar instala con npm ci --ignore-scripts",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "4.151.1"
+  }
+}

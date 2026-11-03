@@ -3,12 +3,15 @@
 #
 # main  = solo código (sin datos: su historial no crece).
 # deploy = el sitio montado (web/ de main + datos), regenerado entero en cada
-#          publicación como un commit huérfano. Netlify publica esa rama.
+#          publicación como un commit huérfano. Ese commit es lo que se sube a Cloudflare.
 #
-# Dos jobs con permisos separados:
+# Tres jobs con permisos separados:
 #   recolectar · contents: read  · instala dependencias y procesa datos de terceros
 #   publicar   · contents: write · solo git y biblioteca estándar; el único que escribe,
 #                                  y solo en la rama deploy (force-push), nunca en main
+#   desplegar  · contents: read  · sube a Cloudflare Workers el commit recién publicado en
+#                                  deploy, con wrangler (versión exacta y lockfile). Es el único
+#                                  que ve el token de Cloudflare (entorno `cloudflare`, solo main)
 # ─────────────────────────────────────────────────────────────────────────────
 name: Radar CVE
 
@@ -24,6 +27,9 @@ on:
     paths:
       - "web/**"
       - "netlify.toml"
+      - "wrangler.jsonc"
+      - "despliegue/package.json"
+      - "despliegue/package-lock.json"
       - "scripts/montar_deploy.py"
       - "scripts/publicar_deploy.sh"
       - "scripts/validar_datos.py"
@@ -191,8 +197,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write                    # el único permiso de escritura del workflow
-    env:
-      HAS_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK != '' }}
+    outputs:
+      commit: ${{ steps.push.outputs.commit }}   # el commit de deploy que se sube a Cloudflare
     steps:
       - uses: actions/checkout@v4
         with:
@@ -206,10 +212,11 @@ jobs:
       - name: Validar otra vez (por si el artifact llegó mal)
         run: python3 scripts/validar_datos.py data/
 
-      - name: Montar el sitio (web/ de main + datos)
+      - name: Montar el sitio (web/ de main + datos + _headers generado)
         run: python3 scripts/montar_deploy.py --web web --data data --out _deploy
 
       - name: Publicar en la rama deploy (force-push solo a deploy)
+        id: push
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -222,10 +229,75 @@ jobs:
           bash scripts/publicar_deploy.sh _deploy "https://github.com/${REPO}.git" \
             "deploy: ${MODE} · $(date -u +'%Y-%m-%d %H:%M') UTC · código ${SHA::7}"
 
-      # Plan B: si Netlify no despliega con los push del bot, se crea el secret
-      # NETLIFY_BUILD_HOOK y este paso le avisa. Sin el secret, no hace nada.
-      - name: Avisar a Netlify por build hook (solo si existe el secret)
-        if: env.HAS_HOOK == 'true'
+  desplegar:
+    needs: publicar
+    runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    # Los secrets de Cloudflare viven en este entorno, restringido a la rama main:
+    # ningún otro job ni ninguna otra rama los ve.
+    environment:
+      name: cloudflare
+      url: ${{ vars.SITIO_URL }}
+    steps:
+      # Solo lo necesario de main: el lockfile de wrangler
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: despliegue
+          path: main
+
+      # Exactamente el commit que publicar acaba de dejar en deploy
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.publicar.outputs.commit }}
+          path: _deploy
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # npm ci: versiones y hashes del lockfile; sin scripts de instalación de terceros
+      - name: Instalar wrangler (versión exacta del lockfile)
+        working-directory: main/despliegue
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Comprobar el sitio antes de subirlo
+        run: |
+          test -f _deploy/wrangler.jsonc && test -f _deploy/web/_headers && test -f _deploy/web/index.html \
+            && test -f _deploy/web/data/latest.json && test -f _deploy/web/.well-known/security.txt \
+            || { echo "::error::El commit de deploy no tiene el sitio completo"; exit 1; }
+          grep -q "require-trusted-types-for 'script'" _deploy/web/_headers \
+            || { echo "::error::_headers sin la CSP: no se despliega"; exit 1; }
+          rm -rf _deploy/.git
+
+      - name: Desplegar en Cloudflare Workers
         env:
-          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
-        run: curl -fsS -X POST -d '{}' "$HOOK" > /dev/null && echo "✓ build hook avisado"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Faltan los secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID en el entorno cloudflare"
+            exit 1
+          fi
+          main/despliegue/node_modules/.bin/wrangler deploy --config _deploy/wrangler.jsonc
+
+      # Lo que ve un visitante: la CSP en la cabecera y los datos que se acaban de subir
+      - name: Comprobar producción
+        if: vars.SITIO_URL != ''
+        env:
+          SITIO: ${{ vars.SITIO_URL }}
+        run: |
+          want="$(python3 -c 'import json;print(json.load(open("_deploy/web/data/latest.json"))["generated_at"])')"
+          for i in 1 2 3 4 5 6; do
+            got="$(curl -fsS "${SITIO}/data/latest.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["generated_at"])' || true)"
+            [ "$got" = "$want" ] && break
+            sleep 10
+          done
+          [ "$got" = "$want" ] || { echo "::error::Producción sirve generated_at=$got, se esperaba $want"; exit 1; }
+          curl -fsSI "${SITIO}/" | grep -qi "^content-security-policy: default-src 'none'" \
+            || { echo "::error::Producción sin la CSP"; exit 1; }
+          echo "✓ ${SITIO} sirve la edición ${want} con la CSP"

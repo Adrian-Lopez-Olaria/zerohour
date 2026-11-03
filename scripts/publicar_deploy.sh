@@ -36,10 +36,13 @@ git -c user.name="zerohour-bot" \
     -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
     commit -q -m "$MSG"
 
+COMMIT="$(git rev-parse HEAD)"
 if [ -n "${GIT_AUTH_HEADER:-}" ]; then
   git -c "http.extraheader=${GIT_AUTH_HEADER}" push -q --force "$REMOTE" "HEAD:${TARGET}"
 else
   git push -q --force "$REMOTE" "HEAD:${TARGET}"
 fi
 rm -rf .git                                   # el repo desechable no se queda en disco
+# En Actions, el commit exacto pasa al job que lo despliega en Cloudflare
+if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"; fi
 echo "✓ publicado en deploy: $(git -C "$REMOTE" rev-parse --short deploy 2>/dev/null || echo 'remoto')"
