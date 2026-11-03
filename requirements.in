@@ -1,0 +1,8 @@
+# Dependencias directas del pipeline (scripts/radar.py). requirements.txt se GENERA desde aquí
+# con versiones exactas y hashes SHA-256 (pip las comprueba todas):
+#   pip-compile --generate-hashes --allow-unsafe --strip-extras requirements.in
+requests>=2.31
+feedparser>=6.0
+tzdata
+# Geolocalización offline (DB-IP Lite en formato MMDB)
+maxminddb==3.2.0

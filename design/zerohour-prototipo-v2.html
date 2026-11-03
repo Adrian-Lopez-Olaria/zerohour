@@ -1,0 +1,3243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZEROHOUR — Inteligencia de vulnerabilidades</title>
+<meta name="description" content="Briefing diario de vulnerabilidades: NVD, CISA KEV y SSVC, EPSS, exploits verificados, GitHub Advisories, INCIBE-CERT y CERT-EU, puntuado de 0 a 100.">
+<meta name="theme-color" content="#0A0E13">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230A0E13'/%3E%3Cpath d='M16 17.5L16 8.3A9.2 9.2 0 0 0 6.8 17.5Z' fill='%2338D996' fill-opacity='.3'/%3E%3Ccircle cx='16' cy='17.5' r='11.6' fill='none' stroke='%23E6EBF1' stroke-width='2.6'/%3E%3Crect x='13' y='0.8' width='6' height='2.8' fill='%23E6EBF1'/%3E%3Cpath d='M16 17.5V7.4' stroke='%2338D996' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='17.5' r='2.1' fill='%2338D996'/%3E%3Ccircle cx='20.7' cy='13.5' r='2.3' fill='%23FF4F6D'/%3E%3C/svg%3E">
+
+<!-- =====================================================================
+     ZEROHOUR · PROTOTIPO v2
+     Datos de ejemplo con la MISMA forma que data/latest.json, map.json e
+     index.json. En producción este objeto no existe: se usa fetch().
+     ===================================================================== -->
+<script>
+const ZEROHOUR_DATA = {
+ "latest": {
+  "date": "2026-11-02",
+  "generated_at": "2026-11-02T12:47:00Z",
+  "summary": "Hoy se han publicado 183 CVE nuevas: 12 críticas y 46 altas. CISA ha añadido 2 vulnerabilidades a su catálogo de explotación activa (KEV), las dos en Ivanti Connect Secure. Hay exploit verificado para 2 de las relevantes. La más preocupante: CVE-2026-117902 (Fortinet FortiWeb), CVSS 9.8, puntuación 88/100.",
+  "stats": {
+   "new_cves": 183,
+   "by_severity": {
+    "CRITICAL": 12,
+    "HIGH": 46,
+    "MEDIUM": 52,
+    "LOW": 14,
+    "UNSCORED": 59
+   },
+   "kev_new": 2,
+   "with_poc": 9,
+   "in_stack": 6,
+   "remote": 106
+  },
+  "scoring_weights": {
+   "cvss": 30,
+   "epss": 20,
+   "kev": 25,
+   "ransomware": 5,
+   "exploit": 15,
+   "stack": 5
+  },
+  "top": [
+   {
+    "id": "CVE-2026-117902",
+    "description": "An authentication bypass using an alternate path or channel vulnerability in Fortinet FortiWeb 7.6.0 through 7.6.4 allows an unauthenticated attacker to execute administrative commands via crafted HTTP requests.",
+    "vendor": "Fortinet",
+    "product": "FortiWeb",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.27,
+    "epss_percentile": 0.96,
+    "score": 88,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 19.2,
+     "kev": 20,
+     "ransomware": 0,
+     "exploit": 15,
+     "stack": 5
+    },
+    "tags": [
+     "ssvc",
+     "exploit",
+     "deteccion",
+     "poc",
+     "stack",
+     "incibe",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/CVE-2026-117902",
+      "name": "FortiWeb fabric connector auth bypass",
+      "stars": 188
+     }
+    ],
+    "news": [
+     {
+      "title": "Fortinet corrige un fallo crítico en FortiWeb con exploit público",
+      "url": "https://example.com/n/fortiweb",
+      "source": "BleepingComputer"
+     }
+    ],
+    "cwe": [
+     "CWE-288"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-117902",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-117902"
+    }
+   },
+   {
+    "id": "CVE-2026-111357",
+    "description": "A stack-based buffer overflow in Ivanti Connect Secure before version 22.7R2.9 allows a remote unauthenticated attacker to achieve remote code execution.",
+    "vendor": "Ivanti",
+    "product": "Connect Secure",
+    "cvss": 9.1,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L",
+    "attack_vector": "NETWORK",
+    "epss": 0.61,
+    "epss_percentile": 0.985,
+    "score": 87,
+    "score_breakdown": {
+     "cvss": 27.3,
+     "epss": 19.7,
+     "kev": 25,
+     "ransomware": 0,
+     "exploit": 15,
+     "stack": 0
+    },
+    "tags": [
+     "kev",
+     "ssvc",
+     "exploit",
+     "poc",
+     "news",
+     "remote"
+    ],
+    "kev": {
+     "date_added": "2026-11-02",
+     "ransomware": "Unknown",
+     "action": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+     "due_date": "2026-11-05"
+    },
+    "poc": [
+     {
+      "url": "https://github.com/example/ivanti-111357",
+      "name": "Connect Secure pre-auth RCE chain",
+      "stars": 96
+     }
+    ],
+    "news": [
+     {
+      "title": "CISA añade dos fallos de Ivanti Connect Secure al catálogo KEV",
+      "url": "https://example.com/n/ivanti-kev",
+      "source": "The Hacker News"
+     }
+    ],
+    "cwe": [
+     "CWE-787"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-111357",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-111357"
+    }
+   },
+   {
+    "id": "CVE-2026-119344",
+    "description": "Deserialization of untrusted data in Windows Server Update Service allows an unauthorized attacker to execute code over a network.",
+    "vendor": "Microsoft",
+    "product": "Windows Server Update Services",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.12,
+    "epss_percentile": 0.93,
+    "score": 73,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 18.6,
+     "kev": 20,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "ssvc",
+     "deteccion",
+     "stack",
+     "incibe",
+     "certeu",
+     "news",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [
+     {
+      "title": "CERT-EU alerta de un fallo crítico en WSUS",
+      "url": "https://cert.europa.eu/publications/security-advisories/",
+      "source": "CERT-EU"
+     }
+    ],
+    "cwe": [
+     "CWE-502"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-119344",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-119344"
+    }
+   },
+   {
+    "id": "CVE-2026-120118",
+    "description": "The Post SMTP plugin for WordPress is vulnerable to unauthorized access of data due to a missing capability check in all versions up to, and including, 3.6.0.",
+    "vendor": "WordPress",
+    "product": "Plugin · Post SMTP",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.05,
+    "epss_percentile": 0.88,
+    "score": 58,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 17.6,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 5
+    },
+    "tags": [
+     "poc",
+     "stack",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/post-smtp-takeover",
+      "name": "Account takeover via email log",
+      "stars": 12
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-862"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-120118",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-120118"
+    }
+   },
+   {
+    "id": "CVE-2026-116775",
+    "description": "A vulnerability allowing remote code execution (RCE) on the Backup Server by an authenticated domain user.",
+    "vendor": "Veeam",
+    "product": "Backup & Replication",
+    "cvss": 9.9,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.09,
+    "epss_percentile": 0.92,
+    "score": 54,
+    "score_breakdown": {
+     "cvss": 29.7,
+     "epss": 18.4,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 0
+    },
+    "tags": [
+     "poc",
+     "certeu",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/veeam-116775",
+      "name": "Deserialization gadget chain",
+      "stars": 41
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-502"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-116775",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-116775"
+    }
+   },
+   {
+    "id": "CVE-2026-112480",
+    "description": "Use after free in V8 in Google Chrome prior to 142.0.7444.162 allowed a remote attacker to potentially exploit heap corruption via a crafted HTML page.",
+    "vendor": "Google",
+    "product": "Chrome",
+    "cvss": 8.8,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.03,
+    "epss_percentile": 0.8,
+    "score": 47,
+    "score_breakdown": {
+     "cvss": 26.4,
+     "epss": 16,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "stack",
+     "news",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [
+     {
+      "title": "Chrome publica una actualización de seguridad fuera de ciclo",
+      "url": "https://example.com/n/chrome",
+      "source": "BleepingComputer"
+     }
+    ],
+    "cwe": [
+     "CWE-416"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-112480",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-112480"
+    }
+   },
+   {
+    "id": "CVE-2026-118527",
+    "description": "Ivanti Connect Secure contains an improper authentication vulnerability. NVD analysis is pending.",
+    "vendor": "Ivanti",
+    "product": "Connect Secure",
+    "cvss": null,
+    "severity": null,
+    "vector": null,
+    "attack_vector": null,
+    "epss": 0.38,
+    "epss_percentile": 0.97,
+    "score": 44,
+    "score_breakdown": {
+     "cvss": 0,
+     "epss": 19.4,
+     "kev": 25,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "kev",
+     "news",
+     "remote"
+    ],
+    "kev": {
+     "date_added": "2026-11-02",
+     "ransomware": "Unknown",
+     "action": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+     "due_date": "2026-11-05"
+    },
+    "poc": [],
+    "news": [
+     {
+      "title": "CISA añade dos fallos de Ivanti Connect Secure al catálogo KEV",
+      "url": "https://example.com/n/ivanti-kev",
+      "source": "The Hacker News"
+     }
+    ],
+    "cwe": [],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-118527",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-118527"
+    }
+   },
+   {
+    "id": "CVE-2026-118090",
+    "description": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to elevate privileges.",
+    "vendor": "Cisco",
+    "product": "IOS XE",
+    "cvss": 8.6,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:L/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.04,
+    "epss_percentile": 0.86,
+    "score": 43,
+    "score_breakdown": {
+     "cvss": 25.8,
+     "epss": 17.2,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "deteccion",
+     "incibe",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-269"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-118090",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-118090"
+    }
+   },
+   {
+    "id": "CVE-2026-113201",
+    "description": "Path traversal in the default servlet of Apache Tomcat allows reading files outside the web application root when partial PUT is enabled.",
+    "vendor": "Apache",
+    "product": "Tomcat",
+    "cvss": 7.5,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.02,
+    "epss_percentile": 0.7,
+    "score": 41,
+    "score_breakdown": {
+     "cvss": 22.5,
+     "epss": 14,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "stack",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-22"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-113201",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-113201"
+    }
+   },
+   {
+    "id": "CVE-2026-114420",
+    "description": "axios before 1.12.3 allows server-side request forgery when an absolute URL is passed to a client configured with a baseURL.",
+    "vendor": "npm",
+    "product": "axios",
+    "cvss": 7.5,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.01,
+    "epss_percentile": 0.55,
+    "score": 39,
+    "score_breakdown": {
+     "cvss": 22.5,
+     "epss": 11,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 0
+    },
+    "tags": [
+     "library",
+     "poc"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/axios-ssrf",
+      "name": "SSRF via absolute URL",
+      "stars": 7
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-918"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-114420",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-114420"
+    }
+   }
+  ],
+  "cves": [
+   {
+    "id": "CVE-2026-117902",
+    "description": "An authentication bypass using an alternate path or channel vulnerability in Fortinet FortiWeb 7.6.0 through 7.6.4 allows an unauthenticated attacker to execute administrative commands via crafted HTTP requests.",
+    "vendor": "Fortinet",
+    "product": "FortiWeb",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.27,
+    "epss_percentile": 0.96,
+    "score": 88,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 19.2,
+     "kev": 20,
+     "ransomware": 0,
+     "exploit": 15,
+     "stack": 5
+    },
+    "tags": [
+     "ssvc",
+     "exploit",
+     "deteccion",
+     "poc",
+     "stack",
+     "incibe",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/CVE-2026-117902",
+      "name": "FortiWeb fabric connector auth bypass",
+      "stars": 188
+     }
+    ],
+    "news": [
+     {
+      "title": "Fortinet corrige un fallo crítico en FortiWeb con exploit público",
+      "url": "https://example.com/n/fortiweb",
+      "source": "BleepingComputer"
+     }
+    ],
+    "cwe": [
+     "CWE-288"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-117902",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-117902"
+    }
+   },
+   {
+    "id": "CVE-2026-111357",
+    "description": "A stack-based buffer overflow in Ivanti Connect Secure before version 22.7R2.9 allows a remote unauthenticated attacker to achieve remote code execution.",
+    "vendor": "Ivanti",
+    "product": "Connect Secure",
+    "cvss": 9.1,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L",
+    "attack_vector": "NETWORK",
+    "epss": 0.61,
+    "epss_percentile": 0.985,
+    "score": 87,
+    "score_breakdown": {
+     "cvss": 27.3,
+     "epss": 19.7,
+     "kev": 25,
+     "ransomware": 0,
+     "exploit": 15,
+     "stack": 0
+    },
+    "tags": [
+     "kev",
+     "ssvc",
+     "exploit",
+     "poc",
+     "news",
+     "remote"
+    ],
+    "kev": {
+     "date_added": "2026-11-02",
+     "ransomware": "Unknown",
+     "action": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+     "due_date": "2026-11-05"
+    },
+    "poc": [
+     {
+      "url": "https://github.com/example/ivanti-111357",
+      "name": "Connect Secure pre-auth RCE chain",
+      "stars": 96
+     }
+    ],
+    "news": [
+     {
+      "title": "CISA añade dos fallos de Ivanti Connect Secure al catálogo KEV",
+      "url": "https://example.com/n/ivanti-kev",
+      "source": "The Hacker News"
+     }
+    ],
+    "cwe": [
+     "CWE-787"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-111357",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-111357"
+    }
+   },
+   {
+    "id": "CVE-2026-119344",
+    "description": "Deserialization of untrusted data in Windows Server Update Service allows an unauthorized attacker to execute code over a network.",
+    "vendor": "Microsoft",
+    "product": "Windows Server Update Services",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.12,
+    "epss_percentile": 0.93,
+    "score": 73,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 18.6,
+     "kev": 20,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "ssvc",
+     "deteccion",
+     "stack",
+     "incibe",
+     "certeu",
+     "news",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [
+     {
+      "title": "CERT-EU alerta de un fallo crítico en WSUS",
+      "url": "https://cert.europa.eu/publications/security-advisories/",
+      "source": "CERT-EU"
+     }
+    ],
+    "cwe": [
+     "CWE-502"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-119344",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-119344"
+    }
+   },
+   {
+    "id": "CVE-2026-120118",
+    "description": "The Post SMTP plugin for WordPress is vulnerable to unauthorized access of data due to a missing capability check in all versions up to, and including, 3.6.0.",
+    "vendor": "WordPress",
+    "product": "Plugin · Post SMTP",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.05,
+    "epss_percentile": 0.88,
+    "score": 58,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 17.6,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 5
+    },
+    "tags": [
+     "poc",
+     "stack",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/post-smtp-takeover",
+      "name": "Account takeover via email log",
+      "stars": 12
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-862"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-120118",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-120118"
+    }
+   },
+   {
+    "id": "CVE-2026-116775",
+    "description": "A vulnerability allowing remote code execution (RCE) on the Backup Server by an authenticated domain user.",
+    "vendor": "Veeam",
+    "product": "Backup & Replication",
+    "cvss": 9.9,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.09,
+    "epss_percentile": 0.92,
+    "score": 54,
+    "score_breakdown": {
+     "cvss": 29.7,
+     "epss": 18.4,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 0
+    },
+    "tags": [
+     "poc",
+     "certeu",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/veeam-116775",
+      "name": "Deserialization gadget chain",
+      "stars": 41
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-502"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-116775",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-116775"
+    }
+   },
+   {
+    "id": "CVE-2026-112480",
+    "description": "Use after free in V8 in Google Chrome prior to 142.0.7444.162 allowed a remote attacker to potentially exploit heap corruption via a crafted HTML page.",
+    "vendor": "Google",
+    "product": "Chrome",
+    "cvss": 8.8,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.03,
+    "epss_percentile": 0.8,
+    "score": 47,
+    "score_breakdown": {
+     "cvss": 26.4,
+     "epss": 16,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "stack",
+     "news",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [
+     {
+      "title": "Chrome publica una actualización de seguridad fuera de ciclo",
+      "url": "https://example.com/n/chrome",
+      "source": "BleepingComputer"
+     }
+    ],
+    "cwe": [
+     "CWE-416"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-112480",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-112480"
+    }
+   },
+   {
+    "id": "CVE-2026-118527",
+    "description": "Ivanti Connect Secure contains an improper authentication vulnerability. NVD analysis is pending.",
+    "vendor": "Ivanti",
+    "product": "Connect Secure",
+    "cvss": null,
+    "severity": null,
+    "vector": null,
+    "attack_vector": null,
+    "epss": 0.38,
+    "epss_percentile": 0.97,
+    "score": 44,
+    "score_breakdown": {
+     "cvss": 0,
+     "epss": 19.4,
+     "kev": 25,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "kev",
+     "news",
+     "remote"
+    ],
+    "kev": {
+     "date_added": "2026-11-02",
+     "ransomware": "Unknown",
+     "action": "Apply mitigations per vendor instructions, follow applicable BOD 22-01 guidance for cloud services, or discontinue use of the product if mitigations are unavailable.",
+     "due_date": "2026-11-05"
+    },
+    "poc": [],
+    "news": [
+     {
+      "title": "CISA añade dos fallos de Ivanti Connect Secure al catálogo KEV",
+      "url": "https://example.com/n/ivanti-kev",
+      "source": "The Hacker News"
+     }
+    ],
+    "cwe": [],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-118527",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-118527"
+    }
+   },
+   {
+    "id": "CVE-2026-118090",
+    "description": "A vulnerability in the web UI of Cisco IOS XE Software could allow an authenticated, remote attacker to elevate privileges.",
+    "vendor": "Cisco",
+    "product": "IOS XE",
+    "cvss": 8.6,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:L/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.04,
+    "epss_percentile": 0.86,
+    "score": 43,
+    "score_breakdown": {
+     "cvss": 25.8,
+     "epss": 17.2,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "deteccion",
+     "incibe",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-269"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-118090",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-118090"
+    }
+   },
+   {
+    "id": "CVE-2026-113201",
+    "description": "Path traversal in the default servlet of Apache Tomcat allows reading files outside the web application root when partial PUT is enabled.",
+    "vendor": "Apache",
+    "product": "Tomcat",
+    "cvss": 7.5,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.02,
+    "epss_percentile": 0.7,
+    "score": 41,
+    "score_breakdown": {
+     "cvss": 22.5,
+     "epss": 14,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "stack",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-22"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-113201",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-113201"
+    }
+   },
+   {
+    "id": "CVE-2026-114420",
+    "description": "axios before 1.12.3 allows server-side request forgery when an absolute URL is passed to a client configured with a baseURL.",
+    "vendor": "npm",
+    "product": "axios",
+    "cvss": 7.5,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.01,
+    "epss_percentile": 0.55,
+    "score": 39,
+    "score_breakdown": {
+     "cvss": 22.5,
+     "epss": 11,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 0
+    },
+    "tags": [
+     "library",
+     "poc"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/axios-ssrf",
+      "name": "SSRF via absolute URL",
+      "stars": 7
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-918"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-114420",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-114420"
+    }
+   },
+   {
+    "id": "CVE-2026-120232",
+    "description": "A vulnerability was found in a PHP school management system 1.0. It has been classified as critical. Manipulation of the argument id leads to sql injection.",
+    "vendor": "CNA · vuldb.com",
+    "product": "",
+    "cvss": 8.8,
+    "severity": "HIGH",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.002,
+    "epss_percentile": 0.12,
+    "score": 34,
+    "score_breakdown": {
+     "cvss": 26.4,
+     "epss": 2.4,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 6,
+     "stack": 0
+    },
+    "tags": [
+     "poc",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [
+     {
+      "url": "https://github.com/example/vuldb-120232",
+      "name": "PoC",
+      "stars": 0
+     }
+    ],
+    "news": [],
+    "cwe": [
+     "CWE-89"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-120232",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-120232"
+    }
+   },
+   {
+    "id": "CVE-2026-115034",
+    "description": "Uncontrolled resource consumption in the Winbox service of MikroTik RouterOS allows an authenticated remote attacker to cause a denial of service.",
+    "vendor": "MikroTik",
+    "product": "RouterOS",
+    "cvss": 6.5,
+    "severity": "MEDIUM",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.004,
+    "epss_percentile": 0.41,
+    "score": 32,
+    "score_breakdown": {
+     "cvss": 19.5,
+     "epss": 8.2,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 5
+    },
+    "tags": [
+     "stack",
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-400"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-115034",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-115034"
+    }
+   },
+   {
+    "id": "CVE-2026-120338",
+    "description": "Improper control of generation of code in a model serving package allows remote code execution through a crafted configuration file.",
+    "vendor": "CNA · vuldb.com",
+    "product": "",
+    "cvss": 10,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.001,
+    "epss_percentile": 0.05,
+    "score": 31,
+    "score_breakdown": {
+     "cvss": 30,
+     "epss": 1,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-94"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-120338",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-120338"
+    }
+   },
+   {
+    "id": "CVE-2026-120276",
+    "description": "A vulnerability was found in a router firmware up to 1.0.3. Manipulation of the argument cmd leads to os command injection.",
+    "vendor": "",
+    "product": "",
+    "cvss": 10,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.001,
+    "epss_percentile": 0.05,
+    "score": 31,
+    "score_breakdown": {
+     "cvss": 30,
+     "epss": 1,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-78"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-120276",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-120276"
+    }
+   },
+   {
+    "id": "CVE-2026-120277",
+    "description": "A vulnerability was found in a router firmware up to 1.0.3. Manipulation of the argument ssid leads to buffer overflow.",
+    "vendor": "",
+    "product": "",
+    "cvss": 9.8,
+    "severity": "CRITICAL",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "attack_vector": "NETWORK",
+    "epss": 0.001,
+    "epss_percentile": 0.04,
+    "score": 30,
+    "score_breakdown": {
+     "cvss": 29.4,
+     "epss": 0.8,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-120"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-120277",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-120277"
+    }
+   },
+   {
+    "id": "CVE-2026-115899",
+    "description": "Cross-site scripting vulnerability in the administration panel of Synology DiskStation Manager allows remote attackers to inject arbitrary web script.",
+    "vendor": "Synology",
+    "product": "DiskStation Manager",
+    "cvss": 6.1,
+    "severity": "MEDIUM",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.003,
+    "epss_percentile": 0.33,
+    "score": 24,
+    "score_breakdown": {
+     "cvss": 18.3,
+     "epss": 6.6,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-79"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-115899",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-115899"
+    }
+   },
+   {
+    "id": "CVE-2026-119970",
+    "description": "A stored cross-site scripting vulnerability in the merge request widget of GitLab CE/EE allows an attacker to perform actions on behalf of users.",
+    "vendor": "GitLab",
+    "product": "GitLab CE/EE",
+    "cvss": 5.4,
+    "severity": "MEDIUM",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.002,
+    "epss_percentile": 0.29,
+    "score": 22,
+    "score_breakdown": {
+     "cvss": 16.2,
+     "epss": 5.8,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-79"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-119970",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-119970"
+    }
+   },
+   {
+    "id": "CVE-2026-112776",
+    "description": "Requests may leak Proxy-Authorization headers to destination servers when following redirects to a different host.",
+    "vendor": "PyPI",
+    "product": "requests",
+    "cvss": 5.3,
+    "severity": "MEDIUM",
+    "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.002,
+    "epss_percentile": 0.3,
+    "score": 21,
+    "score_breakdown": {
+     "cvss": 15.9,
+     "epss": 6,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "library"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-200"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-112776",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-112776"
+    }
+   },
+   {
+    "id": "CVE-2026-110962",
+    "description": "Zabbix API returns verbose error messages that disclose the database type and internal paths to unauthenticated users.",
+    "vendor": "Zabbix",
+    "product": "Zabbix Server",
+    "cvss": 3.7,
+    "severity": "LOW",
+    "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+    "attack_vector": "NETWORK",
+    "epss": 0.0007,
+    "epss_percentile": 0.1,
+    "score": 13,
+    "score_breakdown": {
+     "cvss": 11.1,
+     "epss": 2,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-209"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-110962",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-110962"
+    }
+   },
+   {
+    "id": "CVE-2026-121004",
+    "description": "SAP NetWeaver Application Server Java is missing an authorization check in a remote administration service. NVD analysis is pending.",
+    "vendor": "SAP",
+    "product": "NetWeaver AS Java",
+    "cvss": null,
+    "severity": null,
+    "vector": null,
+    "attack_vector": null,
+    "epss": 0.01,
+    "epss_percentile": 0.6,
+    "score": 12,
+    "score_breakdown": {
+     "cvss": 0,
+     "epss": 12,
+     "kev": 0,
+     "ransomware": 0,
+     "exploit": 0,
+     "stack": 0
+    },
+    "tags": [
+     "remote"
+    ],
+    "kev": null,
+    "poc": [],
+    "news": [],
+    "cwe": [
+     "CWE-862"
+    ],
+    "links": {
+     "nvd": "https://nvd.nist.gov/vuln/detail/CVE-2026-121004",
+     "mitre": "https://www.cve.org/CVERecord?id=CVE-2026-121004"
+    }
+   }
+  ],
+  "news": [
+   {
+    "title": "CISA añade dos fallos de Ivanti Connect Secure al catálogo KEV",
+    "url": "https://example.com/n/ivanti-kev",
+    "source": "The Hacker News"
+   },
+   {
+    "title": "Fortinet corrige un fallo crítico en FortiWeb con exploit público",
+    "url": "https://example.com/n/fortiweb",
+    "source": "BleepingComputer"
+   },
+   {
+    "title": "CERT-EU alerta de un fallo crítico en WSUS",
+    "url": "https://cert.europa.eu/publications/security-advisories/",
+    "source": "CERT-EU"
+   },
+   {
+    "title": "Aviso de seguridad: vulnerabilidad en FortiWeb",
+    "url": "https://www.incibe.es/incibe-cert/alerta-temprana/avisos",
+    "source": "INCIBE-CERT"
+   }
+  ],
+  "sources_status": {
+   "nvd": "ok",
+   "cveorg": "ok",
+   "kev": "ok",
+   "epss": "ok",
+   "ghsa": "ok",
+   "msf": "ok",
+   "nuclei": "ok",
+   "exploitdb": "ok",
+   "poc": "ok",
+   "rss": "ok",
+   "certeu": "ok"
+  }
+ },
+ "map": {
+  "updated_at": "2026-11-02T12:47:00Z",
+  "points": [
+   {
+    "lat": 38.9,
+    "lon": -77.04,
+    "country": "Estados Unidos",
+    "cc": "US",
+    "attacks": 121400,
+    "sources": 37
+   },
+   {
+    "lat": 37.77,
+    "lon": -122.42,
+    "country": "Estados Unidos",
+    "cc": "US",
+    "attacks": 88210,
+    "sources": 22
+   },
+   {
+    "lat": 41.88,
+    "lon": -87.63,
+    "country": "Estados Unidos",
+    "cc": "US",
+    "attacks": 47930,
+    "sources": 14
+   },
+   {
+    "lat": 32.78,
+    "lon": -96.8,
+    "country": "Estados Unidos",
+    "cc": "US",
+    "attacks": 30982,
+    "sources": 9
+   },
+   {
+    "lat": 50.11,
+    "lon": 8.68,
+    "country": "Alemania",
+    "cc": "DE",
+    "attacks": 34503,
+    "sources": 18
+   },
+   {
+    "lat": 42.7,
+    "lon": 23.32,
+    "country": "Bulgaria",
+    "cc": "BG",
+    "attacks": 8153,
+    "sources": 6
+   },
+   {
+    "lat": 55.76,
+    "lon": 37.62,
+    "country": "Rusia",
+    "cc": "RU",
+    "attacks": 7310,
+    "sources": 11
+   },
+   {
+    "lat": 52.37,
+    "lon": 4.9,
+    "country": "Países Bajos",
+    "cc": "NL",
+    "attacks": 6625,
+    "sources": 12
+   },
+   {
+    "lat": 39.9,
+    "lon": 116.41,
+    "country": "China",
+    "cc": "CN",
+    "attacks": 6120,
+    "sources": 15
+   },
+   {
+    "lat": -23.55,
+    "lon": -46.63,
+    "country": "Brasil",
+    "cc": "BR",
+    "attacks": 4890,
+    "sources": 8
+   },
+   {
+    "lat": 28.61,
+    "lon": 77.21,
+    "country": "India",
+    "cc": "IN",
+    "attacks": 3770,
+    "sources": 7
+   },
+   {
+    "lat": 1.35,
+    "lon": 103.82,
+    "country": "Singapur",
+    "cc": "SG",
+    "attacks": 3210,
+    "sources": 9
+   },
+   {
+    "lat": 37.57,
+    "lon": 126.98,
+    "country": "Corea del Sur",
+    "cc": "KR",
+    "attacks": 2650,
+    "sources": 6
+   },
+   {
+    "lat": 35.69,
+    "lon": 139.69,
+    "country": "Japón",
+    "cc": "JP",
+    "attacks": 1980,
+    "sources": 5
+   },
+   {
+    "lat": 21.03,
+    "lon": 105.85,
+    "country": "Vietnam",
+    "cc": "VN",
+    "attacks": 1720,
+    "sources": 4
+   },
+   {
+    "lat": 48.86,
+    "lon": 2.35,
+    "country": "Francia",
+    "cc": "FR",
+    "attacks": 1610,
+    "sources": 6
+   },
+   {
+    "lat": 51.51,
+    "lon": -0.13,
+    "country": "Reino Unido",
+    "cc": "GB",
+    "attacks": 1540,
+    "sources": 7
+   },
+   {
+    "lat": -6.21,
+    "lon": 106.85,
+    "country": "Indonesia",
+    "cc": "ID",
+    "attacks": 1320,
+    "sources": 3
+   },
+   {
+    "lat": 41.01,
+    "lon": 28.98,
+    "country": "Turquía",
+    "cc": "TR",
+    "attacks": 1050,
+    "sources": 3
+   },
+   {
+    "lat": 40.42,
+    "lon": -3.7,
+    "country": "España",
+    "cc": "ES",
+    "attacks": 880,
+    "sources": 4
+   },
+   {
+    "lat": -26.2,
+    "lon": 28.05,
+    "country": "Sudáfrica",
+    "cc": "ZA",
+    "attacks": 640,
+    "sources": 2
+   },
+   {
+    "lat": -33.87,
+    "lon": 151.21,
+    "country": "Australia",
+    "cc": "AU",
+    "attacks": 590,
+    "sources": 3
+   },
+   {
+    "lat": 19.43,
+    "lon": -99.13,
+    "country": "México",
+    "cc": "MX",
+    "attacks": 480,
+    "sources": 2
+   },
+   {
+    "lat": -34.6,
+    "lon": -58.38,
+    "country": "Argentina",
+    "cc": "AR",
+    "attacks": 350,
+    "sources": 2
+   }
+  ],
+  "by_country": [
+   {
+    "cc": "US",
+    "country": "Estados Unidos",
+    "attacks": 288522
+   },
+   {
+    "cc": "DE",
+    "country": "Alemania",
+    "attacks": 34503
+   },
+   {
+    "cc": "BG",
+    "country": "Bulgaria",
+    "attacks": 8153
+   },
+   {
+    "cc": "RU",
+    "country": "Rusia",
+    "attacks": 7310
+   },
+   {
+    "cc": "NL",
+    "country": "Países Bajos",
+    "attacks": 6625
+   },
+   {
+    "cc": "CN",
+    "country": "China",
+    "attacks": 6120
+   },
+   {
+    "cc": "BR",
+    "country": "Brasil",
+    "attacks": 4890
+   },
+   {
+    "cc": "IN",
+    "country": "India",
+    "attacks": 3770
+   },
+   {
+    "cc": "SG",
+    "country": "Singapur",
+    "attacks": 3210
+   },
+   {
+    "cc": "KR",
+    "country": "Corea del Sur",
+    "attacks": 2650
+   }
+  ],
+  "top_ports": [
+   {
+    "port": 22,
+    "records": 512340
+   },
+   {
+    "port": 23,
+    "records": 372118
+   },
+   {
+    "port": 2222,
+    "records": 168402
+   },
+   {
+    "port": 443,
+    "records": 95310
+   },
+   {
+    "port": 80,
+    "records": 91022
+   },
+   {
+    "port": 8080,
+    "records": 62480
+   },
+   {
+    "port": 7680,
+    "records": 56120
+   },
+   {
+    "port": 8000,
+    "records": 54330
+   }
+  ]
+ },
+ "index": {
+  "days": [
+   {
+    "date": "2026-10-20",
+    "stats": {
+     "new_cves": 118,
+     "by_severity": {
+      "CRITICAL": 7,
+      "HIGH": 30,
+      "MEDIUM": 47,
+      "LOW": 18,
+      "UNSCORED": 16
+     },
+     "kev_new": 1,
+     "with_poc": 18,
+     "in_stack": 6,
+     "remote": 70
+    }
+   },
+   {
+    "date": "2026-10-21",
+    "stats": {
+     "new_cves": 131,
+     "by_severity": {
+      "CRITICAL": 9,
+      "HIGH": 35,
+      "MEDIUM": 50,
+      "LOW": 20,
+      "UNSCORED": 17
+     },
+     "kev_new": 2,
+     "with_poc": 20,
+     "in_stack": 9,
+     "remote": 80
+    }
+   },
+   {
+    "date": "2026-10-22",
+    "stats": {
+     "new_cves": 156,
+     "by_severity": {
+      "CRITICAL": 12,
+      "HIGH": 40,
+      "MEDIUM": 60,
+      "LOW": 24,
+      "UNSCORED": 20
+     },
+     "kev_new": 3,
+     "with_poc": 27,
+     "in_stack": 10,
+     "remote": 96
+    }
+   },
+   {
+    "date": "2026-10-23",
+    "stats": {
+     "new_cves": 127,
+     "by_severity": {
+      "CRITICAL": 8,
+      "HIGH": 32,
+      "MEDIUM": 49,
+      "LOW": 20,
+      "UNSCORED": 18
+     },
+     "kev_new": 1,
+     "with_poc": 19,
+     "in_stack": 7,
+     "remote": 77
+    }
+   },
+   {
+    "date": "2026-10-24",
+    "stats": {
+     "new_cves": 64,
+     "by_severity": {
+      "CRITICAL": 3,
+      "HIGH": 15,
+      "MEDIUM": 27,
+      "LOW": 11,
+      "UNSCORED": 8
+     },
+     "kev_new": 0,
+     "with_poc": 9,
+     "in_stack": 3,
+     "remote": 37
+    }
+   },
+   {
+    "date": "2026-10-25",
+    "stats": {
+     "new_cves": 58,
+     "by_severity": {
+      "CRITICAL": 2,
+      "HIGH": 13,
+      "MEDIUM": 25,
+      "LOW": 10,
+      "UNSCORED": 8
+     },
+     "kev_new": 0,
+     "with_poc": 7,
+     "in_stack": 2,
+     "remote": 33
+    }
+   },
+   {
+    "date": "2026-10-26",
+    "stats": {
+     "new_cves": 142,
+     "by_severity": {
+      "CRITICAL": 11,
+      "HIGH": 38,
+      "MEDIUM": 55,
+      "LOW": 20,
+      "UNSCORED": 18
+     },
+     "kev_new": 4,
+     "with_poc": 23,
+     "in_stack": 11,
+     "remote": 88
+    }
+   },
+   {
+    "date": "2026-10-27",
+    "stats": {
+     "new_cves": 149,
+     "by_severity": {
+      "CRITICAL": 11,
+      "HIGH": 41,
+      "MEDIUM": 58,
+      "LOW": 21,
+      "UNSCORED": 18
+     },
+     "kev_new": 2,
+     "with_poc": 24,
+     "in_stack": 9,
+     "remote": 91
+    }
+   },
+   {
+    "date": "2026-10-28",
+    "stats": {
+     "new_cves": 137,
+     "by_severity": {
+      "CRITICAL": 10,
+      "HIGH": 36,
+      "MEDIUM": 54,
+      "LOW": 19,
+      "UNSCORED": 18
+     },
+     "kev_new": 1,
+     "with_poc": 21,
+     "in_stack": 8,
+     "remote": 84
+    }
+   },
+   {
+    "date": "2026-10-29",
+    "stats": {
+     "new_cves": 129,
+     "by_severity": {
+      "CRITICAL": 8,
+      "HIGH": 33,
+      "MEDIUM": 50,
+      "LOW": 20,
+      "UNSCORED": 18
+     },
+     "kev_new": 2,
+     "with_poc": 19,
+     "in_stack": 7,
+     "remote": 79
+    }
+   },
+   {
+    "date": "2026-10-30",
+    "stats": {
+     "new_cves": 121,
+     "by_severity": {
+      "CRITICAL": 7,
+      "HIGH": 31,
+      "MEDIUM": 47,
+      "LOW": 18,
+      "UNSCORED": 18
+     },
+     "kev_new": 1,
+     "with_poc": 18,
+     "in_stack": 7,
+     "remote": 72
+    }
+   },
+   {
+    "date": "2026-10-31",
+    "stats": {
+     "new_cves": 118,
+     "by_severity": {
+      "CRITICAL": 9,
+      "HIGH": 29,
+      "MEDIUM": 37,
+      "LOW": 12,
+      "UNSCORED": 31
+     },
+     "kev_new": 4,
+     "with_poc": 21,
+     "in_stack": 12,
+     "remote": 74
+    }
+   },
+   {
+    "date": "2026-11-01",
+    "stats": {
+     "new_cves": 74,
+     "by_severity": {
+      "CRITICAL": 3,
+      "HIGH": 14,
+      "MEDIUM": 26,
+      "LOW": 9,
+      "UNSCORED": 22
+     },
+     "kev_new": 0,
+     "with_poc": 8,
+     "in_stack": 3,
+     "remote": 41
+    }
+   },
+   {
+    "date": "2026-11-02",
+    "stats": {
+     "new_cves": 183,
+     "by_severity": {
+      "CRITICAL": 12,
+      "HIGH": 46,
+      "MEDIUM": 52,
+      "LOW": 14,
+      "UNSCORED": 59
+     },
+     "kev_new": 2,
+     "with_poc": 9,
+     "in_stack": 6,
+     "remote": 106
+    }
+   }
+  ]
+ }
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600..900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,400..700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..700&display=swap">
+
+<style>
+/* =============================================================================
+   TOKENS v2 · «SOC»: grafito neutro, paneles planos, el color solo para estado
+   ============================================================================= */
+:root {
+  /* Superficies (v2: grafito azulado neutro en vez de negro verdoso) */
+  --bg-0: #0A0E13;
+  --bg-1: #10161D;
+  --bg-2: #151D26;
+  --bg-3: #1B2531;
+  --line-1: #1C2631;
+  --line-2: #26323F;
+  --line-3: #3A4859;
+
+  /* Texto */
+  --text-1: #E6EBF1;
+  --text-2: #AEB9C7;
+  --text-3: #8A97A8;
+
+  /* Estado */
+  --ok: #38D996;          /* sistema normal, marca, foco, navegación activa */
+  --warn: #F5B544;
+  --fail: #FF5A6E;
+  --info: #6CB6FF;
+
+  /* Severidad CVSS (sin cambios respecto a v1) */
+  --sev-critical: #FF4F6D;
+  --sev-high: #FF9940;
+  --sev-medium: #E9D55B;
+  --sev-low: #6CB6FF;
+  --sev-unscored: #8A97A8;
+
+  /* Veredicto = color del score (v2: VIGILAR pasa a gris, ya no azul) */
+  --v-hoy: #FF4F6D;
+  --v-semana: #FF9940;
+  --v-planificar: #E9D55B;
+  --v-vigilar: #7F8FA3;
+
+  /* Mapa */
+  --map-land: rgba(126, 152, 178, .55);
+  --map-hi: #FF4F6D;
+  --map-mid: #F5B544;
+  --map-lo: #6CB6FF;
+
+  /* Tipografía (mismas familias que v1) */
+  --f-display: 'Big Shoulders Display', sans-serif;
+  --f-mono: 'Martian Mono', ui-monospace, monospace;
+  --f-text: 'Hanken Grotesk', sans-serif;
+  --mono-stretch: 87.5%;
+  --fs-kpi: 34px;
+  --fs-score: 26px;
+  --fs-id: clamp(36px, 5vw, 56px);
+  --fs-h1: clamp(24px, 2.4vw, 30px);
+  --fs-body: 15px;
+  --fs-small: 13px;
+  --fs-data: 12.5px;
+  --fs-label: 11px;      /* v2: mínimo 11 px (antes 10) */
+  --fs-chip: 10px;       /* v2: 10 px (antes 9) */
+  --track-label: .08em;  /* v2: menos tracking (antes .16em) */
+
+  /* Espaciado y forma */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --gutter: 24px;
+  --gap: 12px;
+  --maxw: 1440px;
+  --radius: 2px;
+  --hdr-h: 52px;
+  --strip-h: 32px;
+  --navbar-h: 58px;
+
+  /* Movimiento */
+  --t-fast: 120ms;
+  --t-blink: 1.6s;
+  --t-pulse: 2.4s;
+  --t-radar: 6s;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+}
+@media (max-width: 760px) {
+  :root { --gutter: 12px; --gap: 10px; --fs-kpi: 26px; --fs-score: 24px; }
+}
+
+/* =============================================================================
+   BASE
+   ============================================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: dark; -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-height: 100vh; background: var(--bg-0); color: var(--text-1); font-family: var(--f-text); font-size: var(--fs-body); line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: clip; }
+a { color: inherit; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.mono { font-family: var(--f-mono); font-stretch: var(--mono-stretch); }
+.num { font-variant-numeric: tabular-nums; }
+.label { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); }
+.muted { color: var(--text-3); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: 12px; top: -48px; z-index: 60; padding: 10px 14px; background: var(--ok); color: var(--bg-0); font-family: var(--f-mono); font-size: 12px; }
+.skip:focus { top: 8px; }
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
+.link { color: var(--text-1); text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; }
+.link:hover { text-decoration-color: var(--ok); }
+
+/* =============================================================================
+   CABECERA + FRANJA DE EDICIÓN (opacas: el contenido ya no se transparenta)
+   ============================================================================= */
+.top { position: sticky; top: 0; z-index: 30; }
+.hdr { background: var(--bg-1); border-bottom: 1px solid var(--line-2); }
+.hdr__row { display: flex; align-items: center; gap: var(--sp-5); height: var(--hdr-h); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex: none; }
+.brand svg { width: 26px; height: 26px; color: var(--text-1); }
+.brand__name { display: inline-flex; align-items: center; font-family: var(--f-display); font-weight: 800; font-size: 24px; line-height: 1; letter-spacing: .05em; }
+.brand__sep { display: inline-block; width: 1px; height: .74em; margin: 0 .16em 0 .12em; background: var(--ok); }
+.brand__by { padding-left: 12px; border-left: 1px solid var(--line-2); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; letter-spacing: .06em; line-height: 1.45; color: var(--text-3); text-transform: uppercase; }
+.nav { display: flex; height: 100%; margin-left: var(--sp-3); }
+.nav__a { display: flex; align-items: center; padding: 0 14px; text-decoration: none; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; font-weight: 500; letter-spacing: .08em; color: var(--text-2); border-bottom: 2px solid transparent; }
+.nav__a:hover { color: var(--text-1); background: var(--bg-2); }
+.nav__a[aria-current="page"] { color: var(--text-1); border-bottom-color: var(--ok); }
+.clocks { margin-left: auto; display: flex; align-items: center; gap: 16px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.clocks b { color: var(--text-1); font-weight: 500; font-variant-numeric: tabular-nums; }
+.clocks .tp b { color: var(--ok); }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-weight: 600; letter-spacing: .1em; }
+.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: blink var(--t-blink) steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+
+.strip { background: var(--bg-0); border-bottom: 1px solid var(--line-2); }
+.strip__row { position: relative; display: flex; align-items: center; gap: var(--sp-4); height: var(--strip-h); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.strip__ed b { color: var(--text-2); font-weight: 500; }
+.strip__ed .tp b { color: var(--ok); font-variant-numeric: tabular-nums; }
+.srcs-inline { margin-left: auto; display: flex; gap: 14px; overflow: hidden; }
+.src { display: inline-flex; align-items: center; gap: 6px; }
+.src i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.src b { color: var(--text-2); font-weight: 500; }
+.src--err i { background: var(--fail); }
+.src--err b, .src--err em { color: var(--fail); }
+.src--miss i { background: var(--warn); }
+.src em { font-style: normal; }
+.srcs { margin-left: auto; position: relative; }
+.srcs summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: var(--radius); color: var(--text-2); }
+.srcs summary::-webkit-details-marker { display: none; }
+.srcs summary::after { content: "▾"; color: var(--text-3); }
+.srcs[open] summary::after { content: "▴"; }
+.srcs summary i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.srcs.has-err summary { border-color: var(--fail); color: var(--fail); }
+.srcs.has-err summary i { background: var(--fail); }
+.srcs__list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 280px; margin: 0; padding: 8px 12px; list-style: none; background: var(--bg-2); border: 1px solid var(--line-3); border-radius: var(--radius); box-shadow: 0 12px 32px rgba(0, 0, 0, .45); white-space: normal; }
+.srcs__list li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-1); }
+.srcs__list li:last-child { border-bottom: 0; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.dot--err { background: var(--fail); } .dot--miss { background: var(--warn); }
+.srcs__list small { grid-column: 2 / -1; color: var(--fail); font-size: 11px; }
+.srcs__upd { display: block; padding-top: 6px; color: var(--text-3); }
+@media (min-width: 1180px) { .srcs { display: none; } }
+@media (max-width: 1179px) { .srcs-inline { display: none; } .brand__by { display: none; } .clocks .clk { display: none; } }
+@media (max-width: 760px) {
+  :root { --hdr-h: 48px; }
+  .brand__name { font-size: 22px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; height: var(--navbar-h); margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--bg-1); border-top: 1px solid var(--line-3); }
+  .nav__a { justify-content: center; padding: 0 2px; font-size: 10.5px; letter-spacing: .04em; border-bottom: 0; border-top: 2px solid transparent; }
+  .nav__a[aria-current="page"] { border-top-color: var(--ok); background: var(--bg-2); }
+  body { padding-bottom: var(--navbar-h); }
+  .strip__ed .ed-long { display: none; }
+}
+@media (min-width: 761px) { .strip__ed .ed-short { display: none; } }
+
+/* Aviso de fuente caída */
+.alert { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin-top: var(--gap); padding: 10px 14px; border: 1px solid var(--fail); border-radius: var(--radius); background: rgba(255, 90, 110, .08); }
+.alert svg { width: 16px; height: 16px; color: var(--fail); margin-top: 2px; }
+.alert b { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; letter-spacing: .08em; color: var(--fail); }
+.alert p { margin: 0; grid-column: 2; font-size: var(--fs-small); color: var(--text-2); }
+
+/* =============================================================================
+   PANEL (v2: plano, cabecera en barra; sin marcas de esquina ni códigos)
+   ============================================================================= */
+.panel { display: flex; flex-direction: column; min-width: 0; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius); }
+.panel__head { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px; background: var(--bg-2); border-bottom: 1px solid var(--line-2); }
+.panel__title { margin: 0; white-space: nowrap; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.panel__meta { margin-left: auto; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.panel__meta a { color: var(--text-2); }
+.panel__body { padding: 12px 14px; }
+.panel__foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding: 8px 14px; border-top: 1px solid var(--line-1); }
+
+/* =============================================================================
+   PIEZAS COMUNES
+   ============================================================================= */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line-3); border-radius: var(--radius); background: var(--bg-2); color: var(--text-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-decoration: none; cursor: pointer; }
+.btn:hover { border-color: var(--text-2); }
+.btn--primary { background: var(--ok); border-color: var(--ok); color: #04130C; font-weight: 600; }
+.btn--primary:hover { filter: brightness(1.08); }
+.btn--sm { min-height: 32px; padding: 0 10px; font-size: 11px; }
+.btn[aria-disabled="true"] { opacity: .35; pointer-events: none; }
+
+/* Severidad CVSS: barras de color + texto neutro (v2) */
+.sev { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); font-weight: 500; letter-spacing: .04em; color: var(--text-2); white-space: nowrap; }
+.sev__bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; color: var(--sc); }
+.sev__bars i { width: 3px; background: currentColor; }
+.sev__bars i:nth-child(1) { height: 4px; } .sev__bars i:nth-child(2) { height: 6px; } .sev__bars i:nth-child(3) { height: 8px; } .sev__bars i:nth-child(4) { height: 10px; }
+.sev__bars i.off { background: transparent; box-shadow: inset 0 0 0 1px currentColor; opacity: .5; }
+.sev--CRITICAL { --sc: var(--sev-critical); } .sev--HIGH { --sc: var(--sev-high); } .sev--MEDIUM { --sc: var(--sev-medium); } .sev--LOW { --sc: var(--sev-low); } .sev--UNSCORED { --sc: var(--sev-unscored); }
+
+/* Veredicto (texto + forma: funciona sin color) */
+.vtag { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); font-weight: 600; letter-spacing: .08em; color: var(--vc); white-space: nowrap; }
+.vtag::before { content: ""; width: 9px; height: 9px; border: 1.5px solid currentColor; box-sizing: border-box; }
+.v-hoy { --vc: var(--v-hoy); } .v-hoy .vtag::before, .vtag.v-hoy::before { background: currentColor; }
+.v-semana { --vc: var(--v-semana); } .vtag.v-semana::before { background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
+.v-planificar { --vc: var(--v-planificar); }
+.v-vigilar { --vc: var(--v-vigilar); } .vtag.v-vigilar::before { border-radius: 50%; }
+
+/* Chips: aproximación visual. Los estilos de familia/relleno APROBADOS son los de producción. */
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px 0 5px; border: 1px solid var(--cb, var(--line-3)); border-radius: var(--radius); background: var(--cbg, transparent); color: var(--cc, var(--text-2)); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-chip); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.chip svg { width: 11px; height: 11px; flex: none; }
+.chip--kev { --cbg: var(--sev-critical); --cb: var(--sev-critical); --cc: #16050A; }
+.chip--ssvc { --cbg: rgba(255, 79, 109, .16); --cb: var(--sev-critical); --cc: #FF8095; }
+.chip--ransomware { --cbg: rgba(255, 79, 109, .12); --cb: var(--sev-critical); --cc: #FF8095; border-style: double; border-width: 3px; height: 22px; }
+.chip--exploit { --cbg: var(--warn); --cb: var(--warn); --cc: #1A1203; }
+.chip--deteccion { --cb: var(--warn); --cc: var(--warn); border-style: dashed; }
+.chip--poc { --cb: var(--warn); --cc: var(--warn); }
+.chip--stack { --cbg: var(--text-1); --cb: var(--text-1); --cc: var(--bg-0); }
+.chip--incibe, .chip--certeu { --cb: var(--text-3); --cc: var(--text-2); border-style: dashed; }
+.chip--news { --cb: var(--line-3); --cc: var(--text-2); }
+.chip--remote { --cb: var(--text-3); --cc: var(--text-2); border-style: dotted; }
+.chip--library { --cb: var(--info); --cc: var(--info); }
+.chip--more { --cb: var(--line-2); --cc: var(--text-3); --cbg: var(--bg-2); }
+.chips--lg .chip { height: 26px; padding: 0 9px 0 7px; font-size: 11px; gap: 6px; }
+.chips--lg .chip svg { width: 13px; height: 13px; }
+.chips--lg .chip--ransomware { height: 28px; }
+
+/* Score: número + barra con marcas 40/70/85 */
+.score { display: grid; justify-items: end; gap: 4px; min-width: 64px; }
+.score__n { font-family: var(--f-display); font-weight: 800; font-size: var(--fs-score); line-height: .9; color: var(--vc); font-variant-numeric: tabular-nums; }
+.score__n sup { font-family: var(--f-mono); font-size: 11px; color: var(--text-3); margin-left: 1px; }
+.score__bar { position: relative; width: 64px; height: 4px; background: var(--line-2); }
+.score__bar i { position: absolute; inset: 0 auto 0 0; background: var(--vc); }
+.score--prov .score__bar i { background: repeating-linear-gradient(-45deg, var(--vc) 0 2px, transparent 2px 4px); }
+.score__bar::after { content: ""; position: absolute; inset: -2px 0; background: linear-gradient(var(--text-3), var(--text-3)) 40% 0 / 1px 100% no-repeat, linear-gradient(var(--text-3), var(--text-3)) 70% 0 / 1px 100% no-repeat, linear-gradient(var(--text-3), var(--text-3)) 85% 0 / 1px 100% no-repeat; opacity: .55; }
+
+/* =============================================================================
+   VISTAS
+   ============================================================================= */
+main { padding: var(--gap) 0 var(--sp-7); }
+.view[hidden] { display: none; }
+
+/* ---------- BRIEFING ---------- */
+.brief { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis kpis" "top map radar"; align-items: stretch; }
+.kpis { grid-area: kpis; }
+.top10 { grid-area: top; }
+.mapp { grid-area: map; }
+.radarp { grid-area: radar; }
+.more { display: grid; gap: var(--gap); margin-top: var(--gap); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 300px; grid-template-areas: "sum geo ports" "news geo ports"; align-items: start; }
+.sum { grid-area: sum; } .geo { grid-area: geo; } .ports { grid-area: ports; } .newsp { grid-area: news; }
+
+/* Contadores en franja */
+.kpis { display: grid; grid-template-columns: 2.1fr repeat(5, minmax(0, 1fr)); }
+.kpi { display: grid; align-content: start; gap: 2px; padding: 8px 14px 9px; border-left: 1px solid var(--line-2); min-width: 0; }
+.kpi:first-child { border-left: 0; }
+.kpi dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi dd { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.kpi__v { font-family: var(--f-display); font-weight: 800; font-size: var(--fs-kpi); line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi__d { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.kpi__d .up { color: var(--warn); } .kpi__d .down { color: var(--ok); }
+.kpi__short { display: none; }
+.kpi--kev .kpi__v { color: var(--sev-critical); }
+.kpi--stack .kpi__v { color: var(--ok); }
+.kpi--zero .kpi__v { color: var(--text-3); }
+.split { display: flex; height: 5px; gap: 1px; margin-top: 5px; }
+.split i { display: block; height: 100%; }
+.split__legend { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); }
+.split__legend b { color: var(--text-2); font-weight: 500; }
+
+/* Filas de CVE (top y listado) */
+.rows { display: flex; flex-direction: column; }
+.grp { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 24px; padding: 0 14px; background: var(--bg-0); border-bottom: 1px solid var(--line-1); }
+.grp .count { font-family: var(--f-mono); font-size: 11px; color: var(--text-3); }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "n main score"; gap: 0 12px; align-items: center; min-height: 46px; padding: 5px 14px 5px 11px; border-left: 3px solid var(--vc); border-bottom: 1px solid var(--line-1); text-decoration: none; transition: background var(--t-fast); }
+.row:hover { background: var(--bg-2); }
+.row:hover .row__id { text-decoration: underline; text-decoration-color: var(--ok); }
+.row__n { grid-area: n; font-family: var(--f-mono); font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.row__main { grid-area: main; min-width: 0; display: grid; gap: 2px; }
+.row__l1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.row__id { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-data); font-weight: 600; white-space: nowrap; }
+.row__vp { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row__vp .pend { color: var(--text-3); font-weight: 400; font-style: italic; }
+.row__l2 { display: flex; align-items: center; gap: 10px; min-width: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.row__meta { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+.row__l2 .chips { flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.row__l2 .chip { height: 18px; }
+.row__l2 .chip--ransomware { height: 20px; }
+.row__desc { display: none; }
+.row__score { grid-area: score; }
+.row.is-dim .row__vp, .row.is-dim .row__id { color: var(--text-2); }
+.rows__more { display: none; }
+@media (max-width: 760px) {
+  .row { grid-template-columns: 18px minmax(0, 1fr) auto; gap: 0 10px; padding: 8px 12px 8px 9px; align-items: start; }
+  .row__n { padding-top: 2px; }
+  .row__main { gap: 4px; }
+  .row__l1 { flex-wrap: wrap; gap: 0 8px; }
+  .row__vp { flex-basis: 100%; font-size: 13px; }
+  .row__meta { display: none; }
+  .row__l2 .chips { flex-wrap: wrap; }
+  .row__score { align-self: center; }
+  .top10 .row.is-extra { display: none; }
+  .top10.is-open .row.is-extra { display: grid; }
+  .top10 .grp.is-extra { display: none; }
+  .top10.is-open .grp.is-extra { display: flex; }
+  .rows__more { display: flex; padding: 10px 12px; border-top: 1px solid var(--line-1); }
+  .rows__more .btn { width: 100%; }
+}
+
+/* Mapa */
+.mapp .panel__body { position: relative; flex: 1; padding: 0; min-height: 420px; display: flex; }
+.globe-box { position: relative; flex: 1; min-height: 100%; overflow: hidden; touch-action: pan-y; }
+.globe { position: absolute; inset: 0; cursor: grab; }
+.globe:active { cursor: grabbing; }
+.globe-flat { position: absolute; inset: 16px; display: none; }
+.globe-flat svg { width: 100%; height: 100%; }
+.globe-box.is-flat .globe { display: none; }
+.globe-box.is-flat .globe-flat { display: block; }
+.zoom { position: absolute; top: 10px; right: 10px; z-index: 3; display: grid; gap: 4px; }
+.zoom button { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line-3); border-radius: var(--radius); background: rgba(16, 22, 29, .9); color: var(--text-1); font-family: var(--f-mono); font-size: 16px; line-height: 1; cursor: pointer; }
+.zoom button:hover { border-color: var(--text-2); }
+.zoom button svg { width: 14px; height: 14px; }
+.map-legend { position: absolute; left: 12px; bottom: 10px; z-index: 3; display: grid; gap: 4px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); pointer-events: none; }
+.map-legend__keys { display: flex; gap: 12px; }
+.map-legend__keys span { display: inline-flex; align-items: center; gap: 5px; }
+.map-legend__keys i { display: inline-block; border-radius: 50%; }
+.lg-hi { width: 11px; height: 11px; background: var(--map-hi); }
+.lg-mid { width: 8px; height: 8px; background: var(--map-mid); }
+.lg-lo { width: 6px; height: 6px; background: var(--map-lo); }
+.map-flat-note { position: absolute; top: 12px; left: 12px; z-index: 3; font-family: var(--f-mono); font-size: 10.5px; color: var(--warn); }
+/* Marcador de país (capa HTML de globe.gl) */
+.gm { position: relative; width: 0; height: 0; pointer-events: none; }
+.gm__dot, .gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; }
+.gm__dot { background: var(--c); opacity: .9; box-shadow: 0 0 0 1px rgba(10, 14, 19, .8); }
+.gm__ring { border: 1px solid var(--c); opacity: 0; animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: var(--d); }
+.gm__lbl { position: absolute; left: calc(var(--s) / 2 + 5px); top: -7px; white-space: nowrap; padding: 1px 4px; background: rgba(10, 14, 19, .82); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-1); }
+.gm__lbl em { font-style: normal; color: var(--text-3); margin-left: 4px; }
+@keyframes gm-ring { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.6); opacity: 0; } }
+.ff-ring { transform-box: fill-box; transform-origin: center; fill: none; animation: gm-ring var(--t-pulse) ease-out infinite; }
+
+/* Radar */
+.radarp .panel__body { display: grid; gap: 8px; justify-items: center; align-content: start; }
+.radar { width: 100%; max-width: 300px; height: auto; display: block; }
+.radar__sweep { transform-origin: 150px 150px; animation: spin var(--t-radar) linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.blip .core { transform-box: fill-box; transform-origin: center; animation: blip var(--t-radar) linear infinite; animation-delay: var(--delay); }
+.blip:focus { outline: none; }
+.blip:focus-visible .hit, .blip:hover .hit { stroke: var(--text-1); stroke-width: 1.2; }
+@keyframes blip { 0% { transform: scale(1.8); opacity: 1; } 8% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: .45; } }
+.radar-legend { width: 100%; display: grid; gap: 6px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.radar-legend b { color: var(--text-2); font-weight: 500; }
+.ring-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.ring-list a { display: flex; justify-content: space-between; gap: 8px; text-decoration: none; color: var(--text-2); padding: 3px 0; border-bottom: 1px solid var(--line-1); }
+.ring-list a:hover { color: var(--text-1); }
+.vdist { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.vdist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-1); }
+.vdist li:last-child { border-bottom: 0; }
+.vdist b { font-family: var(--f-mono); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.vdist li.is-zero .vtag { opacity: .5; }
+.radar-tip { min-height: 18px; font-family: var(--f-mono); font-size: 11px; color: var(--text-1); text-align: center; }
+
+/* Resumen, países, puertos, prensa */
+.sum p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; }
+.edmeta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--line-1); }
+.edmeta div { display: grid; gap: 2px; }
+.edmeta dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
+.edmeta dd { margin: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.rank { list-style: none; margin: 0; padding: 4px 14px 10px; }
+.rank li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 70px; gap: 3px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; }
+.rank li:last-child { border-bottom: 0; }
+.rank .k { color: var(--text-3); }
+.rank .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-1); }
+.rank .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.rank .bar { grid-column: 2 / -1; height: 3px; background: var(--line-1); }
+.rank .bar i { display: block; height: 100%; background: var(--text-3); }
+.rank .bar.hi i { background: var(--map-hi); } .rank .bar.mid i { background: var(--map-mid); } .rank .bar.lo i { background: var(--map-lo); }
+.news-list { list-style: none; margin: 0; padding: 2px 14px 8px; }
+.news-list a { display: grid; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--line-1); text-decoration: none; }
+.news-list li:last-child a { border-bottom: 0; }
+.news-list span { font-size: 14px; line-height: 1.4; }
+.news-list a:hover span { text-decoration: underline; text-decoration-color: var(--ok); }
+.news-list small { font-family: var(--f-mono); font-size: 10.5px; color: var(--text-3); text-transform: uppercase; }
+
+@media (max-width: 1179px) {
+  .brief { grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis" "top top" "map radar"; }
+  .more { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "sum sum" "geo ports" "news news"; }
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpi { border-top: 1px solid var(--line-2); }
+  .kpi:nth-child(-n+3) { border-top: 0; }
+  .kpi:nth-child(3n+1) { border-left: 0; }
+}
+@media (max-width: 760px) {
+  .brief, .more { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kpis" "top" "map" "radar"; }
+  .more { grid-template-areas: "sum" "geo" "ports" "news"; }
+  .kpi { padding: 7px 10px 8px; }
+  .kpi dt { font-size: 10px; letter-spacing: .04em; }
+  .kpi__d, .split__legend { display: none; }
+  .kpi__long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .kpi__short { display: inline; }
+  .split { margin-top: 4px; height: 4px; }
+  .mapp .panel__body { min-height: 300px; }
+  .radar { max-width: 340px; }
+}
+
+/* ---------- LISTADO ---------- */
+.page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 4px 0 var(--gap); }
+.page-head h1 { margin: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 15px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.toolbar { position: sticky; top: calc(var(--hdr-h) + var(--strip-h)); z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius); }
+.search { flex: 999 1 280px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; background: var(--bg-0); border: 1px solid var(--line-3); border-radius: var(--radius); }
+.search:focus-within { border-color: var(--ok); }
+.search svg { width: 15px; height: 15px; color: var(--text-3); flex: none; }
+.search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12.5px; }
+.search input::placeholder { color: var(--text-3); }
+.select { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; border: 1px solid var(--line-3); border-radius: var(--radius); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.select select { border: 0; outline: 0; background: var(--bg-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; color: var(--text-1); }
+.filters { display: grid; gap: 10px; padding: 12px 14px; margin-top: 8px; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: var(--radius); }
+.filters__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.filters__row .label { min-width: 92px; }
+.tg { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: var(--radius); background: transparent; color: var(--text-3); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; cursor: pointer; }
+.tg[aria-pressed="true"] { border-color: var(--text-2); background: var(--bg-3); color: var(--text-1); }
+.tg[aria-pressed="false"] .sev, .tg[aria-pressed="false"] .vtag { opacity: .55; }
+.tg__box { color: var(--text-3); }
+.tg[aria-pressed="true"] .tg__box { color: var(--ok); }
+.list { margin-top: var(--gap); }
+.list .row { min-height: 58px; }
+@media (min-width: 1180px) {
+  .list .row__desc { display: block; font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+.empty { display: grid; gap: 6px; justify-items: start; padding: 28px 16px; }
+.empty b { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.empty p { margin: 0; color: var(--text-2); font-size: var(--fs-small); }
+
+/* ---------- DETALLE ---------- */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 var(--gap); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.crumbs a { color: var(--text-2); }
+.crumbs__nav { margin-left: auto; display: flex; gap: 6px; }
+.dhead { display: grid; gap: 8px; margin-bottom: var(--gap); }
+.dhead h1 { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: var(--fs-id); line-height: .95; letter-spacing: .01em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dhead h1 span { color: var(--text-3); }
+.dhead h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.dhead h2 span { color: var(--text-3); font-weight: 400; }
+.dgrid { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: start; }
+.dcol { display: grid; gap: var(--gap); min-width: 0; }
+.decision .panel__body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 20px; align-items: center; }
+.dial { width: 132px; height: 132px; }
+.dial .trk { stroke: var(--line-2); }
+.dial .val { stroke: var(--vc); }
+.dial text { font-family: var(--f-display); font-weight: 800; fill: var(--text-1); }
+.dial .lbl { font-family: var(--f-mono); font-weight: 400; fill: var(--text-3); }
+.decision__v { display: grid; gap: 8px; }
+.decision__v .vtag { font-size: 15px; }
+.decision__v .vtag::before { width: 13px; height: 13px; }
+.todo { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line-1); }
+.todo li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line-1); font-size: 14px; line-height: 1.45; }
+.todo li:last-child { border-bottom: 0; }
+.todo svg { width: 14px; height: 14px; margin-top: 3px; color: var(--text-3); }
+.todo .crit svg { color: var(--sev-critical); }
+.todo .warn svg { color: var(--warn); }
+.todo .ok svg { color: var(--ok); }
+.todo b { font-weight: 600; }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.metric { padding: 10px 14px; border-left: 1px solid var(--line-1); display: grid; gap: 2px; }
+.metric:first-child { border-left: 0; }
+.metric dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
+.metric dd { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.metric dd small { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-weight: 400; font-size: 11px; color: var(--text-3); margin-left: 4px; }
+.desc-en { margin: 0; font-size: 15px; line-height: 1.65; color: var(--text-2); }
+.cvss { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line-1); border-left: 1px solid var(--line-1); }
+.cvss div { padding: 8px 10px; border-right: 1px solid var(--line-1); border-bottom: 1px solid var(--line-1); }
+.cvss dt { font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .06em; color: var(--text-3); }
+.cvss dd { margin: 2px 0 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; font-weight: 600; }
+.cvss .hot dd { color: var(--sev-high); }
+.vector { margin: 10px 0 0; padding: 8px 10px; background: var(--bg-0); border: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-2); word-break: break-all; }
+.bd { display: grid; grid-template-columns: 96px 1fr 62px; gap: 10px; align-items: center; padding: 5px 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; }
+.bd__k { color: var(--text-3); }
+.bd__t { height: 6px; background: var(--line-1); }
+.bd__t i { display: block; height: 100%; background: var(--text-2); }
+.bd__v { text-align: right; font-variant-numeric: tabular-nums; }
+.bd__v small { color: var(--text-3); font-size: inherit; }
+.warnbox { margin: 0 0 8px; padding: 8px 10px; border-left: 2px solid var(--warn); background: rgba(245, 181, 68, .08); font-size: 12.5px; color: var(--text-2); }
+.lk { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--line-1); text-decoration: none; }
+.lk:last-child { border-bottom: 0; }
+.lk__t { font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+.lk:hover .lk__t { text-decoration: underline; text-decoration-color: var(--ok); }
+.lk__m { grid-column: 1; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); word-break: break-all; }
+.lk__s { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-family: var(--f-mono); font-size: 11px; color: var(--text-2); }
+.kevp { border-color: var(--sev-critical); }
+.kevp .panel__head { background: rgba(255, 79, 109, .14); border-bottom-color: var(--sev-critical); }
+.kevp .panel__title { color: #FF8095; }
+.kgrid { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.kgrid dt { font-family: var(--f-mono); font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: var(--track-label); }
+.kgrid dd { margin: 2px 0 0; font-family: var(--f-display); font-weight: 800; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.kgrid .full { grid-column: 1 / -1; }
+.kgrid .full dd { font-family: var(--f-text); font-weight: 400; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.kgrid .due { color: var(--sev-critical); }
+.plain { margin: 0; font-size: 13.5px; color: var(--text-3); }
+@media (max-width: 980px) { .dgrid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .metrics, .cvss { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric:nth-child(3) { border-left: 0; }
+  .metric:nth-child(n+3) { border-top: 1px solid var(--line-1); }
+  .crumbs__nav { margin-left: 0; width: 100%; }
+  .crumbs__nav .btn { flex: 1; }
+  .dial { width: 108px; height: 108px; }
+}
+
+/* ---------- HISTÓRICO ---------- */
+.days { display: flex; gap: 6px; overflow-x: auto; padding: 12px 14px; scrollbar-width: thin; }
+.day { flex: none; width: 74px; display: grid; gap: 3px; justify-items: start; padding: 8px 9px; border: 1px solid var(--line-2); border-radius: var(--radius); background: transparent; text-align: left; cursor: pointer; }
+.day:hover { border-color: var(--text-3); }
+.day[aria-pressed="true"] { border-color: var(--ok); background: var(--bg-3); }
+.day__w { font-family: var(--f-mono); font-size: 10px; color: var(--text-3); }
+.day__d { font-family: var(--f-display); font-weight: 800; font-size: 26px; line-height: .95; font-variant-numeric: tabular-nums; }
+.day__n { font-family: var(--f-mono); font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.hgrid { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr) 340px; margin-top: var(--gap); align-items: start; }
+.chart { display: block; width: 100%; height: auto; }
+.chart .ax { font-family: var(--f-mono); font-size: 10px; fill: var(--text-3); }
+.chart .ax.on { fill: var(--text-1); font-weight: 600; }
+.chart .gl { stroke: var(--line-1); }
+.chart .gl0 { stroke: var(--line-3); }
+.chart .kl { fill: none; stroke: var(--sev-critical); stroke-width: 1.5; }
+.chart .kd { fill: var(--bg-1); stroke: var(--sev-critical); stroke-width: 1.5; }
+.chart .sel { fill: rgba(56, 217, 150, .07); stroke: var(--ok); stroke-dasharray: 3 3; }
+.chart .hit { fill: transparent; cursor: pointer; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; border-top: 1px solid var(--line-1); font-family: var(--f-mono); font-size: 10.5px; color: var(--text-3); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; display: inline-block; }
+.legend i.kln { width: 16px; height: 2px; background: var(--sev-critical); }
+.lg-sev-CRITICAL { background: var(--sev-critical); } .lg-sev-HIGH { background: var(--sev-high); } .lg-sev-MEDIUM { background: var(--sev-medium); } .lg-sev-LOW { background: var(--sev-low); } .lg-sev-UNSCORED { background: var(--sev-unscored); }
+.dsum__n { font-family: var(--f-display); font-weight: 800; font-size: 64px; line-height: .9; font-variant-numeric: tabular-nums; }
+.dsum__n small { font-family: var(--f-mono); font-weight: 400; font-size: 11px; color: var(--text-3); margin-left: 6px; }
+.stat { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; }
+.stat:last-child { border-bottom: 0; }
+.stat span { color: var(--text-3); }
+.stat b { font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 980px) { .hgrid { grid-template-columns: minmax(0, 1fr); } }
+
+/* =============================================================================
+   PIE
+   ============================================================================= */
+.foot { border-top: 1px solid var(--line-2); background: var(--bg-1); margin-top: var(--sp-6); }
+.foot__grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: var(--sp-6); padding: var(--sp-6) 0; }
+.foot h2 { margin: 0 0 8px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; font-weight: 600; letter-spacing: var(--track-label); color: var(--text-2); text-transform: uppercase; }
+.foot p { margin: 0 0 8px; font-size: 13px; color: var(--text-2); }
+.lockup { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.lockup svg { width: 40px; height: 40px; color: var(--text-1); }
+.lockup .brand__name { font-size: 40px; }
+.formula { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; line-height: 1.8; color: var(--text-1); }
+.foot__bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; padding: 12px 0 20px; border-top: 1px solid var(--line-1); font-family: var(--f-mono); font-size: 10.5px; color: var(--text-3); }
+.states { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.states button { min-height: 30px; padding: 0 9px; border: 1px solid var(--line-2); border-radius: var(--radius); background: transparent; color: var(--text-3); font-family: var(--f-mono); font-size: 10.5px; cursor: pointer; }
+.states button[aria-pressed="true"] { color: var(--text-1); border-color: var(--text-2); }
+@media (max-width: 860px) { .foot__grid { grid-template-columns: 1fr; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<svg width="0" height="0" class="sr-only" aria-hidden="true">
+  <symbol id="logo" viewBox="0 0 32 32">
+    <path d="M16 17.5 L16 8.3 A9.2 9.2 0 0 0 6.8 17.5 Z" fill="var(--ok)" fill-opacity=".3"/>
+    <circle cx="16" cy="17.5" r="11.6" fill="none" stroke="currentColor" stroke-width="2.6"/>
+    <rect x="13" y="0.8" width="6" height="2.8" fill="currentColor"/>
+    <path d="M27.6 17.5h-2.6M16 29.1v-2.6M4.4 17.5H7" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M16 17.5V7.4" stroke="var(--ok)" stroke-width="2.2"/>
+    <circle cx="16" cy="17.5" r="2" fill="var(--ok)"/>
+    <circle cx="20.7" cy="13.5" r="2.1" fill="var(--sev-critical)"/>
+  </symbol>
+</svg>
+
+<div class="top">
+  <header class="hdr">
+    <div class="wrap hdr__row">
+      <a class="brand" href="#briefing" aria-label="ZEROHOUR, ir al briefing">
+        <svg aria-hidden="true"><use href="#logo"/></svg>
+        <span class="brand__name" aria-hidden="true">ZERO<i class="brand__sep"></i>HOUR</span>
+        <span class="brand__by">Inteligencia de vulnerabilidades<br>por Adrián López Olaria</span>
+      </a>
+      <nav class="nav" aria-label="Secciones">
+        <a class="nav__a" href="#briefing" data-view="briefing">BRIEFING</a>
+        <a class="nav__a" href="#listado" data-view="listado">LISTADO</a>
+        <a class="nav__a" href="#cve" data-view="detalle">DETALLE</a>
+        <a class="nav__a" href="#historico" data-view="historico">HISTÓRICO</a>
+      </nav>
+      <div class="clocks">
+        <span class="clk">UTC <b id="clk-utc">--:--:--</b></span>
+        <span class="clk">LOCAL <b id="clk-loc">--:--:--</b></span>
+        <span class="live">LIVE</span>
+      </div>
+    </div>
+  </header>
+  <div class="strip">
+    <div class="wrap strip__row" id="strip"></div>
+  </div>
+</div>
+
+<main id="main" class="wrap" tabindex="-1">
+  <div id="alerts"></div>
+  <section class="view" id="view-briefing" aria-label="Briefing del día"></section>
+  <section class="view" id="view-listado" aria-labelledby="h-list" hidden></section>
+  <section class="view" id="view-detalle" aria-labelledby="h-det" hidden></section>
+  <section class="view" id="view-historico" aria-labelledby="h-hist" hidden></section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <div class="lockup"><svg aria-hidden="true"><use href="#logo"/></svg><span class="brand__name">ZERO<i class="brand__sep"></i>HOUR</span></div>
+        <p class="label">Inteligencia de vulnerabilidades · por Adrián López Olaria</p>
+        <p>Briefing diario que cruza NVD, CVE.org, CISA KEV y SSVC, FIRST EPSS, GitHub Advisories, exploits verificados, INCIBE-CERT y CERT-EU. Web estática; los datos son JSON que regenera un job programado.</p>
+      </div>
+      <div>
+        <h2>Cómo se puntúa</h2>
+        <p class="formula" id="formula"></p>
+        <p>Una CVE sin puntuar en NVD suma 0 por CVSS: su score es provisional (marcado con *).</p>
+      </div>
+      <div>
+        <h2>Fuentes</h2>
+        <p>NVD · CVE.org · CISA KEV · FIRST EPSS · GitHub Advisories · Metasploit · Nuclei · Exploit-DB · PoC-in-GitHub · INCIBE-CERT · CERT-EU · SANS ISC · DB-IP Lite (CC BY 4.0)</p>
+        <p lang="en">This product uses the NVD API but is not endorsed or certified by the NVD.</p>
+      </div>
+    </div>
+    <div class="foot__bar">
+      <span>ZEROHOUR · PROTOTIPO v2 · DATOS DE EJEMPLO</span>
+      <div class="states" role="group" aria-label="Previsualizar estados (solo prototipo)">
+        <span>ESTADO:</span>
+        <button type="button" data-state="normal" aria-pressed="true">NORMAL</button>
+        <button type="button" data-state="empty" aria-pressed="false">DÍA VACÍO</button>
+        <button type="button" data-state="error" aria-pressed="false">FUENTE CAÍDA</button>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+'use strict';
+/* =============================================================================
+   ZEROHOUR · PROTOTIPO v2
+   Compatible con la CSP de producción:
+   - Sin innerHTML / outerHTML / insertAdjacentHTML: todo con createElement + textContent.
+   - Sin atributos style: las variables CSS se ponen con el.style.setProperty (CSSOM).
+   - URLs externas siempre por safeUrl().
+   ============================================================================= */
+const CONFIG = {
+  TZ: 'Europe/Madrid',
+  GLOBE_SRC: 'https://cdn.jsdelivr.net/npm/globe.gl@2.46.1/dist/globe.gl.min.js', // en producción: assets/vendor/
+  GLOBE_TIMEOUT_MS: 9000,
+  GLOBE_ROTATE: 0.3,
+  ZOOM_MIN_ALT: 0.45,
+  ZOOM_MAX_ALT: 3.2,
+  TOP_MOBILE: 5,
+  LIST_PAGE: 50
+};
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const SEV = {
+  CRITICAL: { label: 'CRÍTICA', bars: 4 }, HIGH: { label: 'ALTA', bars: 3 }, MEDIUM: { label: 'MEDIA', bars: 2 },
+  LOW: { label: 'BAJA', bars: 1 }, UNSCORED: { label: 'SIN PUNTUAR', bars: 0 }
+};
+const SEV_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED'];
+const SEV_HEX = { CRITICAL: '#FF4F6D', HIGH: '#FF9940', MEDIUM: '#E9D55B', LOW: '#6CB6FF', UNSCORED: '#8A97A8' };
+
+/* Veredictos y cortes: SIN CAMBIOS respecto a v1 */
+const VERDICTS = [
+  { key: 'hoy', min: 85, label: 'ACTUAR HOY', hex: '#FF4F6D' },
+  { key: 'semana', min: 70, label: 'ESTA SEMANA', hex: '#FF9940' },
+  { key: 'planificar', min: 40, label: 'PLANIFICAR', hex: '#E9D55B' },
+  { key: 'vigilar', min: 0, label: 'VIGILAR', hex: '#7F8FA3' }
+];
+const verdictOf = (s) => VERDICTS.find((v) => s >= v.min);
+
+/* Chips: orden aprobado (el de producción manda). En filas: máximo 3 + «+N». */
+const TAG_ORDER = ['kev', 'ssvc', 'ransomware', 'exploit', 'deteccion', 'poc', 'stack', 'incibe', 'certeu', 'news', 'remote', 'library'];
+const TAG = {
+  kev: ['KEV', 'EXPLOTADA · KEV'], ssvc: ['SSVC', 'EXPLOTACIÓN ACTIVA · SSVC'], ransomware: ['RANSOM', 'RANSOMWARE'],
+  exploit: ['EXPLOIT', 'EXPLOIT VERIFICADO'], deteccion: ['DETECC.', 'PLANTILLA DE DETECCIÓN'], poc: ['POC', 'POC SIN VERIFICAR'],
+  stack: ['STACK', 'MI STACK'], incibe: ['INCIBE', 'AVISO INCIBE'], certeu: ['CERT-EU', 'AVISO CERT-EU'],
+  news: ['NEWS', 'EN NOTICIAS'], remote: ['RED', 'REMOTA'], library: ['LIB', 'LIBRERÍA']
+};
+const rowChips = () => (matchMedia('(max-width: 760px)').matches ? 2 : 3);
+
+const SOURCE_NAMES = { nvd: 'NVD', cveorg: 'CVE.ORG', kev: 'KEV', epss: 'EPSS', ghsa: 'GHSA', msf: 'MSF', nuclei: 'NUCLEI', exploitdb: 'EXPLOIT-DB', poc: 'POC', rss: 'RSS', certeu: 'CERT-EU' };
+const BD_LABELS = { cvss: 'CVSS', epss: 'EPSS', kev: 'EXPLOTADA', ransomware: 'RANSOMWARE', exploit: 'EXPLOIT', stack: 'MI STACK' };
+const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 80: 'HTTP', 137: 'NETBIOS', 443: 'HTTPS', 445: 'SMB', 2222: 'SSH-ALT', 3389: 'RDP', 5060: 'SIP', 8000: 'HTTP-ALT', 8080: 'HTTP-ALT' };
+const CWE_NAMES = { 'CWE-22': 'Path traversal', 'CWE-78': 'Inyección de comandos del SO', 'CWE-79': 'Cross-site scripting', 'CWE-89': 'Inyección SQL', 'CWE-94': 'Inyección de código', 'CWE-120': 'Desbordamiento de búfer', 'CWE-200': 'Exposición de información', 'CWE-209': 'Información sensible en errores', 'CWE-269': 'Gestión incorrecta de privilegios', 'CWE-288': 'Omisión de autenticación', 'CWE-400': 'Consumo de recursos sin control', 'CWE-416': 'Uso después de liberar', 'CWE-502': 'Deserialización no fiable', 'CWE-787': 'Escritura fuera de límites', 'CWE-862': 'Falta de autorización', 'CWE-918': 'SSRF' };
+const CVSS_METRICS = [['AV', 'VECTOR', { N: 'Red', A: 'Adyacente', L: 'Local', P: 'Físico' }, ['N']], ['AC', 'COMPLEJIDAD', { L: 'Baja', H: 'Alta' }, ['L']], ['PR', 'PRIVILEGIOS', { N: 'Ninguno', L: 'Bajos', H: 'Altos' }, ['N']], ['UI', 'INTERACCIÓN', { N: 'Ninguna', R: 'Requerida' }, ['N']], ['S', 'ALCANCE', { U: 'Sin cambio', C: 'Cambia' }, ['C']], ['C', 'CONFID.', { N: 'Ninguno', L: 'Bajo', H: 'Alto' }, ['H']], ['I', 'INTEGRIDAD', { N: 'Ninguno', L: 'Bajo', H: 'Alto' }, ['H']], ['A', 'DISPONIB.', { N: 'Ninguno', L: 'Bajo', H: 'Alto' }, ['H']]];
+
+/* =============================================================================
+   HELPERS SEGUROS (equivalentes a util/dom.js de producción)
+   ============================================================================= */
+const SVGNS = 'http://www.w3.org/2000/svg';
+function setProps(n, props) {
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') n.setAttribute('class', v);
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'vars') for (const [p, val] of Object.entries(v)) n.style.setProperty(p, val);
+    else if (k === 'data') for (const [p, val] of Object.entries(v)) n.dataset[p] = val;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
+    else n.setAttribute(k, v === true ? '' : String(v));
+  }
+}
+function add(n, kids) {
+  for (const c of kids.flat(Infinity)) {
+    if (c == null || c === false) continue;
+    n.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return n;
+}
+const h = (tag, props, ...kids) => { const n = document.createElement(tag); setProps(n, props); return add(n, kids); };
+const s = (tag, props, ...kids) => { const n = document.createElementNS(SVGNS, tag); setProps(n, props); return add(n, kids); };
+function safeUrl(u) {
+  try { const x = new URL(String(u), location.href); return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : null; } catch (e) { return null; }
+}
+function extLink(url, props, ...kids) {
+  const href = safeUrl(url);
+  if (!href) return h('span', { class: props && props.class }, ...kids);
+  return h('a', Object.assign({ href, target: '_blank', rel: 'noopener noreferrer' }, props), ...kids);
+}
+const $ = (q, el = document) => el.querySelector(q);
+const $$ = (q, el = document) => [...el.querySelectorAll(q)];
+const clear = (n) => { n.replaceChildren(); return n; };
+const pad = (n) => String(n).padStart(2, '0');
+const nf = (v, d = 0) => Number(v).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+const kfmt = (v) => (v >= 1e6 ? nf(v / 1e6, 1) + 'M' : v >= 1e4 ? nf(v / 1e3, 0) + 'K' : v >= 1e3 ? nf(v / 1e3, 1) + 'K' : String(v));
+const toDate = (iso) => new Date(iso.length <= 10 ? iso + 'T12:00:00Z' : iso);
+const dLong = (iso) => toDate(iso).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: CONFIG.TZ });
+const dMid = (iso) => toDate(iso).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: CONFIG.TZ }).replace(/[.,]/g, '').toUpperCase();
+const dParts = (iso) => Object.fromEntries(new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'numeric', timeZone: CONFIG.TZ }).formatToParts(toDate(iso)).map((x) => [x.type, x.value]));
+const dShort = (iso) => { const p = dParts(iso); return pad(+p.day) + '.' + pad(+p.month); };
+const MONTHS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+const dDayMon = (iso) => { const p = dParts(iso); return pad(+p.day) + ' ' + MONTHS[+p.month - 1]; };
+const dWeek = (iso) => toDate(iso).toLocaleDateString('es-ES', { weekday: 'short', timeZone: CONFIG.TZ }).replace('.', '').toUpperCase();
+const tLocal = (iso) => toDate(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: CONFIG.TZ });
+const tUTC = (iso) => toDate(iso).toISOString().slice(11, 16);
+const daysBetween = (a, b) => Math.round((toDate(b) - toDate(a)) / 86400000);
+const sevKey = (sv) => (sv && SEV[sv] ? sv : 'UNSCORED');
+const fmtCvss = (c) => (c == null ? '—' : c.toFixed(1));
+const fmtPctl = (p) => (p == null ? '—' : 'P' + nf(p * 100, p >= 0.995 ? 1 : 0));
+const fmtEpss = (e) => (e == null ? '—' : nf(e * 100, e < 0.01 ? 2 : 1) + ' %');
+const isProv = (c) => c.cvss == null;
+const byScore = (a, b) => b.score - a.score;
+const cveHref = (id) => '#cve/' + id;
+/* Fabricante real vs. relleno con la CNA.
+   radar.py (fase 6) rellena vendor con «CNA · <cna>» cuando NVD aún no lo ha asignado.
+   Eso NO es un fabricante: se muestra como «pendiente» y la CNA va como metadato. */
+const CNA_RE = /^CNA\s*[·:-]\s*/i;
+const realVendor = (c) => (c.vendor && !CNA_RE.test(c.vendor) ? c.vendor : '');
+const cnaOf = (c) => (c.vendor && CNA_RE.test(c.vendor) ? c.vendor.replace(CNA_RE, '') : '');
+const vendorLine = (c) => { const v = realVendor(c); return v || c.product ? [v, c.product].filter(Boolean).join(' · ') : null; };
+const pendingLine = (c) => 'Fabricante pendiente en NVD' + (cnaOf(c) ? ' · CNA ' + cnaOf(c) : '');
+const hash = (x) => [...x].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) >>> 0, 5381);
+
+/* Iconos (trazo 1,5 px, rejilla 16) */
+const ICONS = {
+  kev: [['circle', { cx: 8, cy: 8, r: 5.5 }], ['path', { d: 'M8 .8v3.4M8 11.8v3.4M.8 8h3.4M11.8 8h3.4' }], ['rect', { x: 6.9, y: 6.9, width: 2.2, height: 2.2, fill: 'currentColor', stroke: 'none' }]],
+  ssvc: [['path', { d: 'M2 13.5a6 6 0 0 1 12 0' }], ['path', { d: 'M8 13.5 11.5 7' }], ['circle', { cx: 8, cy: 13.5, r: 1.2, fill: 'currentColor', stroke: 'none' }]],
+  ransomware: [['rect', { x: 2.5, y: 7, width: 11, height: 7.5 }], ['path', { d: 'M5 7V4.8a3 3 0 0 1 6 0V7M8 9.6v2.4' }]],
+  exploit: [['path', { d: 'M2.5 4l4 4-4 4M8.5 12.5h3' }], ['path', { d: 'M10.5 6.5l1.6 1.6 3-3.2' }]],
+  deteccion: [['circle', { cx: 7, cy: 7, r: 4.6 }], ['path', { d: 'M10.4 10.4 14.5 14.5M5 7h4' }]],
+  poc: [['path', { d: 'M2.5 4l4 4-4 4M8.5 12.5h5.5' }]],
+  stack: [['path', { d: 'M8 1.8 14.5 5 8 8.2 1.5 5Z' }], ['path', { d: 'M1.5 8.2 8 11.4l6.5-3.2M1.5 11.4 8 14.6l6.5-3.2' }]],
+  incibe: [['path', { d: 'M8 1.2 14 3.5v4.2c0 3.4-2.6 6.1-6 7.1-3.4-1-6-3.7-6-7.1V3.5Z' }], ['path', { d: 'M8 4.8v4.4M8 10.8v1.4' }]],
+  certeu: [['path', { d: 'M8 1.2 14 3.5v4.2c0 3.4-2.6 6.1-6 7.1-3.4-1-6-3.7-6-7.1V3.5Z' }], ['circle', { cx: 8, cy: 7.6, r: 2.2 }]],
+  news: [['rect', { x: 1.5, y: 2.5, width: 13, height: 11 }], ['path', { d: 'M4 5.5h5M4 8h8M4 10.5h8' }]],
+  remote: [['circle', { cx: 8, cy: 12, r: 1.3, fill: 'currentColor', stroke: 'none' }], ['path', { d: 'M4.6 8.8a4.8 4.8 0 0 1 6.8 0M2 6a8.5 8.5 0 0 1 12 0' }]],
+  library: [['path', { d: 'M8 1.5 14 4.7v6.6L8 14.5 2 11.3V4.7Z' }], ['path', { d: 'M2 4.7 8 8l6-3.3M8 8v6.5' }]],
+  search: [['circle', { cx: 7, cy: 7, r: 5 }], ['path', { d: 'M10.6 10.6 15 15' }]],
+  plus: [['path', { d: 'M8 2.5v11M2.5 8h11' }]],
+  minus: [['path', { d: 'M2.5 8h11' }]],
+  reset: [['circle', { cx: 8, cy: 8, r: 5.5 }], ['path', { d: 'M8 2.5v3M8 10.5v3M2.5 8h3M10.5 8h3' }]],
+  alert: [['path', { d: 'M8 1.5 15 14H1Z' }], ['path', { d: 'M8 6v4M8 11.6v1.2' }]],
+  check: [['path', { d: 'M2.5 8.5 6 12l7.5-8' }]],
+  clock: [['circle', { cx: 8, cy: 8, r: 6.5 }], ['path', { d: 'M8 4v4l3 2' }]],
+  dot: [['circle', { cx: 8, cy: 8, r: 3, fill: 'currentColor', stroke: 'none' }]],
+  star: [['path', { d: 'M8 1.6l1.9 4 4.4.5-3.3 3 .9 4.3L8 11.2l-3.9 2.2.9-4.3-3.3-3 4.4-.5Z' }]]
+};
+const icon = (k, cls) => s('svg', { class: cls, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'square', 'aria-hidden': 'true' }, (ICONS[k] || []).map(([t, a]) => s(t, a)));
+
+/* =============================================================================
+   COMPONENTES
+   ============================================================================= */
+function sevTag(sv) {
+  const k = sevKey(sv), n = SEV[k].bars;
+  return h('span', { class: 'sev sev--' + k }, h('span', { class: 'sev__bars', 'aria-hidden': 'true' }, [1, 2, 3, 4].map((i) => h('i', { class: i <= n ? null : 'off' }))), SEV[k].label);
+}
+function vtag(v, count) {
+  return h('span', { class: 'vtag v-' + v.key }, v.label, count != null ? ' · ' + count : null);
+}
+function chips(tags, opts = {}) {
+  const list = TAG_ORDER.filter((t) => tags.includes(t));
+  const shown = opts.max ? list.slice(0, opts.max) : list, rest = list.slice(shown.length);
+  if (!list.length) return null;
+  return h('span', { class: 'chips' + (opts.lg ? ' chips--lg' : '') },
+    shown.map((t) => h('span', { class: 'chip chip--' + t, title: TAG[t][1] }, icon(t), opts.lg ? TAG[t][1] : TAG[t][0])),
+    rest.length ? h('span', { class: 'chip chip--more', title: rest.map((t) => TAG[t][1]).join(' · ') }, '+' + rest.length, h('span', { class: 'sr-only' }, ': ' + rest.map((t) => TAG[t][1]).join(', '))) : null);
+}
+function scoreCell(c) {
+  const v = verdictOf(c.score), bar = h('span', { class: 'score__bar', 'aria-hidden': 'true' }, h('i', { vars: { width: c.score + '%' } }));
+  return h('span', { class: 'score v-' + v.key + (isProv(c) ? ' score--prov' : ''), 'aria-label': `Score ${c.score} de 100${isProv(c) ? ', provisional' : ''}, ${v.label}` },
+    h('span', { class: 'score__n', 'aria-hidden': 'true' }, String(c.score), isProv(c) ? h('sup', null, '*') : null), bar);
+}
+function cveRow(c, i, opts = {}) {
+  const v = verdictOf(c.score), vp = vendorLine(c);
+  return h('a', { class: 'row v-' + v.key + (v.key === 'vigilar' ? ' is-dim' : '') + (opts.extra ? ' is-extra' : ''), href: cveHref(c.id) },
+    h('span', { class: 'row__n', 'aria-hidden': 'true' }, pad(i + 1)),
+    h('span', { class: 'row__main' },
+      h('span', { class: 'row__l1' }, h('span', { class: 'row__id' }, c.id),
+        h('span', { class: 'row__vp' }, vp || h('span', { class: 'pend' }, pendingLine(c)))),
+      h('span', { class: 'row__l2' }, h('span', { class: 'row__meta' }, sevTag(c.severity), h('span', null, 'CVSS ' + fmtCvss(c.cvss)), h('span', null, 'EPSS ' + fmtPctl(c.epss_percentile))), chips(c.tags, { max: rowChips() })),
+      opts.desc ? h('span', { class: 'row__desc', lang: 'en' }, c.description) : null),
+    h('span', { class: 'row__score' }, scoreCell(c)));
+}
+function grouped(list, opts = {}) {
+  const out = [];
+  let cur = null, shown = 0;
+  list.forEach((c, i) => {
+    const v = verdictOf(c.score), extra = opts.limit != null && i >= opts.limit;
+    if (v !== cur) {
+      cur = v;
+      const n = list.filter((x) => verdictOf(x.score) === v).length;
+      out.push(h('div', { class: 'grp' + (extra ? ' is-extra' : '') }, vtag(v), h('span', { class: 'count' }, n === 1 ? '1 CVE' : n + ' CVE')));
+    }
+    out.push(cveRow(c, i, { extra, desc: opts.desc }));
+    shown++;
+  });
+  return out;
+}
+function panel(title, meta, body, opts = {}) {
+  const id = opts.id || 'p-' + Math.random().toString(36).slice(2, 8);
+  return h(opts.tag || 'section', { class: 'panel ' + (opts.class || ''), 'aria-labelledby': id },
+    h('div', { class: 'panel__head' }, h('h2', { class: 'panel__title', id }, title), meta ? h('span', { class: 'panel__meta' }, meta) : null),
+    body);
+}
+function emptyBlock(title, text) {
+  return h('div', { class: 'empty' }, h('b', null, title), h('p', null, text));
+}
+
+/* =============================================================================
+   DATOS, ESTADO Y RELOJES
+   ============================================================================= */
+const ORIGINAL = JSON.parse(JSON.stringify(ZEROHOUR_DATA));
+let D = ZEROHOUR_DATA;
+const srcState = (v) => (v === undefined ? 'miss' : v === 'ok' ? 'ok' : 'err');
+
+function tplus() {
+  const ms = Date.now() - toDate(D.latest.generated_at).getTime();
+  const t = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(t / 86400), hh = Math.floor(t / 3600) % 24, mm = Math.floor(t / 60) % 60, ss = t % 60;
+  return d ? `${d}D ${pad(hh)}:${pad(mm)}` : `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+}
+function tick() {
+  const now = new Date();
+  $('#clk-utc').textContent = now.toISOString().slice(11, 19);
+  $('#clk-loc').textContent = now.toLocaleTimeString('es-ES', { timeZone: CONFIG.TZ });
+  const tp = tplus();
+  $$('.js-tp').forEach((e) => { e.textContent = tp; });
+}
+
+function renderStrip() {
+  const L = D.latest, st = L.sources_status, keys = Object.keys(SOURCE_NAMES);
+  const errs = keys.filter((k) => srcState(st[k]) === 'err');
+  const okN = keys.filter((k) => srcState(st[k]) === 'ok').length;
+  const item = (k) => {
+    const state = srcState(st[k]);
+    return h('span', { class: 'src' + (state === 'err' ? ' src--err' : state === 'miss' ? ' src--miss' : ''), title: state === 'err' ? String(st[k]).replace(/^error:\s*/i, '') : null },
+      h('i', { 'aria-hidden': 'true' }), h('b', null, SOURCE_NAMES[k]), h('em', null, state === 'ok' ? 'OK' : state === 'err' ? 'ERROR' : 'PARCIAL'));
+  };
+  clear($('#strip')).append(
+    h('span', { class: 'strip__ed' },
+      h('span', { class: 'ed-long' }, h('b', null, dMid(L.date)), ' · EDICIÓN ', h('b', null, tLocal(L.generated_at)), ' · '),
+      h('span', { class: 'ed-short' }, h('b', null, dShort(L.date)), ' · ', h('b', null, tLocal(L.generated_at)), ' · '),
+      h('span', { class: 'tp' }, 'T+', h('b', { class: 'js-tp' }, tplus()))),
+    h('span', { class: 'srcs-inline', 'aria-label': 'Estado de las fuentes' }, keys.map(item)),
+    h('details', { class: 'srcs' + (errs.length ? ' has-err' : '') },
+      h('summary', null, h('i', { 'aria-hidden': 'true' }), errs.length ? `${errs.length} FUENTE${errs.length > 1 ? 'S' : ''} CON ERROR` : `${okN}/${keys.length} FUENTES OK`),
+      h('ul', { class: 'srcs__list mono' },
+        keys.map((k) => { const state = srcState(st[k]); return h('li', null, h('i', { class: 'dot dot--' + state, 'aria-hidden': 'true' }), h('b', null, SOURCE_NAMES[k]), h('span', null, state === 'ok' ? 'OK' : state === 'err' ? 'ERROR' : 'PARCIAL'), state === 'err' ? h('small', null, String(st[k]).replace(/^error:\s*/i, '')) : null); }),
+        h('li', null, h('span', { class: 'srcs__upd' }, `Mapa ${tUTC(D.map.updated_at)} UTC`)))));
+
+  clear($('#alerts')).append(...errs.map((k) => h('div', { class: 'alert', role: 'alert' }, icon('alert'),
+    h('b', null, SOURCE_NAMES[k] + ' · FUENTE CAÍDA'),
+    h('p', null, String(st[k]).replace(/^error:\s*/i, '') + '. Los datos de esta fuente pueden estar incompletos: se muestran los de la última lectura correcta y los scores afectados son provisionales.'))));
+}
+
+/* =============================================================================
+   BRIEFING
+   ============================================================================= */
+let topOpen = false;
+
+function renderBriefing() {
+  const L = D.latest, st = L.stats, days = D.index.days;
+  const top = (L.top || []).slice().sort(byScore);
+  const prev = days.filter((d) => d.date !== L.date).slice(-7);
+  const avg = (fn) => (prev.length === 7 ? prev.reduce((a, d) => a + fn(d.stats), 0) / 7 : null);
+  const delta = (v, fn) => {
+    const a = avg(fn); if (a == null || !a || !st.new_cves) return null;   /* día vacío: sin comparativa */
+    const p = Math.round((v - a) / a * 100);
+    return h('span', { class: 'kpi__d' }, h('span', { class: p > 0 ? 'up' : 'down' }, (p > 0 ? '▲ ' : '▼ ') + Math.abs(p) + ' %'), ' vs 7 d');
+  };
+  const kpi = (label, value, extra, cls, short) => h('div', { class: 'kpi ' + (cls || '') + (value === 0 ? ' kpi--zero' : '') }, h('dt', null, short ? [h('span', { class: 'kpi__long' }, label), h('span', { class: 'kpi__short', 'aria-hidden': 'true' }, short)] : label), h('dd', null, h('span', { class: 'kpi__v' }, nf(value)), extra));
+  const split = h('div', { class: 'split', 'aria-hidden': 'true' }, SEV_ORDER.map((k) => h('i', { class: 'lg-sev-' + k, vars: { flex: String(st.by_severity[k] || 0) } })));
+  const legend = h('div', { class: 'split__legend' }, SEV_ORDER.map((k) => h('span', null, h('b', null, String(st.by_severity[k] || 0)), ' ' + SEV[k].label.toLowerCase())));
+  const first = h('div', { class: 'kpi' }, h('dt', null, 'CVE nuevas'), h('dd', null, h('span', { class: 'kpi__v' }, nf(st.new_cves)), delta(st.new_cves, (x) => x.new_cves)), split, legend);
+
+  const kpis = h('dl', { class: 'kpis panel', 'aria-label': 'Cifras del día' },
+    first,
+    kpi('Críticas', st.by_severity.CRITICAL, delta(st.by_severity.CRITICAL, (x) => x.by_severity.CRITICAL)),
+    kpi('Explotadas · KEV', st.kev_new, delta(st.kev_new, (x) => x.kev_new), 'kpi--kev', 'KEV'),
+    kpi('Con PoC', st.with_poc, delta(st.with_poc, (x) => x.with_poc)),
+    kpi('Mi stack', st.in_stack, null, 'kpi--stack'),
+    kpi('Remotas', st.remote, null));
+
+  const topPanel = h('section', { class: 'panel top10' + (topOpen ? ' is-open' : ''), 'aria-labelledby': 'h-top' },
+    h('div', { class: 'panel__head' }, h('h2', { class: 'panel__title', id: 'h-top' }, 'Las que importan hoy'),
+      h('span', { class: 'panel__meta' }, `${top.length} de ${nf(st.new_cves)} · `, h('a', { href: '#listado' }, 'Listado →'))),
+    top.length ? h('div', { class: 'rows' }, grouped(top, { limit: CONFIG.TOP_MOBILE })) : emptyBlock('Nada que priorizar todavía', 'Cuando entre el primer lote de NVD aparecerán aquí las diez CVE con más score.'),
+    top.length > CONFIG.TOP_MOBILE ? h('div', { class: 'rows__more' }, h('button', { type: 'button', class: 'btn', 'aria-expanded': String(topOpen), onClick: (e) => { topOpen = !topOpen; $('.top10').classList.toggle('is-open', topOpen); e.currentTarget.setAttribute('aria-expanded', String(topOpen)); e.currentTarget.textContent = topOpen ? 'Ver solo las 5 primeras' : `Ver las ${top.length}`; } }, topOpen ? 'Ver solo las 5 primeras' : `Ver las ${top.length}`)) : null,
+    null);
+
+  const totalAtt = D.map.points.reduce((a, p) => a + p.attacks, 0), ncc = new Set(D.map.points.map((p) => p.cc)).size;
+  const mapPanel = panel('Origen de ataques', `24 H · ${kfmt(totalAtt)} · ${ncc} PAÍSES`,
+    h('div', { class: 'panel__body' },
+      h('div', { class: 'globe-box', id: 'globe-box' },
+        h('div', { class: 'globe', id: 'globe', role: 'img', 'aria-label': globeSummary() }),
+        h('div', { class: 'globe-flat', id: 'globe-flat', 'aria-hidden': 'true' }),
+        h('div', { class: 'zoom', role: 'group', 'aria-label': 'Zoom del mapa' },
+          h('button', { type: 'button', 'aria-label': 'Acercar', onClick: () => zoomBy(-0.45) }, icon('plus')),
+          h('button', { type: 'button', 'aria-label': 'Alejar', onClick: () => zoomBy(0.45) }, icon('minus')),
+          h('button', { type: 'button', 'aria-label': 'Restablecer vista', onClick: () => resetView() }, icon('reset'))),
+        h('div', { class: 'map-legend', id: 'map-legend' }))),
+    { class: 'mapp', id: 'h-map' });
+
+  const radarPanel = panel('Radar de urgencia', 'TOP ' + top.length, h('div', { class: 'panel__body' }, top.length ? renderRadar(top) : h('p', { class: 'plain' }, 'Sin contactos.')), { class: 'radarp', id: 'h-radar' });
+
+  setScale(countryMarkers());
+  const maxC = Math.max(1, ...D.map.by_country.map((c) => c.attacks));
+  const maxP = Math.max(1, ...D.map.top_ports.map((p) => p.records));
+  const sum = panel('Resumen del día', null, h('div', { class: 'panel__body' },
+    L.summary ? h('p', null, L.summary) : h('p', null, 'Sin datos de NVD para hoy todavía.'),
+    h('dl', { class: 'edmeta' },
+      h('div', null, h('dt', null, 'Edición'), h('dd', null, dLong(L.date))),
+      h('div', null, h('dt', null, 'Generado'), h('dd', null, `${tLocal(L.generated_at)} (${tUTC(L.generated_at)} UTC)`)),
+      h('div', null, h('dt', null, 'Desde la actualización'), h('dd', null, 'T+', h('span', { class: 'js-tp' }, tplus()))),
+      h('div', null, h('dt', null, 'Mapa'), h('dd', null, `${tUTC(D.map.updated_at)} UTC`)))), { class: 'sum', id: 'h-sum' });
+  const geo = panel('Países de origen', `TOP ${D.map.by_country.length} · ESCALA LOG`, h('ol', { class: 'rank' }, D.map.by_country.map((c) =>
+    h('li', null, h('span', { class: 'k' }, c.cc), h('span', { class: 'nm' }, c.country), h('span', { class: 'v' }, nf(c.attacks)),
+      h('span', { class: 'bar ' + tierOf(c.attacks) }, h('i', { vars: { width: Math.max(2, Math.round(Math.log10(c.attacks + 1) / Math.log10(maxC + 1) * 100)) + '%' } }))))), { class: 'geo', id: 'h-geo' });
+  const ports = panel('Puertos más atacados', 'REGISTROS', h('ol', { class: 'rank' }, D.map.top_ports.map((p) =>
+    h('li', null, h('span', { class: 'k' }, String(p.port)), h('span', { class: 'nm' }, PORTS[p.port] || 'TCP/' + p.port), h('span', { class: 'v' }, kfmt(p.records)),
+      h('span', { class: 'bar' }, h('i', { vars: { width: Math.round(p.records / maxP * 100) + '%' } }))))), { class: 'ports', id: 'h-ports' });
+  const news = L.news && L.news.length ? panel('Avisos y prensa', String(L.news.length), h('ul', { class: 'news-list' }, L.news.map((n) => h('li', null, extLink(n.url, null, h('span', null, n.title), h('small', null, n.source))))), { class: 'newsp', id: 'h-news' }) : null;
+
+  clear($('#view-briefing')).append(
+    h('div', { class: 'brief' }, kpis, topPanel, mapPanel, radarPanel),
+    h('div', { class: 'more' }, sum, geo, ports, news));
+  bindRadar();
+  mountGlobe();
+}
+
+/* =============================================================================
+   RADAR · distancia = urgencia (centro = 100) · ángulo = fabricante
+   ============================================================================= */
+function renderRadar(top) {
+  const C = 150, R = 118, rOf = (sc) => 6 + (100 - sc) / 100 * (R - 6);
+  const vname = (c) => realVendor(c) || 'SIN FABRICANTE';
+  const vendors = [...new Set(top.map(vname))].sort((a, b) => a.localeCompare(b, 'es'));
+  const sect = 360 / vendors.length, used = {};
+  const g = [];
+  g.push(s('circle', { cx: C, cy: C, r: R, fill: '#0C1117', stroke: '#3A4859' }));
+  for (let i = 0; i < 72; i++) {
+    const t = i * 5 * Math.PI / 180, r2 = R + (i % 6 ? 3 : 6);
+    g.push(s('line', { x1: (C + R * Math.sin(t)).toFixed(1), y1: (C - R * Math.cos(t)).toFixed(1), x2: (C + r2 * Math.sin(t)).toFixed(1), y2: (C - r2 * Math.cos(t)).toFixed(1), stroke: i % 6 ? '#26323F' : '#3A4859' }));
+  }
+  vendors.forEach((v, i) => {
+    const a = i * sect * Math.PI / 180, mid = (i + 0.5) * sect * Math.PI / 180;
+    g.push(s('line', { x1: C, y1: C, x2: (C + R * Math.sin(a)).toFixed(1), y2: (C - R * Math.cos(a)).toFixed(1), stroke: '#1C2631' }));
+    const anchor = Math.abs(Math.sin(mid)) < 0.2 ? 'middle' : Math.sin(mid) > 0 ? 'start' : 'end';
+    g.push(s('text', { x: (C + (R + 12) * Math.sin(mid)).toFixed(1), y: (C - (R + 12) * Math.cos(mid) + 5).toFixed(1), 'text-anchor': anchor, 'font-family': 'Martian Mono, monospace', 'font-size': 14, fill: '#AEB9C7' }, v.toUpperCase().slice(0, 9)));
+  });
+  [[85, 'HOY'], [70, 'SEMANA'], [40, 'PLANIF.']].forEach(([sc, l]) => {
+    g.push(s('circle', { cx: C, cy: C, r: rOf(sc).toFixed(1), fill: 'none', stroke: sc === 85 ? 'rgba(255,79,109,.6)' : '#26323F', 'stroke-dasharray': sc === 85 ? '2 3' : null }));
+    g.push(s('text', { x: C + 3, y: (C - rOf(sc) - 3).toFixed(1), 'font-family': 'Martian Mono, monospace', 'font-size': 11.5, fill: sc === 85 ? '#FF8095' : '#8A97A8' }, l));
+  });
+  g.push(s('g', { class: 'radar__sweep', 'aria-hidden': 'true' },
+    s('path', { d: `M${C} ${C} L${(C + R * Math.sin(-0.62)).toFixed(1)} ${(C - R * Math.cos(-0.62)).toFixed(1)} A${R} ${R} 0 0 1 ${C} ${C - R} Z`, fill: 'rgba(56,217,150,.16)' }),
+    s('line', { x1: C, y1: C, x2: C, y2: C - R, stroke: '#38D996', 'stroke-opacity': '.8' })));
+  g.push(s('circle', { cx: C, cy: C, r: 2, fill: '#38D996' }));
+  top.forEach((c) => {
+    const vi = vendors.indexOf(vname(c)), n = (used[vname(c)] = (used[vname(c)] || 0) + 1);
+    const ang = vi * sect + sect * [0.5, 0.25, 0.75, 0.38, 0.62][(n - 1) % 5], t = ang * Math.PI / 180, r = rOf(c.score);
+    const x = (C + r * Math.sin(t)).toFixed(1), y = (C - r * Math.cos(t)).toFixed(1), v = verdictOf(c.score);
+    const a = s('a', { class: 'blip', href: cveHref(c.id), 'aria-label': `${c.id}, ${vname(c)}, score ${c.score}, ${v.label}`, data: { tip: `${c.id} · ${vname(c)} · ${c.score}` } },
+      s('circle', { class: 'hit', cx: x, cy: y, r: 9, fill: 'transparent' }),
+      s('circle', { class: 'core', cx: x, cy: y, r: c.score >= 85 ? 5 : c.score >= 70 ? 4.2 : 3.4, fill: v.hex }));
+    a.style.setProperty('--delay', (ang / 360 * 6).toFixed(2) + 's');
+    g.push(a);
+  });
+  const svg = s('svg', { class: 'radar', viewBox: '-80 -18 460 336', role: 'group', 'aria-label': `Radar de urgencia con ${top.length} CVE` }, g);
+  return [svg, h('div', { class: 'radar-tip', id: 'radar-tip', 'aria-live': 'polite' }),
+    h('div', { class: 'radar-legend' },
+      h('span', null, 'Cuanto más al centro, más urgente. Cada sector es un fabricante.'),
+      h('ul', { class: 'vdist', 'aria-label': 'Reparto del top por veredicto' }, VERDICTS.map((v) => { const n = top.filter((c) => verdictOf(c.score) === v).length; return h('li', { class: n ? null : 'is-zero' }, vtag(v), h('b', null, String(n))); })),
+      top.some(isProv) ? h('span', null, '* score provisional: NVD aún no ha puntuado la CVE') : null)];
+}
+function bindRadar() {
+  const tip = $('#radar-tip'); if (!tip) return;
+  $$('.blip').forEach((b) => {
+    const show = () => { tip.textContent = b.dataset.tip; };
+    b.addEventListener('mouseenter', show); b.addEventListener('focus', show);
+    b.addEventListener('mouseleave', () => { tip.textContent = ''; }); b.addEventListener('blur', () => { tip.textContent = ''; });
+  });
+}
+
+/* =============================================================================
+   GLOBO (globe.gl) · v2: agregado por país, escala logarítmica, zoom
+   ============================================================================= */
+const LAND = 'y:8.3,c.4,m.1|15:a.2,d.6,q.1,v.1|1b:b.a|1h:g.8,15.1|1n:a.1,e.1,k.6,13.1,19.3,1g.1|1t:a.1,m.6,16.1,1c.4|1z:b.5,j.1,o.7,1d.1,1f.a|25:0.1,d.3,i.1,k.3,r.7,1e.1,1h.d,1v.4|2b:4.5,d.1,f.3,j.1,o.2,t.7,1a.3,1j.1,1l.l,28.2|2h:0.1,3.d,i.1,k.4,q.2,v.6,1d.5,1j.1,1l.w|2n:0.1,5.l,s.3,x.6,1f.7,1n.7,1v.s|2s:1.1,4.n,t.2,z.4,18.2,1h.3,1l.3,1p.13|2y:6.k,r.1,w.2,12.3,1b.1,1k.3,1o.1a|34:5.m,w.1,15.2,1m.3,1r.1c|39:5.5,b.h,x.3,18.1,1o.4,1t.18,33.3|3f:6.3,e.f,z.3,13.1,1s.4,1y.14,36.1,38.1|3k:8.2,h.e,11.5,1q.1,1w.2,21.15,3c.2|3p:7.1,i.g,12.6,1s.2,1z.1,22.17,3g.3|3v:i.k,13.8,1u.1,1w.1,24.1a,3m.2|40:l.i,14.a,1w.4,22.1j,3q.2|45:1.1,m.j,16.9,1y.1,20.3,24.1m,3v.1|49:m.q,1e.1,25.1n,3t.1,3y.1|4e:o.r,1h.2,25.1u|4j:p.r,1h.1,1k.2,29.1r|4n:q.s,1j.1,2b.e,2r.1,2t.5,30.13|4s:r.q,1i.1,2d.5,2j.1,2l.7,2x.4,32.15,4a.1|4w:r.q,2c.5,2l.2,2p.5,30.3,36.12,4d.1|50:s.q,2e.5,2p.1,2s.4,2y.3,33.4,39.12,4g.1|55:t.p,2g.4,2v.1,2y.c,3c.y,4b.1,4d.1,4k.1|58:u.p,2h.5,2u.1,2x.2,30.c,3e.y,4f.2,4n.1|5c:v.p,2l.2,2q.4,31.1,33.1,35.1,37.8,3g.11,4j.2,4p.2|5g:w.o,2p.7,33.1,3a.19,4n.1,4q.4|5k:y.m,2o.a,3c.1b,4s.1,4u.2|5n:10.k,2o.e,35.2,3d.1d,4v.1|5q:12.i,2p.g,36.1m|5t:12.b,1k.1,2r.o,3g.8,3q.15|5w:12.2,15.8,1l.2,2q.s,3j.8,3t.14|5z:14.1,16.7,1n.1,2r.t,3l.8,3y.11|62:15.1,18.6,2s.u,3o.8,3y.1,46.v,52.1|65:19.5,2t.v,3q.d,49.t,54.1|67:1a.5,1q.2,2t.x,3s.c,4b.c,4o.d|69:1b.5,1k.2,1s.2,2u.y,3u.b,4e.9,4r.8|6b:17.1,1c.5,1k.2,1v.3,2v.y,3v.a,4f.8,4t.7,52.1|6d:1e.8,2w.z,3x.9,4h.6,4v.7,5b.1|6f:1h.1,1j.6,2x.10,3z.6,4j.4,4y.7,5c.2|6h:1l.6,2y.11,40.4,4l.3,50.7|6i:1o.3,2y.14,4m.3,51.1,53.5|6j:1p.2,1x.4,2z.13,45.2,4n.3,55.3,5f.1,5h.1|6l:1q.2,1x.2,20.6,32.16,4p.2,53.1,58.1,5j.1|6m:1t.1,1v.d,32.16,4s.1,54.1,5k.3|6m:1w.d,33.15,4s.1,55.1,5g.1,5l.1|6n:1w.g,35.3,39.2,3f.t,56.2,5g.3|6n:1w.i,3i.p,54.1,56.2,5f.3|6o:1w.i,3j.n,55.2,58.1,5e.5,5p.1|6o:1v.j,3i.n,56.2,5d.6,5k.3,5p.1|6o:1u.n,3i.m,57.2,5d.5,5p.1,5s.1,5u.1|6o:1u.o,3i.l,56.4,5d.5,5j.2,5s.1,5v.2|6n:1u.s,3j.j,57.3,5k.1,5n.1,5s.7|6n:1u.u,3k.h,59.1,5k.1,5v.5|6m:1u.u,3j.i,59.2,5c.1,5v.5,66.1|6m:1v.t,3k.h,5d.2,5l.1,5u.1,5w.2,60.1,68.1|6l:1v.s,3j.i,5h.1,5k.1,60.1|6j:1v.q,3j.h,5u.1|6i:1v.p,3h.i,5m.4,5t.1|6h:1v.o,3g.j,43.2,5i.1,5k.4,5s.2|6f:1w.n,3f.i,41.2,5f.8,5q.3|6d:1x.l,3e.h,3z.3,5c.b,5o.3|6b:1x.j,3d.f,3x.4,5a.g|69:1x.i,3d.d,3w.3,44.1,57.i|67:1w.i,3c.d,3u.3,53.l,5y.1|65:1v.g,3b.d,3t.3,50.n|62:1u.e,3a.c,3s.2,4y.n|5z:1t.e,38.b,4v.o|5w:1s.d,37.a,4t.n|5t:1r.d,36.9,4r.n|5q:1q.c,35.7,4p.m|5n:1p.b,34.6,4n.6,4x.b|5k:1o.7,1w.2,32.4,4k.5,4v.1,4x.7|5g:1n.8,4t.7,5c.1|5c:1l.9,4r.5|58:1k.8,4o.3,55.2|55:1j.6,4m.1,52.1|50:1h.4,4i.2,4w.2|4w:1g.4,4f.1,4s.1|4s:1f.4,4m.2|4n:1d.3,4h.2|4j:1c.4|4e:1a.4|49:18.3|45:17.3|40:17.2|3v:16.2,1j.1|3p:';
+let globe = null, globeLoading = null, landPts = null, markers = null, flatZoom = 1;
+function decodeLand() {
+  const pts = [];
+  LAND.split('|').forEach((row, r) => {
+    const [nS, runs] = row.split(':'); const n = parseInt(nS, 36), step = 360 / n, lat = 81.75 - r * 1.5;
+    if (!runs) return;
+    runs.split(',').forEach((run) => { const [st, l] = run.split('.').map((x) => parseInt(x, 36)); for (let i = st; i < st + l; i++) pts.push({ lat, lng: -180 + (i + 0.5) * step }); });
+  });
+  return pts;
+}
+/* Un marcador por país: suma de ataques, en la posición del punto con más ataques */
+function countryMarkers() {
+  const by = {};
+  D.map.points.forEach((p) => {
+    const m = by[p.cc] || (by[p.cc] = { cc: p.cc, country: p.country, attacks: 0, lat: p.lat, lon: p.lon, best: 0 });
+    m.attacks += p.attacks;
+    if (p.attacks > m.best) { m.best = p.attacks; m.lat = p.lat; m.lon = p.lon; }
+  });
+  return Object.values(by).sort((a, b) => b.attacks - a.attacks);
+}
+let LOGMIN = 0, LOGMAX = 1;
+function setScale(ms) {
+  const v = ms.map((m) => Math.log10(m.attacks + 1));
+  LOGMIN = Math.min(...v); LOGMAX = Math.max(...v, LOGMIN + 0.001);
+}
+const tnorm = (a) => (Math.log10(a + 1) - LOGMIN) / (LOGMAX - LOGMIN);
+function tierOf(a) { const t = tnorm(a); return t >= 0.72 ? 'hi' : t >= 0.4 ? 'mid' : 'lo'; }
+const TIER_HEX = { hi: '#FF4F6D', mid: '#F5B544', lo: '#6CB6FF' };
+const markerSize = (a) => Math.round(6 + tnorm(a) * 14);   // 6–20 px, logarítmico
+function tierThreshold(t) { return Math.round(Math.pow(10, LOGMIN + t * (LOGMAX - LOGMIN)) - 1); }
+function globeSummary() {
+  const ms = countryMarkers();
+  return `Globo con el origen de ataques de las últimas 24 horas en ${ms.length} países. Más actividad: ` + ms.slice(0, 3).map((m) => `${m.country} ${nf(m.attacks)}`).join(', ') + '. Arrastra para girar; usa los botones para acercar.';
+}
+function renderLegend() {
+  const lg = $('#map-legend'); if (!lg) return;
+  clear(lg).append(
+    h('span', { class: 'map-legend__keys' },
+      h('span', null, h('i', { class: 'lg-hi' }), '≥ ' + kfmt(tierThreshold(0.72))),
+      h('span', null, h('i', { class: 'lg-mid' }), '≥ ' + kfmt(tierThreshold(0.4))),
+      h('span', null, h('i', { class: 'lg-lo' }), 'menos')),
+    h('span', null, matchMedia('(pointer: coarse)').matches ? 'Arrastra para girar · pellizca para zoom' : 'Arrastra para girar · Ctrl + rueda para zoom'));
+}
+/* Etiquetas: solo los 6 países con más ataques y nunca dos a menos de 9° (evita solapes NL/DE, etc.) */
+function labelSet(ms) {
+  const out = new Set(), placed = [];
+  for (const m of ms) {
+    if (out.size >= 6) break;
+    if (placed.some((p) => Math.hypot(p.lat - m.lat, (p.lon - m.lon) * Math.cos(m.lat * Math.PI / 180)) < 9)) continue;
+    out.add(m); placed.push(m);
+  }
+  return out;
+}
+let LABELS = new Set();
+function markerEl(m, i) {
+  const t = tierOf(m.attacks), el = h('div', { class: 'gm' });
+  el.style.setProperty('--c', TIER_HEX[t]);
+  el.style.setProperty('--s', Math.round(markerSize(m.attacks) * (innerWidth < 760 ? 0.75 : 1)) + 'px');
+  el.style.setProperty('--d', (i * 0.17).toFixed(2) + 's');
+  add(el, [h('span', { class: 'gm__ring' }), h('span', { class: 'gm__dot' }), LABELS.has(m) ? h('span', { class: 'gm__lbl' }, m.cc, h('em', null, kfmt(m.attacks))) : null]);
+  return el;
+}
+function loadGlobeLib() {
+  if (window.Globe) return Promise.resolve();
+  if (globeLoading) return globeLoading;
+  globeLoading = new Promise((ok, ko) => {
+    /* Trusted Types: una política mínima que solo deja pasar la URL fija de globe.gl */
+    const tt = window.trustedTypes && trustedTypes.createPolicy('zh-globe', { createScriptURL: (u) => { if (u === CONFIG.GLOBE_SRC) return u; throw new TypeError('URL de script no permitida'); } });
+    const sc = document.createElement('script'); sc.src = tt ? tt.createScriptURL(CONFIG.GLOBE_SRC) : CONFIG.GLOBE_SRC; sc.async = true; sc.crossOrigin = 'anonymous';
+    const t = setTimeout(() => ko(new Error('timeout')), CONFIG.GLOBE_TIMEOUT_MS);
+    sc.onload = () => { clearTimeout(t); ok(); }; sc.onerror = () => { clearTimeout(t); ko(new Error('load')); };
+    document.head.appendChild(sc);
+  });
+  return globeLoading;
+}
+const webglOK = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } };
+/* El encuadre depende de la forma del panel: en un panel alto y estrecho hay que alejar la cámara para que el globo quepa a lo ancho */
+function baseAlt() { const el = $('#globe'); const r = el && el.clientWidth ? el.clientHeight / el.clientWidth : 1; return Math.min(CONFIG.ZOOM_MAX_ALT, Math.max(1.9, 1.8 * r)); }
+const HOME = { lat: 30, lng: 10 };
+
+function mountGlobe() {
+  const box = $('#globe-box'), el = $('#globe'); if (!box) return;
+  markers = countryMarkers(); setScale(markers); LABELS = labelSet(markers); renderLegend();
+  if (!webglOK()) return mountFlat('Sin WebGL · proyección plana');
+  loadGlobeLib().then(() => {
+    if (!document.body.contains(el)) return;
+    landPts = landPts || decodeLand();
+    if (globe && globe._destructor) globe._destructor();
+    globe = window.Globe({ animateIn: !REDUCED })(el)
+      .width(el.clientWidth).height(el.clientHeight).backgroundColor('rgba(0,0,0,0)')
+      .showAtmosphere(true).atmosphereColor('#3D7FB8').atmosphereAltitude(0.1).showGraticules(true)
+      .pointsData(landPts).pointLat('lat').pointLng('lng').pointAltitude(0.002).pointRadius(0.36).pointResolution(5)
+      .pointColor(() => 'rgba(126,152,178,0.5)').pointsMerge(true).pointLabel(() => '')
+      .ringsData(REDUCED ? [] : markers.slice(0, 12)).ringLat('lat').ringLng('lon')
+      .ringColor((m) => { const c = TIER_HEX[tierOf(m.attacks)]; return (t) => c + Math.round((1 - t) * 180).toString(16).padStart(2, '0'); })
+      .ringMaxRadius((m) => 1.2 + tnorm(m.attacks) * 3.4).ringPropagationSpeed(1.2).ringRepeatPeriod(2200).ringAltitude(0.003)
+      .htmlElementsData(markers).htmlLat('lat').htmlLng('lon').htmlAltitude(0.01).htmlElement((m) => markerEl(m, markers.indexOf(m)))
+      .pointOfView(Object.assign({ altitude: baseAlt() }, HOME), 0);
+    const mat = globe.globeMaterial();
+    if (mat && mat.color) { mat.color.set('#0E151D'); if (mat.emissive) mat.emissive.set('#05080B'); if ('shininess' in mat) mat.shininess = 2; }
+    const ctr = globe.controls();
+    ctr.autoRotate = !REDUCED; ctr.autoRotateSpeed = CONFIG.GLOBE_ROTATE; ctr.enablePan = false; ctr.enableZoom = true;
+    ctr.minDistance = 100 * (1 + CONFIG.ZOOM_MIN_ALT); ctr.maxDistance = 100 * (1 + CONFIG.ZOOM_MAX_ALT);
+    /* La rueda sin Ctrl hace scroll de la página; con Ctrl hace zoom. El pellizco siempre hace zoom. */
+    el.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
+    el.addEventListener('pointerdown', () => { ctr.autoRotate = false; }, { once: true });
+    new ResizeObserver(() => { if (el.clientWidth) globe.width(el.clientWidth).height(el.clientHeight); }).observe(el);
+    box.classList.remove('is-flat');
+  }).catch((e) => mountFlat(e.message === 'timeout' ? 'Globo sin respuesta · proyección plana' : 'Globo no disponible · proyección plana'));
+}
+function zoomBy(d) {
+  if (globe) { const p = globe.pointOfView(); globe.pointOfView({ altitude: Math.min(CONFIG.ZOOM_MAX_ALT, Math.max(CONFIG.ZOOM_MIN_ALT, p.altitude + d)) }, 400); globe.controls().autoRotate = false; return; }
+  flatZoom = Math.min(4, Math.max(1, flatZoom * (d < 0 ? 1.5 : 1 / 1.5))); applyFlatZoom();
+}
+function resetView() {
+  if (globe) { globe.pointOfView(Object.assign({ altitude: baseAlt() }, HOME), 600); globe.controls().autoRotate = !REDUCED; return; }
+  flatZoom = 1; applyFlatZoom();
+}
+function applyFlatZoom() {
+  const svg = $('#globe-flat svg'); if (!svg) return;
+  const W = 720, H = 300, w = W / flatZoom, hh = H / flatZoom;
+  svg.setAttribute('viewBox', `${((W - w) / 2).toFixed(1)} ${((H - hh) / 2 - 10).toFixed(1)} ${w.toFixed(1)} ${hh.toFixed(1)}`);
+}
+function mountFlat(note) {
+  const box = $('#globe-box'), wrap = $('#globe-flat'); if (!box) return;
+  landPts = landPts || decodeLand(); if (!markers) { markers = countryMarkers(); setScale(markers); LABELS = labelSet(markers); }
+  const W = 720, H = 300, px = (lng) => (lng + 180) / 360 * W, py = (lat) => (82 - lat) / 140 * H;
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' },
+    landPts.map((p) => s('rect', { x: px(p.lng).toFixed(1), y: py(p.lat).toFixed(1), width: 1.6, height: 1.6, fill: 'rgba(126,152,178,.45)' })),
+    markers.map((m, i) => {
+      const r = markerSize(m.attacks) / 2.6, c = TIER_HEX[tierOf(m.attacks)], x = px(m.lon).toFixed(1), y = py(m.lat).toFixed(1);
+      return s('g', null, s('circle', { class: 'ff-ring', cx: x, cy: y, r, stroke: c }), s('circle', { cx: x, cy: y, r, fill: c, 'fill-opacity': '.9' }),
+        LABELS.has(m) ? s('text', { x: (+x + r + 3).toFixed(1), y: (+y + 3).toFixed(1), 'font-family': 'Martian Mono, monospace', 'font-size': 8, fill: '#E6EBF1' }, `${m.cc} ${kfmt(m.attacks)}`) : null);
+    }));
+  clear(wrap).append(svg);
+  box.classList.add('is-flat');
+  const old = $('.map-flat-note', box); if (old) old.remove();
+  box.append(h('span', { class: 'map-flat-note' }, note));
+  applyFlatZoom();
+}
+
+/* =============================================================================
+   LISTADO
+   ============================================================================= */
+const LS = { q: '', vendor: 'all', sort: 'score', sev: new Set(SEV_ORDER), verdict: new Set(VERDICTS.map((v) => v.key)), kev: false, poc: false, stack: false, open: false, page: 1 };
+
+function renderListado() {
+  const L = D.latest, cves = L.cves;
+  const vendors = [...new Set(cves.map(realVendor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  const nActive = () => (SEV_ORDER.length - LS.sev.size) + (VERDICTS.length - LS.verdict.size) + (LS.kev ? 1 : 0) + (LS.poc ? 1 : 0) + (LS.stack ? 1 : 0) + (LS.vendor !== 'all' ? 1 : 0);
+  const filtersBtn = h('button', { type: 'button', class: 'btn', 'aria-expanded': String(LS.open), 'aria-controls': 'filters', onClick: (e) => { LS.open = !LS.open; $('#filters').hidden = !LS.open; e.currentTarget.setAttribute('aria-expanded', String(LS.open)); } });
+  const updBtn = () => { filtersBtn.textContent = nActive() ? `Filtros (${nActive()})` : 'Filtros'; };
+  updBtn();
+  const toggle = (label, pressed, fn) => h('button', { type: 'button', class: 'tg', 'aria-pressed': String(pressed), onClick: (e) => { const on = fn(); e.currentTarget.setAttribute('aria-pressed', String(on)); const box = $('.tg__box', e.currentTarget); if (box) box.textContent = on ? '[×]' : '[ ]'; LS.page = 1; updBtn(); rows(); } }, label);
+  const sel = (id, label, opts, val, on) => h('label', { class: 'select' }, label, h('select', { id, onChange: (e) => { on(e.target.value); LS.page = 1; updBtn(); rows(); } }, opts.map(([v, t]) => h('option', { value: v, selected: v === val ? true : null }, t))));
+  const listBox = h('div', { class: 'list panel', id: 'list-rows' });
+
+  function rows() {
+    const q = LS.q.trim().toLowerCase();
+    const sorts = { score: byScore, cvss: (a, b) => (b.cvss ?? -1) - (a.cvss ?? -1) || byScore(a, b), epss: (a, b) => (b.epss_percentile ?? -1) - (a.epss_percentile ?? -1) || byScore(a, b) };
+    const res = cves.filter((c) => LS.sev.has(sevKey(c.severity)) && LS.verdict.has(verdictOf(c.score).key)
+      && (!LS.kev || c.tags.includes('kev')) && (!LS.poc || c.tags.includes('poc') || c.tags.includes('exploit')) && (!LS.stack || c.tags.includes('stack'))
+      && (LS.vendor === 'all' || (LS.vendor === '_none' ? !realVendor(c) : realVendor(c) === LS.vendor))
+      && (!q || [c.id, c.vendor, c.product, c.description, ...(c.cwe || [])].join(' ').toLowerCase().includes(q))).sort(sorts[LS.sort]);
+    const page = res.slice(0, LS.page * CONFIG.LIST_PAGE);
+    $('#lcount').textContent = `${res.length} de ${cves.length}`;
+    clear(listBox).append(
+      !cves.length ? emptyBlock('Listado vacío', 'Todavía no hay CVE publicadas hoy.') :
+      !res.length ? emptyBlock('Sin coincidencias', 'Ninguna CVE cumple todos los filtros a la vez. Quita alguno o pulsa Limpiar.') :
+      h('div', { class: 'rows' }, LS.sort === 'score' ? grouped(page, { desc: true }) : page.map((c, i) => cveRow(c, i, { desc: true }))),
+      res.length > page.length ? h('div', { class: 'panel__foot' }, h('button', { type: 'button', class: 'btn', onClick: () => { LS.page++; rows(); } }, `Mostrar ${Math.min(CONFIG.LIST_PAGE, res.length - page.length)} más`)) : null);
+  }
+
+  clear($('#view-listado')).append(
+    h('div', { class: 'page-head' }, h('h1', { id: 'h-list' }, 'Listado'), h('span', { class: 'label' }, `${nf(L.stats.new_cves)} publicadas hoy · `, h('span', { id: 'lcount' }))),
+    h('div', { class: 'toolbar', role: 'search' },
+      h('label', { class: 'search' }, icon('search'), h('span', { class: 'sr-only' }, 'Buscar'),
+        h('input', { id: 'q', type: 'search', autocomplete: 'off', placeholder: 'CVE, fabricante, producto o CWE', value: LS.q, onInput: (e) => { LS.q = e.target.value; LS.page = 1; rows(); } })),
+      sel('sort', 'ORDEN', [['score', 'Urgencia'], ['cvss', 'CVSS'], ['epss', 'EPSS']], LS.sort, (v) => { LS.sort = v; }),
+      filtersBtn),
+    h('div', { class: 'filters', id: 'filters', hidden: LS.open ? null : true },
+      h('div', { class: 'filters__row' }, h('span', { class: 'label' }, 'Veredicto'), VERDICTS.map((v) => toggle(vtag(v), LS.verdict.has(v.key), () => { LS.verdict.has(v.key) ? LS.verdict.delete(v.key) : LS.verdict.add(v.key); return LS.verdict.has(v.key); }))),
+      h('div', { class: 'filters__row' }, h('span', { class: 'label' }, 'Severidad'), SEV_ORDER.map((k) => toggle(sevTag(k === 'UNSCORED' ? null : k), LS.sev.has(k), () => { LS.sev.has(k) ? LS.sev.delete(k) : LS.sev.add(k); return LS.sev.has(k); }))),
+      h('div', { class: 'filters__row' }, h('span', { class: 'label' }, 'Señales'),
+        [['kev', 'Explotada'], ['poc', 'Con exploit o PoC'], ['stack', 'Mi stack']].map(([k, l]) => toggle([h('span', { class: 'tg__box' }, LS[k] ? '[×]' : '[ ]'), l], LS[k], () => { LS[k] = !LS[k]; return LS[k]; })),
+        sel('vendor', 'FABRICANTE', [['all', 'Todos']].concat(vendors.map((v) => [v, v]), [['_none', 'Pendiente en NVD']]), LS.vendor, (v) => { LS.vendor = v; }),
+        h('button', { type: 'button', class: 'btn btn--sm', onClick: () => { Object.assign(LS, { q: '', vendor: 'all', sort: 'score', sev: new Set(SEV_ORDER), verdict: new Set(VERDICTS.map((v) => v.key)), kev: false, poc: false, stack: false, page: 1 }); renderListado(); } }, 'Limpiar'))),
+    listBox);
+  rows();
+}
+
+/* =============================================================================
+   DETALLE · v2: primero «qué hacer», después las métricas
+   ============================================================================= */
+let currentId = null;
+function dial(c) {
+  const v = verdictOf(c.score), R = 52, C2 = 2 * Math.PI * R, frac = c.score / 100 * 0.75;
+  const svg = s('svg', { class: 'dial v-' + v.key, viewBox: '0 0 132 132', role: 'img', 'aria-label': `Score ${c.score} de 100${isProv(c) ? ', provisional' : ''}` },
+    s('circle', { class: 'trk', cx: 66, cy: 66, r: R, fill: 'none', 'stroke-width': 9, 'stroke-dasharray': `${(C2 * 0.75).toFixed(1)} ${C2.toFixed(1)}`, transform: 'rotate(135 66 66)' }),
+    s('circle', { class: 'val', cx: 66, cy: 66, r: R, fill: 'none', 'stroke-width': 9, 'stroke-dasharray': `${(C2 * frac).toFixed(1)} ${C2.toFixed(1)}`, transform: 'rotate(135 66 66)' }),
+    s('text', { x: 66, y: 74, 'text-anchor': 'middle', 'font-size': 40 }, String(c.score) + (isProv(c) ? '*' : '')),
+    s('text', { class: 'lbl', x: 66, y: 92, 'text-anchor': 'middle', 'font-size': 8 }, 'SCORE / 100'));
+  return svg;
+}
+function todoList(c) {
+  const has = (t) => c.tags.includes(t), out = [];
+  const li = (cls, ic, ...kids) => h('li', { class: cls }, icon(ic), h('span', null, ...kids));
+  if (c.kev) {
+    const left = daysBetween(D.latest.date, c.kev.due_date);
+    out.push(li('crit', 'kev', h('b', null, 'Explotada activamente (KEV). '), `CISA da de plazo hasta el ${dDayMon(c.kev.due_date).toLowerCase()}: `, h('b', null, left <= 0 ? 'vence hoy' : `quedan ${left} días`), '.'));
+    if (c.kev.ransomware === 'Known') out.push(li('crit', 'ransomware', h('b', null, 'Usada en campañas de ransomware. '), 'Trátala como posible incidente si está expuesta.'));
+    out.push(li('', 'check', h('b', null, 'Acción requerida: '), h('span', { lang: 'en' }, c.kev.action)));
+  } else if (has('ssvc')) out.push(li('crit', 'ssvc', h('b', null, 'Explotación activa según SSVC (CISA Vulnrichment). '), 'Aún no está en KEV.'));
+  if (has('exploit')) out.push(li('warn', 'exploit', h('b', null, 'Exploit verificado disponible. '), 'La ventana hasta la explotación masiva suele ser corta.'));
+  else if (has('poc')) out.push(li('warn', 'poc', h('b', null, 'Hay PoC pública sin verificar. '), 'Puede ser falsa o maliciosa.'));
+  if (has('deteccion')) out.push(li('', 'deteccion', h('b', null, 'Existe plantilla de detección '), '(Nuclei): puedes comprobar tu exposición.'));
+  if (has('stack')) out.push(li('ok', 'stack', h('b', null, 'Afecta a tu stack. '), 'Revisa versiones en el inventario.'));
+  if (has('library')) out.push(li('', 'library', h('b', null, 'Es una dependencia: '), 'búscala en los lockfiles de tus proyectos.'));
+  if (!out.length) out.push(li('', 'clock', c.score >= 40 ? 'Sin explotación conocida. Planifica la actualización en la próxima ventana.' : 'Riesgo bajo hoy. Vigílala por si cambia el EPSS o aparece exploit.'));
+  return h('ul', { class: 'todo' }, out);
+}
+function renderDetalle(id) {
+  const list = D.latest.cves.slice().sort(byScore), view = $('#view-detalle');
+  if (!list.length) { clear(view).append(h('h1', { id: 'h-det', class: 'sr-only' }, 'Detalle'), h('div', { class: 'panel' }, emptyBlock('No hay fichas que mostrar', 'Las fichas aparecen cuando NVD publica las primeras CVE del día.'))); return; }
+  const c = list.find((x) => x.id === id) || list[0]; currentId = c.id;
+  const i = list.indexOf(c), prev = list[i - 1], next = list[i + 1], v = verdictOf(c.score), k = sevKey(c.severity), dash = c.id.lastIndexOf('-');
+  const vec = c.vector ? Object.fromEntries(c.vector.split('/').slice(1).map((p) => p.split(':'))) : null;
+  const W = D.latest.scoring_weights || {}, B = c.score_breakdown || {};
+  const vp = vendorLine(c);
+
+  const decision = h('section', { class: 'panel decision v-' + v.key, 'aria-labelledby': 'h-dec' },
+    h('div', { class: 'panel__head' }, h('h2', { class: 'panel__title', id: 'h-dec' }, 'Qué hacer'), h('span', { class: 'panel__meta' }, isProv(c) ? 'SCORE PROVISIONAL' : `Nº ${i + 1} DE ${list.length}`)),
+    h('div', { class: 'panel__body' }, dial(c),
+      h('div', { class: 'decision__v' }, vtag(v), h('span', { class: 'label' }, isProv(c) ? 'Sin CVSS de NVD: el score puede subir' : `CVSS ${fmtCvss(c.cvss)} · EPSS ${fmtPctl(c.epss_percentile)}`)),
+      todoList(c)));
+
+  const metrics = h('dl', { class: 'metrics panel' },
+    h('div', { class: 'metric' }, h('dt', null, 'CVSS'), h('dd', null, fmtCvss(c.cvss), h('small', null, c.cvss == null ? 'pendiente' : '/ 10'))),
+    h('div', { class: 'metric' }, h('dt', null, 'Severidad'), h('dd', null, sevTag(c.severity))),
+    h('div', { class: 'metric' }, h('dt', null, 'EPSS'), h('dd', null, fmtEpss(c.epss))),
+    h('div', { class: 'metric' }, h('dt', null, 'Percentil'), h('dd', null, fmtPctl(c.epss_percentile))));
+
+  const desc = panel('Descripción', 'NVD · EN', h('div', { class: 'panel__body' }, h('p', { class: 'desc-en', lang: 'en' }, c.description)), { id: 'h-desc' });
+  const cvss = panel('Vector CVSS', c.cvss == null ? 'PENDIENTE' : 'v3.1', h('div', { class: 'panel__body' },
+    vec ? [h('dl', { class: 'cvss' }, CVSS_METRICS.map(([m, name, vals, hot]) => h('div', { class: hot.includes(vec[m]) ? 'hot' : null }, h('dt', null, name), h('dd', null, vals[vec[m]] || '—')))), h('p', { class: 'vector mono' }, c.vector)]
+      : h('p', { class: 'plain' }, 'NVD aún no ha analizado esta CVE (es lo normal el primer día). Vuelve a mirarla mañana.')), { id: 'h-cvss' });
+  const bdKeys = Object.keys(W);
+  const breakdown = panel('Desglose del score', `${c.score} / 100`, h('div', { class: 'panel__body' },
+    bdKeys.length ? bdKeys.map((key) => { const val = Number(B[key] || 0), max = Number(W[key]) || 1; return h('div', { class: 'bd' }, h('span', { class: 'bd__k' }, BD_LABELS[key] || key.toUpperCase()), h('span', { class: 'bd__t', 'aria-hidden': 'true' }, h('i', { vars: { width: Math.round(val / max * 100) + '%' } })), h('span', { class: 'bd__v' }, nf(val, val % 1 ? 1 : 0), h('small', null, '/' + max))); }) : h('p', { class: 'plain' }, 'Sin desglose.')), { id: 'h-bd' });
+
+  const kev = c.kev ? h('section', { class: 'panel kevp', 'aria-labelledby': 'h-kev' }, h('div', { class: 'panel__head' }, h('h2', { class: 'panel__title', id: 'h-kev' }, 'Catálogo KEV'), h('span', { class: 'panel__meta' }, 'CISA')),
+    h('div', { class: 'panel__body' }, h('dl', { class: 'kgrid' },
+      h('div', null, h('dt', null, 'Añadida'), h('dd', null, dDayMon(c.kev.date_added))),
+      h('div', null, h('dt', null, 'Fecha límite'), h('dd', { class: 'due' }, dDayMon(c.kev.due_date))),
+      h('div', null, h('dt', null, 'Ransomware'), h('dd', null, c.kev.ransomware === 'Known' ? 'Conocido' : 'Desconocido')),
+      h('div', null, h('dt', null, 'Quedan'), h('dd', null, `${Math.max(0, daysBetween(D.latest.date, c.kev.due_date))} días`))))) : null;
+  const poc = panel('Exploits y PoC', String(c.poc.length), h('div', { class: 'panel__body' },
+    c.poc.length ? [h('p', { class: 'warnbox' }, 'PoC públicas sin verificar: algunas son falsas o contienen malware. No las ejecutes fuera de un laboratorio aislado.'),
+      c.poc.map((p) => extLink(p.url, { class: 'lk', rel: 'noopener noreferrer nofollow ugc' }, h('span', { class: 'lk__t' }, p.name), h('span', { class: 'lk__m' }, String(p.url).replace(/^https?:\/\//, '')), h('span', { class: 'lk__s' }, icon('star'), ' ' + nf(p.stars || 0))))]
+      : h('p', { class: 'plain' }, 'Sin exploit público conocido.')), { id: 'h-poc' });
+  const news = panel('Noticias y avisos', String(c.news.length), h('div', { class: 'panel__body' },
+    c.news.length ? c.news.map((n) => extLink(n.url, { class: 'lk' }, h('span', { class: 'lk__t' }, n.title), h('span', { class: 'lk__m' }, n.source))) : h('p', { class: 'plain' }, 'Sin cobertura todavía.')), { id: 'h-nw' });
+  const cwe = panel('Debilidad · CWE', null, h('div', { class: 'panel__body' },
+    c.cwe.length ? c.cwe.map((w) => h('div', { class: 'lk' }, h('span', { class: 'lk__t' }, w), h('span', { class: 'lk__m' }, CWE_NAMES[w] || ''))) : h('p', { class: 'plain' }, 'NVD no ha asignado CWE todavía.')), { id: 'h-cwe' });
+  const links = panel('Fuentes', null, h('div', { class: 'panel__body' },
+    [['NVD · NIST', c.links && c.links.nvd], ['CVE · MITRE', c.links && c.links.mitre], ['EPSS · FIRST', 'https://api.first.org/data/v1/epss?cve=' + encodeURIComponent(c.id)]].map(([l, u]) => extLink(u, { class: 'lk' }, h('span', { class: 'lk__t' }, l), h('span', { class: 'lk__m' }, String(u || '').replace(/^https?:\/\//, '').split('/')[0] + ' ↗')))), { id: 'h-lnk' });
+
+  clear(view).append(
+    h('nav', { class: 'crumbs', 'aria-label': 'Ruta' }, h('a', { href: '#listado' }, 'LISTADO'), '/', h('span', null, c.id),
+      h('span', { class: 'crumbs__nav' },
+        h('a', { class: 'btn btn--sm', href: prev ? cveHref(prev.id) : '#cve', 'aria-disabled': prev ? null : 'true' }, '← Anterior'),
+        h('a', { class: 'btn btn--sm', href: next ? cveHref(next.id) : '#cve', 'aria-disabled': next ? null : 'true' }, 'Siguiente →'))),
+    h('header', { class: 'dhead' },
+      h('h1', { id: 'h-det' }, h('span', null, c.id.slice(0, dash + 1)), c.id.slice(dash + 1)),
+      h('h2', null, vp ? vp : h('span', null, pendingLine(c))),
+      chips(c.tags, { lg: true })),
+    h('div', { class: 'dgrid' },
+      h('div', { class: 'dcol' }, decision, metrics, desc, cvss),
+      h('div', { class: 'dcol' }, kev, breakdown, poc, news, cwe, links)));
+  $$('.nav__a[data-view="detalle"]').forEach((a) => { a.href = cveHref(c.id); });
+}
+
+/* =============================================================================
+   HISTÓRICO
+   ============================================================================= */
+let histIdx = null;
+function chartSvg(win, days) {
+  const Wd = 760, Hd = 300, m = { l: 40, r: 36, t: 16, b: 40 }, iw = Wd - m.l - m.r, ih = Hd - m.t - m.b;
+  const maxV = Math.ceil(Math.max(...days.map((x) => x.stats.new_cves)) / 50) * 50, maxK = Math.max(4, ...days.map((x) => x.stats.kev_new));
+  const bw = iw / win.length, bar = Math.min(40, bw * 0.56), y = (v) => m.t + ih - v / maxV * ih, yk = (v) => m.t + ih - v / maxK * ih;
+  const g = [];
+  for (let v = 0; v <= maxV; v += 50) { g.push(s('line', { class: v ? 'gl' : 'gl0', x1: m.l, x2: Wd - m.r, y1: y(v), y2: y(v) })); g.push(s('text', { class: 'ax', x: m.l - 8, y: y(v) + 3, 'text-anchor': 'end' }, String(v))); }
+  for (let k2 = 0; k2 <= maxK; k2++) g.push(s('text', { class: 'ax', x: Wd - m.r + 8, y: yk(k2) + 3, fill: '#FF8095' }, String(k2)));
+  const kp = [];
+  win.forEach((x, i) => {
+    const gi = days.indexOf(x), cx = m.l + bw * i + bw / 2, on = gi === histIdx;
+    if (on) g.push(s('rect', { class: 'sel', x: (cx - bw / 2 + 3).toFixed(1), y: m.t - 6, width: (bw - 6).toFixed(1), height: ih + 12 }));
+    let acc = 0;
+    [...SEV_ORDER].reverse().forEach((k) => { const v = x.stats.by_severity[k]; if (!v) return; g.push(s('rect', { x: (cx - bar / 2).toFixed(1), y: y(acc + v).toFixed(1), width: bar.toFixed(1), height: Math.max(0, y(acc) - y(acc + v) - 1).toFixed(1), fill: SEV_HEX[k], 'fill-opacity': k === 'UNSCORED' ? '.55' : '1' })); acc += v; });
+    g.push(s('text', { class: 'ax' + (on ? ' on' : ''), x: cx, y: y(x.stats.new_cves) - 6, 'text-anchor': 'middle' }, String(x.stats.new_cves)));
+    g.push(s('text', { class: 'ax' + (on ? ' on' : ''), x: cx, y: Hd - m.b + 16, 'text-anchor': 'middle' }, dWeek(x.date) + ' ' + pad(toDate(x.date).getUTCDate())));
+    const hit = s('rect', { class: 'hit', x: (cx - bw / 2).toFixed(1), y: m.t, width: bw.toFixed(1), height: ih }, s('title', null, `${dLong(x.date)}: ${x.stats.new_cves} CVE · ${x.stats.kev_new} KEV`));
+    hit.addEventListener('click', () => { histIdx = gi; renderHistorico(); });
+    g.push(hit);
+    kp.push([cx, yk(x.stats.kev_new)]);
+  });
+  g.push(s('path', { class: 'kl', d: kp.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') }));
+  kp.forEach((p) => g.push(s('rect', { class: 'kd', x: (p[0] - 3).toFixed(1), y: (p[1] - 3).toFixed(1), width: 6, height: 6 })));
+  return s('svg', { class: 'chart', viewBox: `0 0 ${Wd} ${Hd}`, role: 'img', 'aria-label': 'CVE por día y severidad, con la línea de nuevas en KEV' }, g);
+}
+function renderHistorico() {
+  const days = D.index.days;
+  if (histIdx == null || histIdx >= days.length) histIdx = days.length - 1;
+  const d = days[histIdx], st = d.stats, win = days.slice(Math.max(0, Math.max(histIdx, 6) - 6), Math.max(histIdx, 6) + 1);
+  const go = (i) => { histIdx = Math.max(0, Math.min(days.length - 1, i)); renderHistorico(); const b = $(`.day[data-i="${histIdx}"]`); if (b) b.focus({ preventScroll: true }); };
+  const dayBox = h('div', { class: 'days', role: 'group', 'aria-label': 'Elegir día', onKeydown: (e) => { if (e.key === 'ArrowLeft') { e.preventDefault(); go(histIdx - 1); } if (e.key === 'ArrowRight') { e.preventDefault(); go(histIdx + 1); } } },
+    days.map((x, i) => h('button', { type: 'button', class: 'day', data: { i: String(i) }, 'aria-pressed': String(i === histIdx), 'aria-label': `${dLong(x.date)}: ${x.stats.new_cves} CVE, ${x.stats.kev_new} en KEV`, onClick: () => go(i) },
+      h('span', { class: 'day__w' }, dWeek(x.date)), h('span', { class: 'day__d' }, pad(toDate(x.date).getUTCDate())), h('span', { class: 'day__n' }, `${x.stats.new_cves} · K${x.stats.kev_new}`))));
+  clear($('#view-historico')).append(
+    h('div', { class: 'page-head' }, h('h1', { id: 'h-hist' }, 'Histórico'), h('span', { class: 'label' }, `${days.length} ediciones · ${dShort(days[0].date)} – ${dShort(days[days.length - 1].date)}`)),
+    panel('Elegir día', '← → para moverte', dayBox, { id: 'h-days' }),
+    h('div', { class: 'hgrid' },
+      h('section', { class: 'panel', 'aria-labelledby': 'h-chart' },
+        h('div', { class: 'panel__head' }, h('h2', { class: 'panel__title', id: 'h-chart' }, 'Tendencia semanal'), h('span', { class: 'panel__meta' }, `${dShort(win[0].date)} – ${dShort(win[win.length - 1].date)}`)),
+        h('div', { class: 'panel__body' }, chartSvg(win, days)),
+        h('div', { class: 'legend' }, SEV_ORDER.map((k) => h('span', null, h('i', { class: 'lg-sev-' + k }), SEV[k].label)), h('span', null, h('i', { class: 'kln' }), 'NUEVAS EN KEV (EJE DCHO.)'))),
+      panel(dLong(d.date), d.date === D.latest.date ? 'HOY' : null, h('div', { class: 'panel__body' },
+        h('div', { class: 'dsum__n' }, nf(st.new_cves), h('small', null, 'CVE')),
+        SEV_ORDER.map((k) => h('div', { class: 'stat' }, sevTag(k === 'UNSCORED' ? null : k), h('b', null, String(st.by_severity[k] || 0)))),
+        [['Nuevas en KEV', st.kev_new], ['Con PoC', st.with_poc], ['Mi stack', st.in_stack], ['Remotas', st.remote]].map(([l, v]) => h('div', { class: 'stat' }, h('span', null, l.toUpperCase()), h('b', null, String(v))))), { id: 'h-dsum' })));
+  const sel = $(`.day[data-i="${histIdx}"]`); if (sel && dayBox.clientWidth) dayBox.scrollLeft = sel.offsetLeft - dayBox.clientWidth + sel.offsetWidth + 20;
+}
+
+/* =============================================================================
+   ESTADOS DEL PROTOTIPO, ENRUTADO Y ARRANQUE
+   ============================================================================= */
+function setState(name) {
+  D = JSON.parse(JSON.stringify(ORIGINAL));
+  if (name === 'empty') {
+    Object.assign(D.latest, { cves: [], top: [], news: [], summary: '' });
+    D.latest.stats = { new_cves: 0, by_severity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNSCORED: 0 }, kev_new: 0, with_poc: 0, in_stack: 0, remote: 0 };
+  }
+  if (name === 'error') D.latest.sources_status.nvd = 'error: HTTPError 503 tras 3 reintentos';
+  $$('.states button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.state === name)));
+  if (globe && globe._destructor) globe._destructor();
+  globe = null;
+  renderAll();
+}
+function route() {
+  const raw = decodeURIComponent(location.hash.slice(1)) || 'briefing';
+  let view = raw;
+  if (raw === 'cve' || raw.startsWith('cve/')) {
+    view = 'detalle';
+    const id = raw.slice(4);
+    renderDetalle(/^CVE-\d{4}-\d{4,7}$/.test(id) ? id : currentId);
+  }
+  if (!['briefing', 'listado', 'detalle', 'historico'].includes(view)) view = 'briefing';
+  $$('.view').forEach((v) => { v.hidden = v.id !== 'view-' + view; });
+  $$('.nav__a').forEach((a) => { if (a.dataset.view === view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (view === 'briefing' && globe) { const el = $('#globe'); globe.width(el.clientWidth).height(el.clientHeight); }
+  if (view === 'historico') { const box = $('.days'), sel = $(`.day[data-i="${histIdx}"]`); if (box && sel) box.scrollLeft = sel.offsetLeft - box.clientWidth + sel.offsetWidth + 20; }
+  window.scrollTo(0, 0);
+}
+function renderAll() {
+  renderStrip(); renderBriefing(); renderListado(); renderHistorico(); route(); tick();
+  const W = D.latest.scoring_weights || {};
+  $('#formula').textContent = 'score = ' + Object.keys(W).map((k) => `${BD_LABELS[k] || k} ${W[k]}`).join(' + ') + ' (máx.)';
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+    e.preventDefault(); if (location.hash !== '#listado') location.hash = 'listado';
+    setTimeout(() => { const q = $('#q'); if (q) q.focus(); }, 30);
+  }
+});
+$$('.states button').forEach((b) => b.addEventListener('click', () => setState(b.dataset.state)));
+window.addEventListener('hashchange', route);
+setInterval(tick, 1000);
+const initial = new URLSearchParams(location.search).get('estado');
+if (initial === 'vacio') setState('empty'); else if (initial === 'error') setState('error'); else renderAll();
+</script>
+</body>
+</html>

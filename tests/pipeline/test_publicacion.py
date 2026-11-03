@@ -310,3 +310,29 @@ def test_wrangler_con_version_exacta_y_lockfile():
     w = lock["packages"]["node_modules/wrangler"]
     assert w["version"] == v and w["integrity"].startswith("sha512-")
     assert all(p.get("integrity") or p.get("link") for k, p in lock["packages"].items() if k)
+
+
+# ───────────────────────── cadena de suministro (fase 7) ─────────────────────────
+
+def test_acciones_fijadas_por_sha_con_su_version():
+    """Cada `uses:` apunta a un commit (40 hex) y lleva la versión en un comentario: una etiqueta
+    se puede mover; un SHA, no. Dependabot actualiza SHA y comentario a la vez."""
+    import re as _re
+    for f in (ROOT / ".github/workflows").glob("*.yml"):
+        for ln in f.read_text(encoding="utf-8").splitlines():
+            if "uses:" in ln and not ln.strip().startswith("#"):
+                assert _re.search(r"uses: [\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d+(\.\d+){1,2}$", ln.strip()), f"{f.name}: {ln.strip()}"
+
+
+def test_dependencias_de_python_con_hashes():
+    for f in ("requirements.txt", "requirements-dev.txt"):
+        lines = (ROOT / f).read_text(encoding="utf-8").splitlines()
+        pins = [l for l in lines if l and not l[0].isspace() and not l.startswith("#")]
+        assert pins and all(_ver(l) for l in pins), f
+        assert sum("--hash=sha256:" in l for l in lines) >= len(pins), f
+    assert "--require-hashes" in (ROOT / ".github/workflows/radar.yml").read_text(encoding="utf-8")
+
+
+def _ver(line):
+    import re as _re
+    return _re.match(r"^[A-Za-z0-9_.-]+==[0-9][^ ]* \\$", line)

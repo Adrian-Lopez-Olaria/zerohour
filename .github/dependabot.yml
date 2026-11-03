@@ -1,0 +1,44 @@
+# Dependabot: actualizaciones semanales de las tres cadenas de suministro del repo.
+# - Acciones de GitHub: fijadas por SHA con la versión en un comentario; Dependabot cambia los dos.
+# - Python (pipeline): requirements.in → requirements.txt compilado con pip-compile y hashes;
+#   Dependabot reconoce pip-compile y regenera versiones y hashes.
+# - npm (despliegue/): solo wrangler, versión exacta y lockfile con integridad.
+# cooldown: no propone versiones con menos de 14 días (una versión maliciosa o rota suele
+# detectarse y retirarse en ese plazo). Las alertas de seguridad no esperan: van aparte.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 14
+    groups:
+      acciones:
+        patterns: ["*"]
+    commit-message:
+      prefix: "acciones"
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 14
+    groups:
+      python:
+        patterns: ["*"]
+    commit-message:
+      prefix: "python"
+
+  - package-ecosystem: npm
+    directory: /despliegue
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: "despliegue"
