@@ -18,8 +18,9 @@
     "html_handling": "auto-trailing-slash"
   },
 
-  // Solo producción en <nombre>.<subdominio>.workers.dev: sin URLs de vista previa por versión
-  "workers_dev": true,
+  // Un único origen canónico: el dominio propio (Custom Domain conectado desde el panel, así el
+  // token no necesita permisos de zona). Sin *.workers.dev y sin URLs de vista previa por versión.
+  "workers_dev": false,
   "preview_urls": false,
 
   // Sin telemetría de wrangler

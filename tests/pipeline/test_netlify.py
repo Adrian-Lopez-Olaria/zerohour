@@ -142,7 +142,7 @@ def test_wrangler_solo_estaticos_y_sin_vistas_previas():
     assert "main" not in conf                                         # sin código de Worker
     assert conf["assets"] == {"directory": "./web", "not_found_handling": "404-page",
                               "html_handling": "auto-trailing-slash"}
-    assert conf["workers_dev"] is True and conf["preview_urls"] is False
+    assert conf["workers_dev"] is False and conf["preview_urls"] is False   # solo el dominio propio
     assert conf["send_metrics"] is False
     assert not set(conf) & {"routes", "route", "vars", "kv_namespaces", "r2_buckets", "d1_databases"}
 
