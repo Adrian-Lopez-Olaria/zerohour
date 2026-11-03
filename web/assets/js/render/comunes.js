@@ -181,8 +181,9 @@ export function groupedRows(list, opts = {}) {
     const total = opts.totals ? opts.totals[v.key] : j - i;
     const extra = opts.limit != null && i >= opts.limit;
     out.push(el('div', { class: 'grp' + (extra ? ' is-extra' : '') }, [vtag(v), el('span', { class: 'grp__n', text: `${total} CVE` })]));
+    const make = opts.rowFn || ((c, o) => cveRow(c, o));       // el listado pasa sus filas en caché
     out.push(el('ol', { class: 'rows__list', start: String(start + i + 1) }, list.slice(i, j).map((c, k) =>
-      cveRow(c, { ...opts, pos: opts.numbered === false ? 0 : start + i + k + 1, extra: opts.limit != null && i + k >= opts.limit }))));
+      make(c, { ...opts, pos: opts.numbered === false ? 0 : start + i + k + 1, extra: opts.limit != null && i + k >= opts.limit }))));
     i = j;
   }
   return out;

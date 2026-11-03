@@ -1,36 +1,40 @@
 /* =============================================================================
-   render/listado.js · LISTADO
-   Buscador (términos con Y lógico), fabricante, orden, severidad y marcas.
+   render/listado.js · LISTADO (v2, cambios-v2 §10)
+   Barra sticky con buscador (términos con Y lógico), orden (urgencia / CVSS / EPSS) y
+   «Filtros (n)», que abre un panel plegable: veredicto, severidad, señales y fabricante
+   (con «Pendiente en NVD»). Por urgencia, las filas se agrupan por veredicto.
    Rendimiento con el volumen real (cientos de CVE):
    - El DOM de cada fila se construye una vez y se reutiliza al filtrar.
    - El texto de búsqueda de cada CVE se precalcula por edición.
    - La búsqueda espera a que se deje de teclear (debounce).
-   - Se pintan 60 filas y el resto bajo demanda ("mostrar más").
+   - Se pintan 50 filas y el resto bajo demanda («Mostrar 50 más»).
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  SEV_ORDER, TAG, TAG_ORDER, chips, sbar, sevTag, emptyBlock, cveHref, isProv, icon, avLabel, editionBanner, whoLine, byUrgency,
+  SEV_ORDER, VERDICTS, verdictOf, vtag, sevTag, emptyBlock, icon, editionBanner, byUrgency, cveRow, groupedRows,
 } from './comunes.js';
-import { nf, fmtCvss, fmtPctl, dLong } from '../util/format.js';
+import { nf, dLong } from '../util/format.js';
 
-const PAGE = 60;
+const PAGE = 50;
 const DEBOUNCE_MS = 140;
 const SORTS = {
   score: byUrgency,
-  cvss: (a, b) => (b.cvss ?? -1) - (a.cvss ?? -1) || b.score - a.score,
-  epss: (a, b) => (b.epss_percentile ?? -1) - (a.epss_percentile ?? -1) || b.score - a.score,
+  cvss: (a, b) => (b.cvss ?? -1) - (a.cvss ?? -1) || byUrgency(a, b),
+  epss: (a, b) => (b.epss_percentile ?? -1) - (a.epss_percentile ?? -1) || byUrgency(a, b),
 };
-const SORT_LABEL = { score: 'SCORE', cvss: 'CVSS', epss: 'EPSS' };
-const FLAGS = [['kev', 'EXPLOTADA'], ['poc', 'CON EXPLOIT O POC'], ['stack', 'MI STACK']];
-// Cada marca agrupa sus etiquetas: explotada = KEV o SSVC; código de ataque = exploit, detección o PoC
+const SORT_LABEL = { score: 'Urgencia', cvss: 'CVSS', epss: 'EPSS' };
+const FLAGS = [['kev', 'Explotada'], ['poc', 'Con exploit o PoC'], ['stack', 'Mi stack']];
+// Cada señal agrupa sus etiquetas: explotada = KEV o SSVC; código de ataque = exploit, detección o PoC
 const FLAG_TAGS = { kev: ['kev', 'ssvc'], poc: ['exploit', 'deteccion', 'poc'], stack: ['stack'] };
 const hasFlag = (c, k) => FLAG_TAGS[k].some((t) => c.tags.includes(t));
+const PENDING = '__pendiente__';           // valor del filtro «Pendiente en NVD» (vendor vacío)
 
-const fresh = () => ({ q: '', vendor: -1, sort: 'score', sev: new Set(SEV_ORDER), kev: false, poc: false, stack: false });
+const fresh = () => ({ q: '', vendor: '', sort: 'score', sev: new Set(SEV_ORDER), verdict: new Set(VERDICTS.map((v) => v.key)), kev: false, poc: false, stack: false, open: false });
 let LS = fresh();
 let V = null;            // estado de la vista construida para una edición concreta
 let focusSearchPending = false;
+const MOBILE = matchMedia('(max-width: 760px)');   // 2 chips por fila en móvil, 3 en el resto
 
 /** Pide el foco en el buscador (atajo "/"); se aplica al pintar la vista. */
 export function requestSearchFocus() {
@@ -44,44 +48,9 @@ function applySearchFocus() {
 
 /* ───────── filas ───────── */
 
-function rowLabel(c) {
-  const tags = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
-  return `${c.id}, ${whoLine(c)}, score ${c.score}${isProv(c) ? ' provisional' : ''}, `
-    + `${sevKey(c.severity) === 'UNSCORED' ? 'sin puntuar' : 'CVSS ' + fmtCvss(c.cvss)}, EPSS ${fmtPctl(c.epss_percentile)}`
-    + (tags.length ? `, ${tags.join(', ')}` : '');
-}
-
-// La fila tiene dos maquetas (columnas en escritorio, bloque compacto en móvil). Solo se construye
-// la del ancho actual: la otra estaría oculta por CSS y duplicaría el coste de cada fila.
-const NARROW = matchMedia('(max-width: 1180px)');
-
-function buildRow(c) {
-  const href = cveHref(c.id);
-  const prod = whoLine(c);
-  const cells = [
-    el('span', { class: 'lrow__idcell' }, [el('span', { class: 'trow__id', text: c.id }), el('span', { class: 'lrow__score' }, sbar(c))]),
-    el('span', { class: 'lrow__prod trow__prod' }, [
-      el('b', { text: prod }),
-      el('span', { class: 'lrow__desc', lang: 'en', text: c.description || '—' }),
-    ]),
-    ...(NARROW.matches ? [
-      el('span', { class: 'lrow__meta' }, [
-        sevTag(c.severity), el('span', { class: 'label', text: `CVSS ${fmtCvss(c.cvss)} · EPSS ${fmtPctl(c.epss_percentile)}` }), chips(c.tags),
-      ]),
-    ] : [
-      el('span', { class: 'lrow__sev' }, sevTag(c.severity)),
-      el('span', { class: 'lrow__cv c r', text: fmtCvss(c.cvss) }),
-      el('span', { class: 'lrow__ep c r', text: fmtPctl(c.epss_percentile) }),
-      el('span', { class: 'lrow__avc lrow__av', text: avLabel(c.attack_vector) }),
-      el('span', { class: 'lrow__chips' }, chips(c.tags)),
-    ]),
-  ];
-  return el('li', href ? el('a', { class: 'lrow', href, 'aria-label': rowLabel(c) }, cells) : el('div', { class: 'lrow' }, cells));
-}
-
 function rowFor(c) {
   let li = V.rows.get(c);
-  if (!li) { li = buildRow(c); V.rows.set(c, li); }
+  if (!li) { li = cveRow(c, { desc: true, chipsMax: MOBILE.matches ? 2 : 3 }); V.rows.set(c, li); }
   return li;
 }
 
@@ -89,106 +58,122 @@ function rowFor(c) {
 
 function results() {
   const terms = LS.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const vendor = LS.vendor >= 0 ? V.vendors[LS.vendor] : null;
-  return V.cves.filter((c) => LS.sev.has(sevKey(c.severity))
+  return V.cves.filter((c) => LS.sev.has(sevKey(c.severity)) && LS.verdict.has(verdictOf(c.score).key)
     && (!LS.kev || hasFlag(c, 'kev')) && (!LS.poc || hasFlag(c, 'poc')) && (!LS.stack || hasFlag(c, 'stack'))
-    && (vendor === null || c.vendor === vendor)
+    && (!LS.vendor || (LS.vendor === PENDING ? !c.vendor : c.vendor === LS.vendor))
     && (!terms.length || terms.every((t) => V.hay.get(c).includes(t))))
     .sort(SORTS[LS.sort]);
 }
 
-function paint() {
-  V.list = results();
-  V.shown = Math.min(PAGE, V.list.length);
-  V.count.textContent = `${V.list.length} DE ${V.cves.length} · ORDEN ${SORT_LABEL[LS.sort]}`;
+const activeFilters = () => (SEV_ORDER.length - LS.sev.size) + (VERDICTS.length - LS.verdict.size)
+  + (LS.kev ? 1 : 0) + (LS.poc ? 1 : 0) + (LS.stack ? 1 : 0) + (LS.vendor ? 1 : 0);
+
+function paint(focusFrom = -1) {
+  const page = V.list.slice(0, V.shown);
+  V.count.textContent = `${nf(V.list.length)} DE ${nf(V.cves.length)} · ORDEN ${SORT_LABEL[LS.sort].toUpperCase()}`;
+  const n = activeFilters();
+  V.filtersBtn.textContent = n ? `Filtros (${n})` : 'Filtros';
   clear(V.out);
   if (!V.cves.length) {
     V.out.appendChild(emptyBlock('Listado vacío', 'Todavía no hay CVE publicadas en esta edición. Vuelve después de la próxima lectura de NVD o consulta el histórico.'));
   } else if (!V.list.length) {
-    V.out.appendChild(emptyBlock('Sin coincidencias', 'Ninguna CVE cumple todos los filtros a la vez. Quita alguno o pulsa LIMPIAR.'));
+    V.out.appendChild(emptyBlock('Sin coincidencias', 'Ninguna CVE cumple todos los filtros a la vez. Quita alguno o pulsa Limpiar.'));
+  } else if (LS.sort === 'score') {
+    // Agrupadas por veredicto; el número de cada grupo es el total de resultados, no solo los visibles
+    const totals = {};
+    for (const c of V.list) { const k = verdictOf(c.score).key; totals[k] = (totals[k] || 0) + 1; }
+    V.out.appendChild(el('div', { class: 'rows' }, groupedRows(page, { totals, numbered: false, rowFn: rowFor })));
   } else {
-    const ol = el('ol', { class: 'lrows' });
-    for (const c of V.list.slice(0, V.shown)) ol.appendChild(rowFor(c));
-    V.out.appendChild(ol);
-    V.ol = ol;
+    V.out.appendChild(el('div', { class: 'rows' }, el('ol', { class: 'rows__list' }, page.map(rowFor))));
   }
-  paintMore();
-}
-
-function paintMore() {
   const rest = V.list.length - V.shown;
   V.more.hidden = rest <= 0;
-  V.more.textContent = rest > 0 ? `MOSTRAR ${Math.min(PAGE, rest)} MÁS · QUEDAN ${rest}` : '';
+  V.more.textContent = rest > 0 ? `Mostrar ${Math.min(PAGE, rest)} más · quedan ${nf(rest)}` : '';
+  V.moreWrap.hidden = rest <= 0;
+  if (focusFrom >= 0) {
+    // El botón puede desaparecer: el foco pasa a la primera fila nueva
+    const li = rowFor(V.list[focusFrom]);
+    const a = li && li.querySelector('a');
+    if (a) a.focus();
+  }
+}
+
+function refilter() {
+  V.list = results();
+  V.shown = Math.min(PAGE, V.list.length);
+  paint();
 }
 
 function showMore() {
   const from = V.shown;
   V.shown = Math.min(V.list.length, V.shown + PAGE);
-  const frag = document.createDocumentFragment();
-  for (const c of V.list.slice(from, V.shown)) frag.appendChild(rowFor(c));
-  V.ol.appendChild(frag);
-  paintMore();
-  // El botón puede desaparecer: el foco pasa a la primera fila nueva
-  const first = V.ol.children[from] && V.ol.children[from].querySelector('a, .lrow');
-  if (first && first.focus) first.focus();
+  paint(from);
 }
 
 /* ───────── controles ───────── */
 
 function pressed(btn, on) { btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
 
+function toggle(content, on, flip) {
+  const b = el('button', { type: 'button', class: 'tg', 'aria-pressed': String(on) }, content);
+  b.addEventListener('click', () => { pressed(b, flip()); refilter(); });
+  return b;
+}
+
 function buildControls() {
   let timer = null;
   V.q = el('input', {
-    id: 'q', type: 'search', autocomplete: 'off', spellcheck: 'false', placeholder: 'CVE, fabricante, producto o texto de NVD',
-    on: { input: () => { clearTimeout(timer); timer = setTimeout(() => { LS.q = V.q.value; paint(); }, DEBOUNCE_MS); } },
+    id: 'q', type: 'search', autocomplete: 'off', spellcheck: 'false', placeholder: 'CVE, fabricante, producto, CWE o texto de NVD',
+    on: { input: () => { clearTimeout(timer); timer = setTimeout(() => { LS.q = V.q.value; refilter(); }, DEBOUNCE_MS); } },
   });
   V.q.value = LS.q;
 
-  const vendorSel = el('select', { id: 'vendor', on: { change: () => { LS.vendor = Number(vendorSel.value); paint(); } } }, [
-    el('option', { value: '-1', text: 'todos' }),
-    ...V.vendors.map((v, i) => el('option', { value: String(i), text: v || 'Pendiente en NVD' })),
-  ]);
-  vendorSel.value = String(LS.vendor);
+  const sortSel = el('select', { id: 'sort', on: { change: () => { LS.sort = sortSel.value; refilter(); } } },
+    Object.keys(SORTS).map((k) => el('option', { value: k, text: SORT_LABEL[k] })));
+  sortSel.value = LS.sort;
 
-  const sortBtns = Object.keys(SORTS).map((k) => el('button', {
-    type: 'button', 'aria-pressed': String(LS.sort === k), text: `${SORT_LABEL[k]} ↓`,
-    on: { click: () => { LS.sort = k; sortBtns.forEach((b, i) => pressed(b, Object.keys(SORTS)[i] === k)); paint(); } },
-  }));
+  V.filtersBtn = el('button', {
+    type: 'button', class: 'btn', 'aria-expanded': String(LS.open), 'aria-controls': 'filters',
+    on: { click: () => { LS.open = !LS.open; V.filters.hidden = !LS.open; V.filtersBtn.setAttribute('aria-expanded', String(LS.open)); } },
+  });
+
+  const vendorSel = el('select', { id: 'vendor', on: { change: () => { LS.vendor = vendorSel.value; refilter(); } } }, [
+    el('option', { value: '', text: 'Todos' }),
+    ...V.vendors.map((v) => el('option', { value: v, text: v })),
+    V.cves.some((c) => !c.vendor) ? el('option', { value: PENDING, text: 'Pendiente en NVD' }) : null,
+  ]);
+  vendorSel.value = LS.vendor;
+  if (vendorSel.value !== LS.vendor) LS.vendor = '';
 
   const counts = {};
   for (const c of V.cves) { const k = sevKey(c.severity); counts[k] = (counts[k] || 0) + 1; }
-  const sevBtns = SEV_ORDER.map((k) => {
-    const b = el('button', { type: 'button', class: 'tg', 'aria-pressed': String(LS.sev.has(k)) }, [
-      sevTag(k === 'UNSCORED' ? null : k), el('span', { class: 'tg__n', text: nf(counts[k] || 0) }),
-    ]);
-    b.addEventListener('click', () => { LS.sev.has(k) ? LS.sev.delete(k) : LS.sev.add(k); pressed(b, LS.sev.has(k)); paint(); });
-    return b;
-  });
-  const flagBtns = FLAGS.map(([k, label]) => {
-    const box = el('span', { class: 'tg__box', 'aria-hidden': 'true', text: LS[k] ? '[×]' : '[ ]' });
-    const b = el('button', { type: 'button', class: 'tg', 'aria-pressed': String(LS[k]) }, [box, label]);
-    b.addEventListener('click', () => { LS[k] = !LS[k]; pressed(b, LS[k]); box.textContent = LS[k] ? '[×]' : '[ ]'; paint(); });
-    return b;
-  });
-  const reset = el('button', {
-    type: 'button', class: 'tg tg--reset', text: 'LIMPIAR',
-    on: { click: () => { LS = fresh(); build(V.rootEl, V.ctx, true); } },
-  });
+  const vcounts = {};
+  for (const c of V.cves) { const k = verdictOf(c.score).key; vcounts[k] = (vcounts[k] || 0) + 1; }
 
-  return el('div', { class: 'filters', role: 'search' }, [
-    el('div', { class: 'filters__row' }, [
-      el('label', { class: 'search' }, [icon('search'), el('span', { class: 'sr-only', text: 'Buscar CVE' }), V.q, el('kbd', { 'aria-hidden': 'true', text: '/' })]),
-      el('label', { class: 'field label' }, ['FABRICANTE', vendorSel]),
-      el('div', { class: 'seg', role: 'group', 'aria-label': 'Ordenar por' }, sortBtns),
-    ]),
-    el('div', { class: 'filters__row' }, [
-      el('div', { class: 'filters__group', role: 'group', 'aria-label': 'Severidad' }, sevBtns),
-      el('span', { class: 'filters__sep', 'aria-hidden': 'true' }),
-      el('div', { class: 'filters__group', role: 'group', 'aria-label': 'Marcas' }, flagBtns),
-      reset,
+  const flip = (set, k) => () => { set.has(k) ? set.delete(k) : set.add(k); return set.has(k); };
+  V.filters = el('div', { class: 'filters', id: 'filters', hidden: LS.open ? null : true }, [
+    el('div', { class: 'filters__row', role: 'group', 'aria-label': 'Veredicto' }, [el('span', { class: 'label filters__k', 'aria-hidden': 'true', text: 'Veredicto' }),
+      ...VERDICTS.map((v) => toggle([vtag(v), el('span', { class: 'tg__n', text: nf(vcounts[v.key] || 0) })], LS.verdict.has(v.key), flip(LS.verdict, v.key)))]),
+    el('div', { class: 'filters__row', role: 'group', 'aria-label': 'Severidad' }, [el('span', { class: 'label filters__k', 'aria-hidden': 'true', text: 'Severidad' }),
+      ...SEV_ORDER.map((k) => toggle([sevTag(k === 'UNSCORED' ? null : k), el('span', { class: 'tg__n', text: nf(counts[k] || 0) })], LS.sev.has(k), flip(LS.sev, k)))]),
+    el('div', { class: 'filters__row', role: 'group', 'aria-label': 'Señales' }, [el('span', { class: 'label filters__k', 'aria-hidden': 'true', text: 'Señales' }),
+      ...FLAGS.map(([k, label]) => {
+        const box = el('span', { class: 'tg__box', 'aria-hidden': 'true', text: LS[k] ? '[×]' : '[ ]' });
+        return toggle([box, label], LS[k], () => { LS[k] = !LS[k]; box.textContent = LS[k] ? '[×]' : '[ ]'; return LS[k]; });
+      }),
+      el('label', { class: 'select' }, ['FABRICANTE', vendorSel]),
+      el('button', { type: 'button', class: 'btn btn--sm filters__reset', text: 'Limpiar', on: { click: () => { const open = LS.open; LS = fresh(); LS.open = open; build(V.rootEl, V.ctx, true); } } }),
     ]),
   ]);
+
+  return [
+    el('div', { class: 'toolbar', role: 'search' }, [
+      el('label', { class: 'search' }, [icon('search'), el('span', { class: 'sr-only', text: 'Buscar CVE' }), V.q, el('kbd', { 'aria-hidden': 'true', text: '/' })]),
+      el('label', { class: 'select' }, ['ORDEN', sortSel]),
+      V.filtersBtn,
+    ]),
+    V.filters,
+  ];
 }
 
 /* ───────── vista ───────── */
@@ -197,51 +182,40 @@ function build(root, ctx, keepFocusOnReset = false) {
   const ed = ctx.state.edition;
   const cves = ed.data.cves;
   V = {
-    rootEl: root, ctx, edition: ed, cves, rows: new Map(), list: [], shown: 0, ol: null,
-    vendors: [...new Set(cves.map((c) => c.vendor))].sort((a, b) => a.localeCompare(b, 'es')),
-    hay: new Map(cves.map((c) => [c, [c.id, c.vendor, c.product, c.description, ...c.cwe].join(' ').toLowerCase()])),
+    rootEl: root, ctx, edition: ed, cves, rows: new Map(), list: [], shown: 0,
+    vendors: [...new Set(cves.map((c) => c.vendor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
+    hay: new Map(cves.map((c) => [c, [c.id, c.vendor, c.product, c.cna, c.description, ...c.cwe].join(' ').toLowerCase()])),
   };
-  if (LS.vendor >= V.vendors.length) LS.vendor = -1;
 
   V.count = el('span', { class: 'label', id: 'lcount', 'aria-live': 'polite' });
   V.out = el('div', { id: 'lrows' });
-  V.more = el('button', { type: 'button', class: 'btn btn--ghost lmore', hidden: true, on: { click: showMore } });
+  V.more = el('button', { type: 'button', class: 'btn', hidden: true, on: { click: showMore } });
+  V.moreWrap = el('div', { class: 'panel__foot list__more' }, V.more);
   const st = ed.data.stats;
 
   clear(root);
   root.appendChild(el('div', { class: 'page-head' }, [
     el('h1', { id: 'h-list', text: 'Listado' }),
-    el('span', { class: 'label', text: `${dLong(ed.date)} · ${nf(st.new_cves)} PUBLICADAS · ${nf(cves.length)} EN ESTA EDICIÓN` }),
+    el('span', { class: 'label', text: `${dLong(ed.date)} · ${nf(st.new_cves)} publicadas · ` }),
+    V.count,
   ]));
   const banner = editionBanner(ed, ctx.backToToday);
   if (banner) root.appendChild(banner);
-  root.appendChild(el('div', { class: 'panel' }, [
-    buildControls(),
-    el('div', { class: 'list-meta' }, [V.count, el('span', { class: 'label', text: '* SCORE PROVISIONAL · EPSS EN PERCENTIL' })]),
-    el('div', { class: 'ltbl__head label', 'aria-hidden': 'true' }, [
-      el('span', { text: 'CVE / SCORE' }), el('span', { text: 'PRODUCTO · DESCRIPCIÓN NVD' }), el('span', { text: 'SEVERIDAD' }),
-      el('span', { class: 'r', text: 'CVSS' }), el('span', { class: 'r', text: 'EPSS' }), el('span', { text: 'VECTOR' }), el('span', { text: 'ETIQUETAS' }),
-    ]),
+  root.append(...buildControls(), el('div', { class: 'list panel' }, [
     V.out,
-    el('div', { class: 'lmore-wrap' }, V.more),
+    V.moreWrap,
+    el('div', { class: 'panel__foot' }, el('span', { class: 'label', text: '* Score provisional · EPSS en percentil' })),
   ]));
   V.root = root;
-  paint();
-  if (keepFocusOnReset) { const r = root.querySelector('.tg--reset'); if (r) r.focus(); }
+  refilter();
+  if (keepFocusOnReset) { const r = root.querySelector('.filters__reset'); if (r) r.focus(); }
 }
 
-// Al cruzar el umbral (p. ej. girar una tablet) las filas en caché tienen la maqueta equivocada
-NARROW.addEventListener('change', () => {
+// Al cruzar el ancho de móvil cambia el número de chips: las filas en caché se rehacen
+MOBILE.addEventListener('change', () => {
   if (!V) return;
   V.rows = new Map();
-  const shown = V.shown;
   paint();
-  while (V.shown < Math.min(shown, V.list.length)) {             // conserva las filas que ya se veían
-    const from = V.shown;
-    V.shown = Math.min(V.list.length, V.shown + PAGE);
-    for (const c of V.list.slice(from, V.shown)) V.ol.appendChild(rowFor(c));
-  }
-  paintMore();
 });
 
 /** Pinta el listado de la edición activa (se reconstruye solo si cambia la edición). */

@@ -45,7 +45,7 @@ export function chartSvg(win, all, selDate, onPick) {
       const v = d.stats.by_severity[k];
       if (!v) continue;
       const y0 = y(acc + v), h = y(acc) - y0;
-      out.push(svg('rect', { class: `bar sevfill--${k}`, x: (cx - bar / 2).toFixed(1), y: y0.toFixed(1), width: bar.toFixed(1), height: Math.max(0, h - 1).toFixed(1), style: { '--i': i } }));
+      out.push(svg('rect', { class: `bar sevfill--${k}`, x: (cx - bar / 2).toFixed(1), y: y0.toFixed(1), width: bar.toFixed(1), height: Math.max(0, h - 1).toFixed(1) }));
       acc += v;
     }
     out.push(svg('text', { class: 'ax ax--n' + (on ? ' on' : ''), x: cx.toFixed(1), y: (y(d.stats.new_cves) - 7).toFixed(1), 'text-anchor': 'middle', text: nf(d.stats.new_cves) }));
