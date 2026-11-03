@@ -1,93 +1,97 @@
 /* =============================================================================
-   render/briefing.js · BRIEFING
-   Titular, resumen, contadores, radar, top 10, países, puertos y prensa.
-   El globo (zona GLB-01) se monta en la fase 4; aquí se deja su contenedor y HUD.
+   render/briefing.js · BRIEFING (v2)
+   Primer pantallazo (1440 × 900 sin scroll): 6 contadores en una franja y debajo
+   top 10 · mapa · radar. Debajo: resumen del día, países, puertos y prensa.
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
 import {
-  SEV_ORDER, panelHead, emptyBlock, cveHref, isProv, extLink, langOf, groupedRows,
+  SEV, SEV_ORDER, panelHead, emptyBlock, extLink, langOf, groupedRows,
 } from './comunes.js';
 import { renderRadar } from '../radar.js';
-import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls } from '../globe.js';
-import { nf, pad, fmtCvss, fmtPctl, dLong, tLocal, tUTC, scoreVar, prefersReducedMotion, countryName } from '../util/format.js';
+import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt } from '../globe.js';
+import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
 
 const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 137: 'NETBIOS', 443: 'HTTPS', 445: 'SMB', 2222: 'SSH-ALT', 2323: 'TELNET-ALT', 3306: 'MYSQL', 3389: 'RDP', 5060: 'SIP', 8000: 'HTTP-ALT', 8080: 'HTTP-ALT', 9000: 'HTTP-ALT' };
 const MAX_COUNTRIES = 10;
 const MAX_NEWS = 8;
 
-let animated = false;   // contadores y entrada del top: una sola vez por visita
-
-/* ───────── contadores ───────── */
-
-function countUp(items) {
-  const dur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--t-count')) || 1100;
-  const t0 = performance.now();
-  for (const { node } of items) node.textContent = '0';
-  const step = (t) => {
-    const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
-    for (const { node, to } of items) node.textContent = nf(Math.round(to * e));
-    if (p < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
+/* ───────── contadores (6 en una franja; aprobados en el punto de control B) ───────── */
 
 /** Delta frente a la media de los 7 días anteriores a la edición (▲ ámbar sube, ▼ verde baja).
-    Sin 7 días completos de histórico no se muestra (ORDENES §1: no inventarlo). */
+    Sin 7 días completos de histórico, o en un día vacío, no se muestra (no se inventa). */
 function makeDelta(latest, index) {
   const prev = index ? index.days.filter((d) => d.date < latest.date).slice(-7) : [];
   return (value, pick) => {
-    if (prev.length < 7) return null;
+    if (prev.length < 7 || !latest.stats.new_cves) return null;
     const avg = prev.reduce((a, d) => a + pick(d.stats), 0) / prev.length;
     if (!avg) return null;
     const p = Math.round((value - avg) / avg * 100);
-    const arrow = p > 0 ? el('span', { class: 'up', text: `▲ ${p} %` })
-      : p < 0 ? el('span', { class: 'down', text: `▼ ${Math.abs(p)} %` })
-        : el('span', { text: '= 0 %' });
-    return [arrow, ' vs media 7 d ', el('b', { text: nf(avg, avg < 10 ? 1 : 0) })];
+    return el('span', { class: 'kpi__d', title: `Media de los 7 días anteriores: ${nf(avg, avg < 10 ? 1 : 0)}` }, [
+      p > 0 ? el('span', { class: 'up', text: `▲ ${p} %` }) : p < 0 ? el('span', { class: 'down', text: `▼ ${Math.abs(p)} %` }) : el('span', { text: '= 0 %' }),
+      ' vs 7 d',
+    ]);
   };
 }
 
-function kpiBlock(st, delta, counters) {
-  const kpis = [
-    { k: 'CVE NUEVAS', v: st.new_cves, d: delta(st.new_cves, (s) => s.new_cves), cls: 'kpi--wide', split: st.new_cves > 0 },
-    { k: 'CRÍTICAS', v: st.by_severity.CRITICAL, d: `${nf(st.by_severity.UNSCORED)} sin puntuar` },
-    { k: 'EXPLOTADAS · KEV', v: st.kev_new, d: delta(st.kev_new, (s) => s.kev_new), cls: st.kev_new ? 'kpi--alert' : '' },
-    // Desde la fase 6 el contador es el de exploits verificados; las ediciones antiguas siguen con "CON POC"
-    st.with_exploit != null
-      ? { k: 'EXPLOIT VERIFICADO', v: st.with_exploit, d: `${nf(st.with_detection || 0)} con plantilla de detección · ${nf(Math.max(0, st.with_poc - st.with_exploit - (st.with_detection || 0)))} con PoC sin verificar` }
-      : { k: 'CON POC', v: st.with_poc, d: delta(st.with_poc, (s) => s.with_poc) },
-    { k: 'AFECTAN A MI STACK', v: st.in_stack, d: `${nf(st.remote)} explotables en remoto`, cls: 'kpi--stack' },
-  ];
-  return el('dl', { class: 'kpis' }, kpis.map((k) => {
-    const v = el('dd', { class: 'kpi__v num', text: nf(k.v) });
-    counters.push({ node: v, to: k.v });
-    return el('div', { class: `kpi ${k.cls || ''}`.trim() }, [
-      el('dt', { text: k.k }),
-      v,
-      el('dd', { class: 'kpi__d' }, k.d || ''),
-      k.split ? el('dd', { class: 'kpi__split', 'aria-hidden': 'true' },
-        SEV_ORDER.map((s) => el('i', { class: `kpi__seg--${s}`, style: { flex: String(st.by_severity[s] || 0) } }))) : null,
-    ]);
-  }));
+/**
+ * Una celda: etiqueta (larga, y corta en móvil con la larga para lectores de pantalla),
+ * cifra (en gris si es 0) y, opcionales, el delta y una línea de detalle.
+ */
+function kpi({ label, short, value, cls = '', delta = null, sub = null, title = null, extra = null }) {
+  return el('div', { class: `kpi ${cls}${value === 0 ? ' kpi--zero' : ''}`.trim(), title }, [
+    el('dt', short ? [el('span', { class: 'kpi__long', text: label }), el('span', { class: 'kpi__short', 'aria-hidden': 'true', text: short })] : label),
+    el('dd', { class: 'kpi__row' }, [el('span', { class: 'kpi__v num', text: nf(value) }), delta]),
+    sub ? el('dd', { class: 'kpi__sub', text: sub }) : null,
+    extra,
+  ]);
 }
 
-/* ───────── titular y columna de texto ───────── */
-
-function copyBlock(latest, index, top, empty, counters) {
+function kpiStrip(latest, index) {
   const st = latest.stats;
-  // v2: la fecha, la edición y el T+ viven en la franja; sin titular grande
-  const summary = empty
-    ? 'Sin datos de NVD para hoy todavía. El listado y el top se rellenarán solos en la próxima lectura; mientras tanto, el histórico sigue disponible.'
-    : latest.summary;
+  const delta = makeDelta(latest, index);
+  // Explotadas = nuevas en KEV hoy + CVE de la edición con SSVC «active» de CISA (aún fuera de KEV)
+  const ssvc = latest.cves.filter((c) => c.tags.includes('ssvc')).length;
+  const explot = st.kev_new + ssvc;
+  const exploitCell = st.with_exploit != null
+    ? kpi({ label: 'Exploit verificado', short: 'EXPLOIT', value: st.with_exploit,
+      sub: `${nf(st.with_detection || 0)} detección · ${nf(Math.max(0, st.with_poc - st.with_exploit - (st.with_detection || 0)))} PoC sin verificar` })
+    // Ediciones anteriores a la fase 6: no hay exploits verificados, solo PoC
+    : kpi({ label: 'Con PoC', short: 'POC', value: st.with_poc });
+  return el('dl', { class: 'kpis panel', 'aria-label': 'Cifras del día' }, [
+    kpi({ label: 'CVE nuevas', short: 'NUEVAS', value: st.new_cves, cls: 'kpi--wide', delta: delta(st.new_cves, (s) => s.new_cves),
+      extra: st.new_cves ? [
+        el('dd', { class: 'split', 'aria-hidden': 'true' }, SEV_ORDER.map((k) => el('i', { class: `sevbg--${k}`, style: { flex: String(st.by_severity[k] || 0) } }))),
+        el('dd', { class: 'split__legend' }, SEV_ORDER.filter((k) => st.by_severity[k]).map((k) => el('span', [el('b', { text: nf(st.by_severity[k]) }), ` ${SEV[k].label.toLowerCase()}`]))),
+      ] : null }),
+    kpi({ label: 'Críticas', short: 'CRÍTICAS', value: st.by_severity.CRITICAL, delta: delta(st.by_severity.CRITICAL, (s) => s.by_severity.CRITICAL),
+      sub: `${nf(st.by_severity.UNSCORED)} sin puntuar` }),
+    kpi({ label: 'Explotadas', short: 'EXPLOT.', value: explot, cls: explot ? 'kpi--kev' : '',
+      sub: `${nf(st.kev_new)} KEV · ${nf(ssvc)} SSVC`,
+      title: 'Nuevas en el catálogo KEV hoy (incluye CVE antiguas que entran hoy en KEV) más las CVE de hoy que CISA marca como explotadas en SSVC',
+      extra: el('dd', { class: 'sr-only', text: 'Incluye CVE antiguas que entran hoy en KEV.' }) }),
+    exploitCell,
+    kpi({ label: 'Mi stack', short: 'STACK', value: st.in_stack, cls: 'kpi--stack' }),
+    kpi({ label: 'Remotas', short: 'REMOTAS', value: st.remote,
+      sub: st.new_cves ? `${nf(Math.round(st.remote / st.new_cves * 100))} % de las nuevas` : null }),
+  ]);
+}
 
-  return el('div', { class: 'copy' }, [
-    el('h1', { class: 'sr-only', id: 'h-brief', text: latest.date ? `Briefing del ${dLong(latest.date)}` : 'Briefing del día' }),
-    el('p', { class: 'summary', text: summary }),
-    kpiBlock(st, makeDelta(latest, index), counters),
-    el('div', { class: 'copy__actions' }, [
-      el('a', { class: 'btn btn--primary', href: '#listado', text: `Ver las ${nf(st.new_cves)} CVE` }),
-      top[0] && cveHref(top[0].id) ? el('a', { class: 'link', href: cveHref(top[0].id), text: 'Ficha de la nº 1 →' }) : null,
+/* ───────── resumen del día (debajo del primer pantallazo) ───────── */
+
+function sumPanel(latest, map, empty) {
+  const st = latest.stats;
+  return el('section', { class: 'panel sum', 'aria-labelledby': 'h-sum' }, [
+    panelHead('', 'Resumen del día', null, 'h-sum'),
+    el('div', { class: 'panel__body' }, [
+      el('p', { class: 'sum__p', text: empty || !latest.summary ? 'Sin datos de NVD para hoy todavía. El listado y el top se rellenarán solos en la próxima lectura; mientras tanto, el histórico sigue disponible.' : latest.summary }),
+      el('dl', { class: 'edmeta' }, [
+        el('div', [el('dt', { text: 'Edición' }), el('dd', { text: latest.date ? dLong(latest.date) : '—' })]),
+        el('div', [el('dt', { text: 'Generada' }), el('dd', { text: latest.generated_at ? `${tLocal(latest.generated_at)} (${tUTC(latest.generated_at)} UTC)` : '—' })]),
+        el('div', [el('dt', { text: 'Desde la actualización' }), el('dd', ['T+', el('span', { class: 'js-tplus', text: '--:--:--' })])]),
+        el('div', [el('dt', { text: 'Mapa' }), el('dd', { id: 'sum-map', text: map && map.updated_at ? `${tUTC(map.updated_at)} UTC` : 'sin lectura' })]),
+      ]),
     ]),
+    el('div', { class: 'panel__foot' }, [el('a', { class: 'btn btn--primary', href: '#listado', text: `Ver las ${nf(st.new_cves)} CVE` })]),
   ]);
 }
 
@@ -164,14 +168,11 @@ function topPanel(top, empty, st) {
       },
     },
   }) : null;
-  sec.append(head, rows, ...[
-    more ? el('div', { class: 'rows__more' }, more) : null,
-    top.some(isProv) ? el('div', { class: 'panel__foot' }, el('span', { class: 'label', text: '* Score provisional: NVD aún no ha puntuado la CVE' })) : null,
-  ].filter(Boolean));
+  sec.append(head, rows, ...(more ? [el('div', { class: 'rows__more' }, more)] : []));
   return sec;
 }
 
-/* ───────── columna lateral: países, puertos, prensa ───────── */
+/* ───────── debajo: países, puertos, prensa ───────── */
 
 function rankList(rows) {
   return el('ol', { class: 'rank' }, rows.map((r) => el('li', [
@@ -187,7 +188,7 @@ function countriesPanel(map) {
   // Barra en escala logarítmica y color del tramo del mapa (misma escala que los marcadores)
   const scale = makeScale(countryMarkers(map));
   const maxL = Math.log10(Math.max(1, ...rows.map((c) => c.attacks)) + 1);
-  return el('section', { class: 'panel', id: 'panel-cty', 'aria-labelledby': 'h-cty' }, [
+  return el('section', { class: 'panel geo', id: 'panel-cty', 'aria-labelledby': 'h-cty' }, [
     panelHead('', 'Países de origen', rows.length ? `TOP ${rows.length} · ESCALA LOG` : '', 'h-cty'),
     rows.length
       ? rankList(rows.map((c) => ({ code: c.cc, name: countryName(c.cc, c.country), value: nf(c.attacks), w: Math.max(2, Math.round(Math.log10(c.attacks + 1) / maxL * 100)), band: scale.tier(c.attacks) })))
@@ -198,10 +199,10 @@ function countriesPanel(map) {
 function portsPanel(map) {
   const rows = map ? map.top_ports : [];
   const maxP = Math.max(1, ...rows.map((p) => p.records));
-  return el('section', { class: 'panel', id: 'panel-ports', 'aria-labelledby': 'h-ports' }, [
-    panelHead('NET-03', 'Puertos más atacados', 'REGISTROS', 'h-ports'),
+  return el('section', { class: 'panel ports', id: 'panel-ports', 'aria-labelledby': 'h-ports' }, [
+    panelHead('', 'Puertos más atacados', 'REGISTROS', 'h-ports'),
     rows.length
-      ? rankList(rows.map((p) => ({ code: String(p.port), name: PORTS[p.port] || `TCP/${p.port}`, value: p.records >= 1000 ? `${nf(p.records / 1000)} K` : nf(p.records), w: Math.round(p.records / maxP * 100) })))
+      ? rankList(rows.map((p) => ({ code: String(p.port), name: PORTS[p.port] || `TCP/${p.port}`, value: kfmt(p.records), w: Math.round(p.records / maxP * 100) })))
       : emptyBlock(null, map ? 'Sin datos de puertos en esta lectura de SANS ISC.' : 'El mapa de ataques no se pudo leer en esta edición.', true),
   ]);
 }
@@ -209,8 +210,8 @@ function portsPanel(map) {
 function newsPanel(news) {
   if (!news.length) return null;
   const shown = news.slice(0, MAX_NEWS);
-  return el('section', { class: 'panel', 'aria-labelledby': 'h-news' }, [
-    panelHead('RSS-04', 'Avisos y prensa', shown.length < news.length ? `${shown.length} DE ${news.length}` : String(news.length), 'h-news'),
+  return el('section', { class: 'panel newsp', 'aria-labelledby': 'h-news' }, [
+    panelHead('', 'Avisos y prensa', shown.length < news.length ? `${shown.length} DE ${news.length}` : String(news.length), 'h-news'),
     el('ul', { class: 'news-list' }, shown.map((n) => el('li',
       extLink(n.url, { class: 'news-list__a' }, [el('span', { lang: langOf(n.lang), text: n.title }), el('small', { text: n.source })])))),
   ]);
@@ -223,23 +224,22 @@ export function renderBriefing(root, state) {
   const map = state.map;
   const top = latest.top;
   const empty = !latest.cves.length;
-  const animate = !animated && !prefersReducedMotion();
-  const counters = [];
 
   clear(root);
-  root.appendChild(el('div', { class: 'brief' }, [
-    copyBlock(latest, index, top, empty, counters),
-    mapPanel(map),
-    el('aside', { class: 'radar-panel panel', 'aria-labelledby': 'h-radar' }, [
-      panelHead('RDR-01', 'Radar de urgencia', 'TOP 10', 'h-radar'),
-      empty || !top.length ? emptyBlock(null, 'Sin contactos.', true) : renderRadar(top),
+  root.append(
+    el('h1', { class: 'sr-only', id: 'h-brief', text: latest.date ? `Briefing del ${dLong(latest.date)}` : 'Briefing del día' }),
+    el('div', { class: 'brief' }, [
+      kpiStrip(latest, index),
+      topPanel(top, empty, latest.stats),
+      mapPanel(map),
+      el('section', { class: 'panel radarp', 'aria-labelledby': 'h-radar' }, [
+        panelHead('', 'Radar de urgencia', top.length ? `TOP ${top.length}` : null, 'h-radar'),
+        el('div', { class: 'panel__body' }, empty || !top.length ? el('p', { class: 'muted-line', text: 'Sin contactos.' }) : renderRadar(top)),
+      ]),
     ]),
-    topPanel(top, empty, latest.stats),
-    el('div', { class: 'side' }, [countriesPanel(map), portsPanel(map), newsPanel(latest.news)]),
-  ]));
+    el('div', { class: 'more' }, [sumPanel(latest, map, empty), countriesPanel(map), portsPanel(map), newsPanel(latest.news)].filter(Boolean)),
+  );
 
-  if (animate) countUp(counters);
-  animated = true;
   // Al cruzar el ancho de móvil cambia el número de chips por fila: se rehace solo el top
   if (!MOBILE.onchange) MOBILE.onchange = () => { const old = document.getElementById('panel-top'); if (old) old.replaceWith(topPanel(top, empty, latest.stats)); };
   scheduleGlobe(document.getElementById('globe-zone'), map);
@@ -252,6 +252,8 @@ export function refreshMapPanels(state) {
   swap('panel-cty', countriesPanel(map));
   swap('panel-ports', portsPanel(map));
   swap('map-foot', mapFoot(map));
+  const sm = document.getElementById('sum-map');
+  if (sm) sm.textContent = map && map.updated_at ? `${tUTC(map.updated_at)} UTC` : 'sin lectura';
   const meta = document.getElementById('map-meta'), sum = document.getElementById('map-sum');
   if (meta) meta.textContent = mapMeta(map);
   if (sum) sum.textContent = mapSummary(map);

@@ -1,38 +1,41 @@
 /* =============================================================================
-   BRIEFING
-   Rejilla: copy | globo (+ radar superpuesto) / top 10 | columna lateral.
-   En móvil manda el top 10: copy → top → globo → radar → lateral.
+   BRIEFING (v2, cambios-v2 §4)
+   Escritorio: contadores a todo el ancho y debajo top (1,5 fr) · mapa (1 fr) · radar
+   (300 px); el primer pantallazo cabe en 1440 × 900. Debajo: resumen · países · puertos
+   y prensa. 761–1179 px: contadores 3 × 2, top a todo el ancho, mapa y radar lado a
+   lado. ≤ 760 px: una columna.
    ============================================================================= */
-.brief { position: relative; display: grid; gap: var(--gap); grid-template-columns: minmax(360px, 420px) minmax(0, 1fr) 320px; grid-template-areas: "copy globe radar" "top top side"; }
+.brief { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis kpis" "top map radar"; align-items: stretch; }
+.kpis { grid-area: kpis; }
+.top10 { grid-area: top; }
+.mapp { grid-area: map; }
+.radarp { grid-area: radar; }
+.more { display: grid; gap: var(--gap); margin-top: var(--gap); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 300px; grid-template-areas: "sum geo ports" "news geo ports"; align-items: start; }
+.sum { grid-area: sum; } .geo { grid-area: geo; } .ports { grid-area: ports; } .newsp { grid-area: news; }
+.muted-line { margin: 0; font-size: var(--fs-small); color: var(--text-3); padding: 6px 0; }
 
-
-/* ---------- Columna de texto ---------- */
-.copy { grid-area: copy; position: relative; z-index: 2; display: flex; flex-direction: column; gap: var(--sp-4); }
-.summary { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--text-2); max-width: 52ch; }
-.copy__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; letter-spacing: .08em; }
-
-/* ---------- Contadores ---------- */
-.kpis { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.kpi { padding: 14px 16px 14px 0; border-top: 1px solid var(--line-2); display: grid; gap: 2px; align-content: start; }
-.kpi:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--line-1); }
+/* ---------- Contadores: un panel, 6 celdas separadas por filetes ---------- */
+.kpis { display: grid; grid-template-columns: 2.1fr repeat(5, minmax(0, 1fr)); margin: 0; }
+.kpi { display: grid; align-content: start; gap: 2px; min-width: 0; min-height: 103px; padding: 8px 14px 9px; border-left: 1px solid var(--line-2); }
+.kpi:first-child { border-left: 0; }
+.kpi dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi dd { margin: 0; }
-.kpi--wide { grid-column: 1 / -1; grid-template-columns: auto 1fr; align-items: end; gap: 2px 18px; }
-.kpi dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
-.kpi--wide dt { grid-column: 1 / -1; }
-.kpi__v { font-family: var(--f-display); font-weight: 800; font-size: var(--fs-kpi); line-height: .9; font-variant-numeric: tabular-nums; }
-.kpi--alert .kpi__v { color: var(--sev-critical); }
-.kpi--stack .kpi__v { color: var(--ok); }
-.kpi__d { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; letter-spacing: .06em; color: var(--text-3); }
-.kpi__d b { font-weight: 500; color: var(--text-2); }
+.kpi__row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.kpi__v { font-family: var(--f-display); font-weight: 800; font-size: var(--fs-kpi); line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi__d, .kpi__sub { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
 .kpi__d .up { color: var(--warn); } .kpi__d .down { color: var(--ok); }
-.kpi__split { grid-column: 1 / -1; display: flex; height: 6px; gap: 1px; margin-top: 6px; }
-.kpi__split i { display: block; }
-.kpi__seg--CRITICAL { background: var(--sev-critical); } .kpi__seg--HIGH { background: var(--sev-high); }
-.kpi__seg--MEDIUM { background: var(--sev-medium); } .kpi__seg--LOW { background: var(--sev-low); }
-.kpi__seg--UNSCORED { background: var(--sev-unscored); }
+.kpi__sub { line-height: 1.35; }
+.kpi__short { display: none; }
+.kpi--kev .kpi__v { color: var(--sev-critical); }
+.kpi--kev .kpi__sub { color: var(--kev-title); }
+.kpi--stack .kpi__v { color: var(--ok); }
+.kpi--zero .kpi__v { color: var(--text-3); }
+.split { display: flex; height: 5px; gap: 1px; margin-top: 5px; }
+.split i { display: block; height: 100%; }
+.split__legend { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); }
+.split__legend b { color: var(--text-2); font-weight: 500; }
 
 /* ---------- Mapa de origen de ataques (cambios-v2 §6) ---------- */
-.mapp { grid-area: globe; }
 .map-body { position: relative; flex: 1; padding: 0; min-height: 420px; display: flex; }
 .globe-box { position: relative; flex: 1; min-height: 100%; overflow: hidden; touch-action: pan-y; }
 .globe { position: absolute; inset: 0; cursor: grab; }
@@ -72,7 +75,6 @@
 @media (prefers-reduced-motion: reduce) { .gm__ring, .ff-ring { display: none; } }
 
 /* ---------- Radar ---------- */
-.radar-panel { grid-area: radar; }
 .radar { display: block; width: 100%; height: auto; }
 .radar__disc { fill: #0C1117; stroke: var(--line-3); }
 .radar__tick { stroke: var(--line-2); }
@@ -100,46 +102,53 @@
 .radar-legend a:hover { text-decoration: underline; }
 .radar-tip { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; min-height: 16px; color: var(--text-1); padding: 0 18px 4px; }
 
-/* ---------- Top 10 ---------- */
-.top10 { grid-area: top; align-self: start; }
-.side { grid-area: side; display: grid; gap: var(--gap); align-content: start; }
-.trow__id { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; font-weight: 600; letter-spacing: .02em; transition: color var(--t-fast); white-space: nowrap; }
-.trow__prod { min-width: 0; line-height: 1.3; }
-.trow__prod b { display: block; font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.trow__prod span { display: block; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.trow__prod.is-cna b { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; font-weight: 500; color: var(--text-2); }
+.radarp .panel__body { display: grid; gap: 8px; justify-items: center; align-content: start; }
+.radarp .radar { max-width: 300px; }
 
-/* ---------- Rankings (países y puertos) ---------- */
-.rank { list-style: none; margin: 0; padding: 4px 18px 14px; }
-.rank li { display: grid; grid-template-columns: 26px minmax(0, 1fr) 54px; gap: 4px 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; }
+/* ---------- Resumen del día ---------- */
+.sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }
+.edmeta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--line-1); }
+.edmeta div { display: grid; gap: 2px; }
+.edmeta dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
+.edmeta dd { margin: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+/* ---------- Países y puertos (.rank): países en escala log con el color del mapa ---------- */
+.rank { list-style: none; margin: 0; padding: 4px 14px 10px; }
+.rank li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 70px; gap: 3px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; }
 .rank li:last-child { border-bottom: 0; }
-.rank .cc { color: var(--text-3); letter-spacing: .08em; }
-.rank .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank .v { text-align: right; font-variant-numeric: tabular-nums; }
+.rank .cc { color: var(--text-3); }
+.rank .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-1); }
+.rank .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
 .rank .bar { grid-column: 2 / -1; height: 3px; background: var(--line-1); }
-.rank .bar i { display: block; height: 100%; width: calc(var(--w) * 1%); background: var(--text-2); }
-.rank .bar--hi i { background: var(--map-hi); }
-.rank .bar--mid i { background: var(--map-mid); }
-.rank .bar--lo i { background: var(--map-lo); }
+.rank .bar i { display: block; height: 100%; width: calc(var(--w) * 1%); background: var(--text-3); }
+.rank .bar--hi i { background: var(--map-hi); } .rank .bar--mid i { background: var(--map-mid); } .rank .bar--lo i { background: var(--map-lo); }
 
 /* ---------- Avisos y prensa ---------- */
-.news-list { list-style: none; margin: 0; padding: 4px 18px 12px; }
-.news-list__a { display: grid; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line-1); text-decoration: none; }
+.news-list { list-style: none; margin: 0; padding: 2px 14px 8px; }
+.news-list__a { display: grid; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--line-1); text-decoration: none; }
 .news-list li:last-child .news-list__a { border-bottom: 0; }
-.news-list__a span { font-size: 13.5px; line-height: 1.4; }
-a.news-list__a:hover span { color: var(--ok); }
-.news-list small { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 9.5px; letter-spacing: .1em; color: var(--text-3); text-transform: uppercase; }
+.news-list__a span { font-size: 14px; line-height: 1.4; }
+a.news-list__a:hover span { text-decoration: underline; text-decoration-color: var(--ok); }
+.news-list small { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); text-transform: uppercase; }
 
-/* ---------- Responsive (rejilla provisional hasta el bloque 4) ---------- */
-@media (max-width: 1240px) {
-  .brief { grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); grid-template-areas: "copy globe" "top top" "radar side"; }
-}
-@media (max-width: 980px) {
-  .brief { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "top" "globe" "radar" "side"; }
-  .radar { max-width: 360px; margin: 0 auto; }
+/* ---------- Responsive ---------- */
+@media (max-width: 1179px) {
+  .brief { grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis" "top top" "map radar"; }
+  .more { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "sum sum" "geo ports" "news news"; }
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpi { border-top: 1px solid var(--line-2); min-height: 0; }
+  .kpi:nth-child(-n+3) { border-top: 0; }
+  .kpi:nth-child(3n+1) { border-left: 0; }
 }
 @media (max-width: 760px) {
-  .kpi { padding: 10px 10px 10px 0; }
-  .kpi:nth-child(even) { padding-left: 10px; }
+  .brief { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kpis" "top" "map" "radar"; }
+  .more { grid-template-columns: minmax(0, 1fr); grid-template-areas: "sum" "geo" "ports" "news"; }
+  .kpi { padding: 7px 10px 8px; }
+  .kpi dt { font-size: 10px; letter-spacing: .04em; }
+  .kpi__d, .kpi__sub, .split__legend { display: none; }
+  .kpi__long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .kpi__short { display: inline; }
+  .split { margin-top: 4px; height: 4px; }
   .map-body { min-height: 300px; }
+  .radarp .radar { max-width: 340px; }
 }
