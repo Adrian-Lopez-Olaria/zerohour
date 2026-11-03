@@ -48,6 +48,12 @@ export const dWeek = (iso) => { const t = parseIso(iso); return t == null ? '' :
 const fmtMid = new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: TZ });
 /** «LUN 02 NOV 2026» (franja de edición). */
 export const dMid = (iso) => { const t = parseIso(iso); return t == null ? '—' : fmtMid.format(t).replace(/[.,]/g, '').replace(/\s+de\s+/g, ' ').toUpperCase(); };
+const MONTHS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+/** «05 NOV» (fechas del catálogo KEV). Fechas AAAA-MM-DD sin zona: se leen tal cual. */
+export const dDayMon = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m && +m[2] >= 1 && +m[2] <= 12 ? `${m[3]} ${MONTHS[+m[2] - 1]}` : '—';
+};
 export const dDay = (iso) => { const t = parseIso(iso); return t == null ? '' : pad(Number(fmtYMD.format(t).slice(8, 10))); };
 
 /** Días naturales desde hoy (hora de Madrid) hasta una fecha AAAA-MM-DD. Negativo si ya pasó; null si no es válida. */

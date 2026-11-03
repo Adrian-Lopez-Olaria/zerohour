@@ -1,17 +1,21 @@
 /* =============================================================================
    render/detalle.js · FICHA DE UNA CVE
-   - Dial y desglose desde score_breakdown + scoring_weights: una fila por cada
-     peso que traiga el JSON (hoy 6, ransomware incluido); nada fijo en el código.
+   v2 (cambios-v2 §9): decisión → contexto → evidencias. Primero «Qué hacer» (dial,
+   veredicto y acciones construidas solo con campos existentes), después métricas,
+   descripción y vector; a la derecha KEV, desglose, exploits, noticias, CWE y fuentes.
+   - Desglose desde score_breakdown + scoring_weights: una fila por cada peso que
+     traiga el JSON (hoy 6, ransomware incluido); nada fijo en el código.
    - PoC: texto 100 % hostil, aviso de "sin verificar" y rel="… nofollow ugc".
    - CVSS 3.x y 4.0: las métricas se leen del vector y se traducen con tablas fijas.
    ============================================================================= */
 import { el, svg, clear } from '../util/dom.js';
-import { sevKey } from '../data.js';
+
 import {
   chips, sevTag, panelHead, emptyBlock, cveHref, isProv, icon, extLink, hostPath, langOf, editionBanner, who, byUrgency,
+  verdictOf, vtag,
 } from './comunes.js';
 import {
-  nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, scoreBand, scoreVar, verdict, daysFromToday, prefersReducedMotion,
+  nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, dDayMon, verdict, daysFromToday,
 } from '../util/format.js';
 
 // kev/poc: filas de las ediciones anteriores a la fase 6; explotada/exploit: las actuales
@@ -65,52 +69,90 @@ function byScore(cves) {
   return sortedCache.list;
 }
 
-/* ───────── dial ───────── */
+/* ───────── decisión: dial, veredicto y qué hacer ───────── */
 
-function gauge(score) {
-  const N = 50, C = 150, r1 = 112, r2 = 132, start = -135, span = 270, on = Math.round(score / 100 * N);
-  const pt = (r, deg) => { const a = deg * Math.PI / 180; return [(C + r * Math.sin(a)).toFixed(1), (C - r * Math.cos(a)).toFixed(1)]; };
-  const ticks = Array.from({ length: N + 1 }, (_, i) => {
-    const deg = start + i / N * span, ri = i % 5 === 0 ? r1 - 6 : r1;
-    const [x1, y1] = pt(ri, deg), [x2, y2] = pt(r2, deg);
-    const lit = i <= on && score > 0;
-    return svg('line', { class: `tk tk--${scoreBand(i / N * 100)}${lit ? ' on' : ''}`, x1, y1, x2, y2, style: { '--k': i } });
-  });
-  const labels = [0, 40, 70, 85, 100].map((v) => {
-    const [x, y] = pt(146, start + v / 100 * span);
-    return svg('text', { class: 'gauge__l', x, y: (Number(y) + 3).toFixed(1), 'text-anchor': 'middle', text: v });
-  });
+/** Dial de 132 px: arco de 270°, trazo de 9, en el color del veredicto. Sin animación. */
+function dial(c) {
+  const v = verdictOf(c.score), R = 52, L = 2 * Math.PI * R, frac = Math.max(0, Math.min(100, c.score)) / 100 * 0.75;
+  const arc = (cls, len) => svg('circle', { class: cls, cx: 66, cy: 66, r: R, fill: 'none', 'stroke-width': 9, 'stroke-dasharray': `${len.toFixed(1)} ${L.toFixed(1)}`, transform: 'rotate(135 66 66)' });
   return svg('svg', {
-    class: 'gauge' + (prefersReducedMotion() ? '' : ' is-anim'), viewBox: '0 0 300 270', role: 'img',
-    'aria-label': `Score ZEROHOUR ${score} de 100: ${verdict(score).toLowerCase()}`,
+    class: `dial v-${v.key}`, viewBox: '0 0 132 132', role: 'img',
+    'aria-label': `Score ZEROHOUR ${c.score} de 100${isProv(c) ? ', provisional' : ''}: ${v.label.toLowerCase()}`,
   }, [
-    ...ticks, ...labels,
-    svg('text', { class: 'gauge__n', x: C, y: C + 30, 'text-anchor': 'middle', text: score }),
-    svg('text', { class: 'gauge__l', x: C, y: C + 56, 'text-anchor': 'middle', text: 'SCORE / 100' }),
+    arc('dial__trk', L * 0.75), arc('dial__val', L * frac),
+    svg('text', { class: 'dial__n', x: 66, y: 74, 'text-anchor': 'middle', text: `${c.score}${isProv(c) ? '*' : ''}` }),
+    svg('text', { class: 'dial__l', x: 66, y: 92, 'text-anchor': 'middle', text: 'SCORE / 100' }),
   ]);
 }
 
-function scorePanel(c, weights) {
+/**
+ * Acciones, de lo más urgente a lo menos, construidas SOLO con campos existentes (kev, tags,
+ * score). kev.ransomware es booleano (true/false) en nuestros datos.
+ */
+function todoList(c) {
+  const has = (t) => c.tags.includes(t), out = [];
+  const li = (cls, ic, kids) => el('li', { class: cls || null }, [icon(ic), el('span', kids)]);
+  if (c.kev) {
+    const dl = kevDeadline(c.kev);
+    out.push(li('crit', 'kev', [el('b', { text: 'Explotada activamente (KEV). ' }),
+      `CISA da de plazo hasta el ${dDayMon(c.kev.due_date).toLowerCase()}`, dl ? [': ', el('b', { text: dl })] : null, '.']));
+    if (c.kev.ransomware === true) out.push(li('crit', 'ransomware', [el('b', { text: 'Usada en campañas de ransomware. ' }), 'Trátala como posible incidente si está expuesta.']));
+    if (c.kev.action) out.push(li('', 'alert', [el('b', { text: 'Acción requerida por CISA: ' }), el('span', { lang: 'en', text: c.kev.action })]));
+  } else if (has('ssvc')) {
+    out.push(li('crit', 'ssvc', [el('b', { text: 'Explotación activa según SSVC (CISA Vulnrichment). ' }), 'Aún no está en el catálogo KEV.']));
+  }
+  if (has('exploit')) out.push(li('warn', 'exploit', [el('b', { text: 'Exploit verificado disponible. ' }), 'La ventana hasta la explotación masiva suele ser corta.']));
+  else if (has('poc')) out.push(li('warn', 'poc', [el('b', { text: 'Hay PoC pública sin verificar. ' }), 'Puede ser falsa o maliciosa: no la ejecutes fuera de un laboratorio.']));
+  if (has('deteccion')) out.push(li('', 'deteccion', [el('b', { text: 'Existe plantilla de detección ' }), '(Nuclei): puedes comprobar tu exposición.']));
+  if (has('stack')) out.push(li('ok', 'stack', [el('b', { text: 'Afecta a tu stack. ' }), 'Revisa versiones en el inventario.']));
+  if (has('library')) out.push(li('', 'library', [el('b', { text: 'Es una dependencia: ' }), 'búscala en los lockfiles de tus proyectos, no en el inventario de servidores.']));
+  if (!out.length) out.push(li('', 'empty', [c.score >= 40 ? 'Sin explotación conocida. Planifica la actualización en la próxima ventana.' : 'Riesgo bajo hoy. Vigílala por si cambia el EPSS o aparece un exploit.']));
+  return el('ul', { class: 'todo' }, out);
+}
+
+function decisionPanel(c, i, n) {
+  const v = verdictOf(c.score);
+  return el('section', { class: `panel decision v-${v.key}`, 'aria-labelledby': 'h-dec' }, [
+    panelHead('', 'Qué hacer', isProv(c) ? 'SCORE PROVISIONAL' : `Nº ${i + 1} DE ${n} POR URGENCIA`, 'h-dec'),
+    el('div', { class: 'panel__body decision__body' }, [
+      dial(c),
+      el('div', { class: 'decision__v' }, [
+        vtag(v),
+        el('span', { class: 'label', text: isProv(c) ? 'Sin CVSS de NVD: el score puede subir' : `CVSS ${fmtCvss(c.cvss)} · EPSS ${fmtPctl(c.epss_percentile)}` }),
+      ]),
+      todoList(c),
+    ]),
+  ]);
+}
+
+/** Métricas en una franja de 4 (2 × 2 en móvil). */
+function metricsStrip(c) {
+  return el('dl', { class: 'mstrip panel' }, [
+    el('div', [el('dt', { text: 'CVSS' }), el('dd', [fmtCvss(c.cvss), el('small', { text: c.cvss == null ? 'pendiente' : '/ 10' })])]),
+    el('div', [el('dt', { text: 'Severidad' }), el('dd', { class: 'mstrip__sev' }, sevTag(c.severity))]),
+    el('div', [el('dt', { text: 'EPSS' }), el('dd', { text: fmtEpss(c.epss) })]),
+    el('div', [el('dt', { text: 'Percentil' }), el('dd', { text: fmtPctl(c.epss_percentile) })]),
+  ]);
+}
+
+/** Desglose genérico: una barra por cada clave de scoring_weights, sin valores fijos en el código. */
+function breakdownPanel(c, weights) {
   const keys = Object.keys(weights).filter((k) => Number(weights[k]) > 0);
   const rows = keys.map((k) => {
     const max = Number(weights[k]);
     const v = Math.max(0, Math.min(max, Number(c.score_breakdown[k]) || 0));
-    const pct = Math.round(v / max * 100);
     return el('div', { class: 'bd' + (v > 0 ? ' bd--on' : '') }, [
       el('dt', { class: 'bd__k', text: BD_LABEL[k] || k.toUpperCase() }),
-      el('dd', { class: 'bd__t', 'aria-hidden': 'true' }, el('i', { style: { '--w': pct } })),
+      el('dd', { class: 'bd__t', 'aria-hidden': 'true' }, el('i', { style: { '--w': Math.round(v / max * 100) } })),
       el('dd', { class: 'bd__v' }, [nf(v, v % 1 ? 1 : 0), el('small', { text: `/${nf(max)}` })]),
     ]);
   });
-  const weightsLine = keys.map((k) => `${BD_LABEL[k] || k.toUpperCase()} ${nf(weights[k])}`).join(' · ');
-  return el('section', { class: 'panel', 'aria-labelledby': 'h-score', style: { '--sc': scoreVar(c.score) } }, [
-    panelHead('SCR-01', 'Score ZEROHOUR', isProv(c) ? 'PROVISIONAL' : 'FINAL', 'h-score'),
-    el('div', { class: 'gauge-wrap' }, [gauge(c.score), el('span', { class: 'verdict', text: verdict(c.score) })]),
-    el('dl', { class: 'breakdown' }, rows),
-    floorNote(c, keys),
-    el('p', { class: 'label bd-foot' }, [
-      `PESOS MÁXIMOS: ${weightsLine}`,
-      c.breakdown_source === 'derivado' ? el('span', { class: 'bd-foot__src', text: ' · DESGLOSE RECALCULADO CON ESOS PESOS' }) : null,
+  return el('section', { class: 'panel', 'aria-labelledby': 'h-score' }, [
+    panelHead('', 'Desglose del score', `${c.score} / 100${isProv(c) ? ' · PROVISIONAL' : ''}`, 'h-score'),
+    el('div', { class: 'panel__body' }, [
+      el('dl', { class: 'breakdown' }, rows),
+      floorNote(c, keys),
+      c.breakdown_source === 'derivado' ? el('p', { class: 'label bd-foot', text: 'DESGLOSE RECALCULADO CON LOS PESOS DE ESTA EDICIÓN' }) : null,
     ]),
   ]);
 }
@@ -139,20 +181,6 @@ function kevDeadline(kev) {
   return d > 0 ? `quedan ${d} ${d === 1 ? 'día' : 'días'}` : d === 0 ? 'vence hoy' : `venció hace ${-d} ${d === -1 ? 'día' : 'días'}`;
 }
 
-function analystNote(c) {
-  const has = (t) => c.tags.includes(t), out = [];
-  if (c.kev) {
-    const dl = kevDeadline(c.kev);
-    out.push(`Explotada activamente; CISA da de plazo hasta el ${dShort(c.kev.due_date)}${dl ? ` (${dl})` : ''}.`);
-  }
-  if ((c.kev && c.kev.ransomware) || has('ransomware')) out.push('Hay campañas de ransomware usándola: trátala como incidente si está expuesta.');
-  if (has('poc') && !c.kev) out.push('Exploit público disponible: la ventana hasta la explotación masiva suele ser corta.');
-  if (has('stack')) out.push('Afecta a tu stack: revisa versiones en el inventario.');
-  if (has('library')) out.push('Es una dependencia: búscala en los lockfiles, no en el inventario de servidores.');
-  if (!out.length) out.push(c.score >= 40 ? 'Sin explotación conocida. Planifica la actualización en la próxima ventana.' : 'Riesgo bajo hoy. Vigilar por si cambia el EPSS o aparece una PoC.');
-  return out.join(' ');
-}
-
 function parseVector(vector) {
   const m = /^CVSS:(\d)\.\d\//.exec(String(vector || ''));
   if (!m || !METRICS[m[1]]) return null;
@@ -165,9 +193,8 @@ function parseVector(vector) {
 
 function descPanel(c) {
   return el('section', { class: 'panel', 'aria-labelledby': 'h-desc' }, [
-    panelHead('DSC-02', 'Descripción', 'NVD · EN', 'h-desc'),
+    panelHead('', 'Descripción', 'NVD · EN', 'h-desc'),
     el('div', { class: 'panel__body' }, [
-      el('p', { class: 'note' }, [el('b', { text: 'NOTA DEL ANALISTA' }), analystNote(c)]),
       c.description ? el('p', { class: 'desc-en', lang: 'en', text: c.description }) : el('p', { class: 'muted-line', text: 'NVD aún no ha publicado la descripción.' }),
     ]),
   ]);
@@ -180,7 +207,6 @@ const CVSS_SRC = {
 };
 
 function cvssPanel(c) {
-  const k = sevKey(c.severity);
   let body;
   if (c.cvss == null) {
     body = [el('p', { class: 'note unscored-note' }, [
@@ -190,18 +216,14 @@ function cvssPanel(c) {
   } else {
     const vec = parseVector(c.vector);
     body = [
-      el('dl', { class: 'bignums' }, [
-        el('div', { class: 'bignum' }, [el('dt', { text: 'BASE SCORE' }), el('dd', { class: `sevc--${k}` }, [fmtCvss(c.cvss), el('small', { text: '/ 10' })])]),
-        el('div', { class: 'bignum bignum--sev' }, [el('dt', { text: 'SEVERIDAD' }), el('dd', sevTag(c.severity))]),
-      ]),
       vec ? el('dl', { class: 'metrics' }, METRICS[vec.major].map(([key, name, vals, hot]) => el('div', { class: 'metric' + (hot.includes(vec.vals[key]) ? ' hot' : '') }, [
         el('dt', { text: name }), el('dd', { text: vals[vec.vals[key]] || '—' }),
       ]))) : null,
-      c.vector ? el('p', { class: 'vector', text: c.vector }) : null,
+      c.vector ? el('p', { class: 'vector', text: c.vector }) : el('p', { class: 'muted-line', text: 'Sin vector CVSS publicado.' }),
     ];
   }
   return el('section', { class: 'panel', 'aria-labelledby': 'h-cvss' }, [
-    panelHead('CVS-03', 'CVSS', c.cvss == null ? 'SIN PUNTUAR' : `v${c.cvss_version || '?'}${CVSS_SRC[c.cvss_source] ? ' · ' + CVSS_SRC[c.cvss_source].short : ''}`, 'h-cvss'),
+    panelHead('', 'Vector CVSS', c.cvss == null ? 'SIN PUNTUAR' : `v${c.cvss_version || '?'}${CVSS_SRC[c.cvss_source] ? ' · ' + CVSS_SRC[c.cvss_source].short : ''}`, 'h-cvss'),
     el('div', { class: 'panel__body' }, [
       CVSS_SRC[c.cvss_source] ? el('p', { class: 'note unscored-note' }, [el('b', { text: CVSS_SRC[c.cvss_source].title }), CVSS_SRC[c.cvss_source].text]) : null,
       ...body,
@@ -209,37 +231,21 @@ function cvssPanel(c) {
   ]);
 }
 
-function epssPanel(c) {
-  const p = c.epss_percentile;
-  return el('section', { class: 'panel', 'aria-labelledby': 'h-epss' }, [
-    panelHead('EPS-04', 'EPSS · probabilidad de explotación', '30 DÍAS', 'h-epss'),
-    el('div', { class: 'panel__body' }, c.epss == null && p == null ? [el('p', { class: 'muted-line', text: 'Sin EPSS todavía: FIRST lo calcula una vez al día.' })] : [
-      el('dl', { class: 'bignums' }, [
-        el('div', { class: 'bignum' }, [el('dt', { text: 'PROBABILIDAD' }), el('dd', { text: fmtEpss(c.epss) })]),
-        el('div', { class: 'bignum' }, [el('dt', { text: 'PERCENTIL' }), el('dd', { text: fmtPctl(p) })]),
-      ]),
-      p != null ? el('div', { class: 'pctl', 'aria-hidden': 'true', style: { '--p': (p * 100).toFixed(1) } }, [el('span', { class: 'pctl__fill' }), el('span', { class: 'pctl__mark' })]) : null,
-      p != null ? el('div', { class: 'pctl__scale', 'aria-hidden': 'true' }, ['P0', 'P50', 'P90', 'P100'].map((t) => el('span', { text: t }))) : null,
-    ]),
-  ]);
-}
-
 function kevPanel(c) {
   if (!c.kev) {
     return el('section', { class: 'panel', 'aria-labelledby': 'h-kev' }, [
-      panelHead('KEV-05', 'Catálogo KEV', 'CISA', 'h-kev'),
+      panelHead('', 'Catálogo KEV', 'CISA', 'h-kev'),
       el('div', { class: 'panel__body' }, el('p', { class: 'kev-none' }, [el('i', { 'aria-hidden': 'true' }), 'No figura en el catálogo de explotación activa.'])),
     ]);
   }
   const d = daysFromToday(c.kev.due_date);
   return el('section', { class: 'panel kev-box', 'aria-labelledby': 'h-kev' }, [
-    panelHead('KEV-05', 'Explotada · catálogo KEV', 'CISA', 'h-kev'),
+    panelHead('', 'Explotada · catálogo KEV', 'CISA', 'h-kev'),
     el('div', { class: 'panel__body' }, el('dl', { class: 'kev-grid' }, [
-      el('div', [el('dt', { text: 'AÑADIDA' }), el('dd', { text: dShort(c.kev.date_added) })]),
-      el('div', [el('dt', { text: 'FECHA LÍMITE' }), el('dd', { class: 'due', text: dShort(c.kev.due_date) })]),
+      el('div', [el('dt', { text: 'AÑADIDA' }), el('dd', { text: dDayMon(c.kev.date_added) })]),
+      el('div', [el('dt', { text: 'FECHA LÍMITE' }), el('dd', { class: 'due', text: dDayMon(c.kev.due_date) })]),
       el('div', [el('dt', { text: 'RANSOMWARE' }), el('dd', { class: 'kev-txt' + (c.kev.ransomware ? ' hot' : ''), text: c.kev.ransomware ? 'CONOCIDO' : 'NO CONSTA' })]),
       el('div', [el('dt', { text: d != null && d < 0 ? 'VENCIDA HACE' : 'QUEDAN' }), el('dd', d == null ? '—' : [nf(Math.abs(d)), el('span', { class: 'kev-unit', text: Math.abs(d) === 1 ? ' DÍA' : ' DÍAS' })])]),
-      c.kev.action ? el('div', { class: 'full' }, [el('dt', { text: 'ACCIÓN REQUERIDA' }), el('dd', { lang: 'en', text: c.kev.action })]) : null,
     ])),
   ]);
 }
@@ -256,7 +262,7 @@ function ssvcPanel(c) {
   const row = (k, name) => el('div', { class: 'metric' + (['active', 'yes', 'total'].includes(c.ssvc[k]) ? ' hot' : '') }, [
     el('dt', { text: name }), el('dd', { text: SSVC_TXT[k][c.ssvc[k]] || '—' })]);
   return el('section', { class: 'panel', 'aria-labelledby': 'h-ssvc' }, [
-    panelHead('SSV-06', 'SSVC · valoración de CISA', 'VULNRICHMENT', 'h-ssvc'),
+    panelHead('', 'SSVC · valoración de CISA', 'VULNRICHMENT', 'h-ssvc'),
     el('div', { class: 'panel__body' }, [
       el('dl', { class: 'metrics metrics--3' }, [row('exploitation', 'EXPLOTACIÓN'), row('automatable', 'AUTOMATIZABLE'), row('technical_impact', 'IMPACTO TÉCNICO')]),
       c.ssvc.exploitation === 'active' && !c.kev ? el('p', { class: 'label lk-sub', text: 'CISA LA DA POR EXPLOTADA AUNQUE AÚN NO ESTÁ EN KEV' }) : null,
@@ -311,14 +317,14 @@ function pocPanel(c) {
     for (const r of refs.slice(0, MAX_POC)) body.push(linkItem(r.url, hostPath(r.url) || 'Referencia descartada', `REFERENCIA DE NVD · ${r.tags.join(' · ')}`, null, true));
   }
   return el('section', { class: 'panel', 'aria-labelledby': 'h-poc' }, [
-    panelHead('EXP-07', 'Exploits y PoC', String(total), 'h-poc'),
+    panelHead('', 'Exploits y PoC', String(total), 'h-poc'),
     el('div', { class: 'panel__body panel__body--list' }, body),
   ]);
 }
 
 function newsPanel(c) {
   return el('section', { class: 'panel', 'aria-labelledby': 'h-nw' }, [
-    panelHead('NWS-07', 'Noticias y avisos', String(c.news.length), 'h-nw'),
+    panelHead('', 'Noticias y avisos', String(c.news.length), 'h-nw'),
     el('div', { class: 'panel__body panel__body--list' }, c.news.length
       ? c.news.map((n) => {
         const a = linkItem(n.url, n.title || 'Sin título', (n.source || '').toUpperCase());
@@ -332,7 +338,7 @@ function newsPanel(c) {
 
 function cwePanel(c) {
   return el('section', { class: 'panel', 'aria-labelledby': 'h-cwe' }, [
-    panelHead('CWE-08', 'Debilidad · CWE', '', 'h-cwe'),
+    panelHead('', 'Debilidad · CWE', '', 'h-cwe'),
     el('div', { class: 'panel__body panel__body--list' }, c.cwe.length ? c.cwe.map((w) => {
       const num = /^CWE-(\d{1,5})$/.exec(w);
       const name = CWE_NAMES[w] || (num ? 'Ver la definición en MITRE' : 'Sin descripción local');
@@ -356,7 +362,7 @@ function linksPanel(c) {
   const rank = (r) => { const i = REF_PRIORITY.findIndex((t) => r.tags.includes(t)); return i < 0 ? 99 : i; };
   const refs = c.references.filter((r) => !c.exploit_refs.some((e) => e.url === r.url)).sort((a, b) => rank(a) - rank(b)).slice(0, MAX_REFS);
   return el('section', { class: 'panel', 'aria-labelledby': 'h-lnk' }, [
-    panelHead('LNK-09', 'Fuentes y referencias', '', 'h-lnk'),
+    panelHead('', 'Fuentes y referencias', '', 'h-lnk'),
     el('div', { class: 'panel__body panel__body--list' }, [
       ...fixed.map(([u, t, s]) => extLink(u, { class: 'extl' }, [t, el('span', { text: s })])),
       refs.length ? el('p', { class: 'label lk-sub', text: `REFERENCIAS DE NVD · ${refs.length}${c.references_total > refs.length ? ` DE ${c.references_total}` : ''}` }) : null,
@@ -400,14 +406,14 @@ export function renderDetalle(root, ctx, id) {
 
   const i = list.indexOf(c), prev = list[i - 1], next = list[i + 1];
   const navBtn = (cv, label, rel) => (cv
-    ? el('a', { class: 'btn btn--ghost', href: cveHref(cv.id), rel, text: label })
-    : el('span', { class: 'btn btn--ghost', 'aria-disabled': 'true', text: label }));
+    ? el('a', { class: 'btn btn--sm', href: cveHref(cv.id), rel, text: label })
+    : el('span', { class: 'btn btn--sm', 'aria-disabled': 'true', text: label }));
   const dash = c.id.lastIndexOf('-');
 
   root.appendChild(el('nav', { class: 'crumbs', 'aria-label': 'Ruta' }, [
     el('span', { class: 'crumbs__path' }, [
       el('a', { href: '#listado', text: 'LISTADO' }), el('span', { 'aria-hidden': 'true', text: '/' }),
-      el('span', { class: 'crumbs__cur', 'aria-current': 'page', text: c.id }), el('span', { text: `Nº ${pad(i + 1)} DE ${list.length} POR SCORE` }),
+      el('span', { class: 'crumbs__cur', 'aria-current': 'page', text: c.id }), el('span', { text: `Nº ${pad(i + 1)} DE ${list.length} POR URGENCIA` }),
     ]),
     el('span', { class: 'crumbs__nav' }, [navBtn(prev, '← ANTERIOR', 'prev'), navBtn(next, 'SIGUIENTE →', 'next')]),
   ]));
@@ -420,13 +426,12 @@ export function renderDetalle(root, ctx, id) {
         if (w.pending) return el('h2', [w.sub ? `${w.sub} · ` : null, el('span', { class: 'pend', text: w.pendingText })]);
         return el('h2', [w.main, w.sub ? el('span', { text: ` · ${w.sub}` }) : null]);
       })(),
-      sevTag(c.severity), chips(c.tags, true),
     ]),
+    chips(c.tags, true),
   ]));
   root.appendChild(el('div', { class: 'det-grid' }, [
-    el('div', { class: 'det-col' }, [scorePanel(c, ed.data.scoring_weights)]),
-    el('div', { class: 'det-col' }, [descPanel(c), cvssPanel(c), epssPanel(c)]),
-    el('div', { class: 'det-col det-col--r' }, [kevPanel(c), ssvcPanel(c), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
+    el('div', { class: 'det-col' }, [decisionPanel(c, i, list.length), metricsStrip(c), descPanel(c), cvssPanel(c), ssvcPanel(c)]),
+    el('div', { class: 'det-col' }, [kevPanel(c), breakdownPanel(c, ed.data.scoring_weights), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
   ]));
 
   // La pestaña DETALLE de la navegación apunta a la última ficha vista
