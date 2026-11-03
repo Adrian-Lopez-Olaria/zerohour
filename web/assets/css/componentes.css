@@ -165,7 +165,8 @@ a.row:hover .row__id { text-decoration: underline; text-decoration-color: var(--
   .row__n { padding-top: 2px; }
   .row__main { gap: 4px; }
   .row__l1 { flex-wrap: wrap; gap: 0 8px; }
-  .row__vp { flex-basis: 100%; font-size: 13px; }
+  /* En móvil la línea del fabricante puede ocupar dos líneas: si no, «CNA vu…» corta justo la CNA */
+  .row__vp { flex-basis: 100%; font-size: 13px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .row__meta { display: none; }
   .row__l2 .chips { flex-wrap: wrap; }
   .row__score { align-self: center; }

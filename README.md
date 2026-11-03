@@ -8,6 +8,22 @@ En producción en **<https://zerohour-cve.dev>**.
 
 Todo corre gratis: el pipeline en **GitHub Actions** y la web en **Cloudflare Workers** (solo ficheros estáticos), con cabeceras de seguridad estrictas (CSP sin excepciones y Trusted Types).
 
+![Briefing de ZEROHOUR a 1440 × 900: seis contadores, el top 10 agrupado por veredicto, el globo de origen de ataques y el radar de urgencia](docs/capturas/v2-briefing-1440.png)
+
+| Móvil (390 px) | Ficha de una CVE | Listado |
+|---|---|---|
+| ![Briefing en móvil: contadores, top 5 y «Ver las 10»](docs/capturas/v2-briefing-390.png) | ![Ficha: «Qué hacer» primero, con el dial, el veredicto y las acciones](docs/capturas/v2-ficha-1440.png) | ![Listado agrupado por veredicto con buscador y filtros](docs/capturas/v2-listado-1440.png) |
+
+El diseño (v2, «consola SOC») está documentado en [`design/`](design/): la guía de estilo, la lista de cambios y el prototipo.
+
+## Qué responde cada mañana
+
+- **Qué hay que parchear hoy.** Las CVE del día puntuadas de 0 a 100 y agrupadas en cuatro veredictos: ACTUAR HOY · ESTA SEMANA · PLANIFICAR · VIGILAR.
+- **Qué se está explotando ya.** Nuevas en el catálogo KEV de CISA y CVE que CISA marca como explotadas (SSVC) antes de que entren en KEV.
+- **Qué tiene código de ataque.** Exploits verificados (Metasploit, Exploit-DB), plantillas de detección (Nuclei) y PoC públicas sin verificar, cada uno con su peso.
+- **Qué me toca a mí.** Las que afectan a tu stack (`config.toml`).
+- **Desde dónde atacan.** Un globo con el origen de los ataques que ven los sensores de DShield, por país, y los puertos más atacados.
+
 ## Fuentes
 
 Doce fuentes de datos, más prensa especializada y geolocalización offline:
@@ -29,16 +45,30 @@ Doce fuentes de datos, más prensa especializada y geolocalización offline:
 >
 > This product uses the NVD API but is not endorsed or certified by the NVD.
 
-## Cómo se publica
+## Arquitectura
 
 ```
-main  ──(código: web/, scripts/, config.toml)──────────────┐
-                                                           ▼
-GitHub Actions ─ recolectar (solo lectura) ─ validar ─ publicar (solo escribe en deploy)
-                                                           │  commit huérfano + force-push
-                                                           ▼
-deploy  ──(web/ + web/data/ + web/_headers + wrangler.jsonc)──► desplegar ─ wrangler ─► Cloudflare
+ Fuentes públicas (NVD, CVE.org, CISA KEV, EPSS, GHSA, Metasploit, Nuclei, Exploit-DB,
+ PoC-in-GitHub, RSS de INCIBE-CERT / CERT-EU / prensa, SANS ISC) + DB-IP Lite (offline)
+                │  HTTPS, todo tratado como hostil
+                ▼
+ ┌──────────────────────────── GitHub Actions (cron 05:17 UTC y cada 3 h) ───────────────────┐
+ │ recolectar · contents: read   radar.py → data/*.json → validar_datos.py → artifact        │
+ │ publicar   · contents: write  montar_deploy.py: web/ + datos + _headers (de netlify.toml)  │
+ │                               → commit huérfano y force-push SOLO a la rama deploy         │
+ │ desplegar  · contents: read   wrangler deploy de ese commit exacto (entorno «cloudflare»)  │
+ └────────────────────────────────────────────────────────────────────────────────────────────┘
+                ▼
+ Cloudflare Workers (solo ficheros estáticos, sin código de Worker) · https://zerohour-cve.dev
+                ▼
+ Navegador: HTML + ES modules sin build, CSP estricta con Trusted Types. Los JSON se pintan
+ con createElement/textContent; globe.gl y three.js autoalojados y cargados en diferido.
 ```
+
+- **Sin backend ni base de datos.** Todo lo que ve la web son JSON estáticos regenerados por el workflow.
+- **Sin paso de build en el frontend.** `web/` se publica tal cual (módulos ES nativos); no hay npm en la web.
+
+## Cómo se publica
 
 - **`main` solo tiene código.** Los datos nunca se suben a `main`, así que su historial no crece cada día.
 - **`deploy` es el sitio ya montado** y tiene siempre **un único commit**: cada publicación lo reemplaza con un commit huérfano y *force-push*. El *force-push* solo existe hacia `deploy`: el destino está fijado en `scripts/publicar_deploy.sh` y un test lo comprueba.
@@ -62,7 +92,7 @@ deploy  ──(web/ + web/data/ + web/_headers + wrangler.jsonc)──► desple
 
 ```bash
 python -m venv .venv && . .venv/bin/activate      # en Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
+pip install --require-hashes -r requirements-dev.txt
 export NVD_API_KEY=tu_clave                        # opcional
 python scripts/radar.py daily                      # informe del día → data/
 python scripts/radar.py map                        # mapa de ataques → data/map.json
@@ -79,7 +109,7 @@ python -m pytest tests/pipeline                    # tests del pipeline, la publ
 
 - **`[stack]`**: palabras que marcan una CVE con ⭐ "afecta a mi stack". Cuentan si aparecen en fabricante, producto, CNA o CPE (fabricante:producto) o en la descripción.
 - **`[stack.excluir]`**: patrones por palabra que anulan la coincidencia en la descripción. Por ejemplo, "wordpress" no cuenta en "The X plugin for WordPress…" (un plugin de terceros), pero sí en un fallo de WordPress core aunque aún no tenga CPE.
-- **`[[fabricante]]`**: patrones para deducir fabricante y producto de la descripción cuando NVD aún no los da (p. ej. "Plugin WordPress · X"). Si ninguno casa, la web muestra el CNA que publicó la CVE.
+- **`[[fabricante]]`**: patrones para deducir fabricante y producto de la descripción cuando NVD aún no los da (p. ej. "Plugin WordPress · X"). Si ninguno casa, `vendor` queda vacío y la CNA va en su propio campo: la web muestra «Fabricante pendiente en NVD · CNA x» y el radar agrupa esas CVE en el sector «SIN FABRICANTE». La CNA nunca se presenta como fabricante.
 - **`[marcas]`**: grafía correcta de marcas (GitLab, VMware ESXi, FortiOS, pfSense…). Lo que no está en el mapa se deja como venga.
 - **`[puntuacion]`** y **`[puntuacion.minimos]`**: pesos y mínimos de la puntuación (ver abajo).
 - **`[[rss]]`**: añade o quita fuentes de avisos y noticias.
@@ -174,13 +204,15 @@ El pipeline escribe en `data/` (ignorada por git). Al publicar, `scripts/montar_
 ```jsonc
 {
   "updated_at": "…",
+  "data_day": "2026-11-03",
+  "note": "Ranking de DShield: las 2000 IPs con más ataques acumulados entre las que siguen activas el 2026-11-03…",
   "points": [ { "lat": 39.9, "lon": 116.4, "country": "China", "cc": "CN", "attacks": 15230, "sources": 12 } ],
   "by_country": [ { "cc": "CN", "country": "China", "attacks": 80000, "sources": 40 } ],
   "top_ports": [ { "port": 23, "records": 500000, "sources": 9000, "targets": 30000 } ]
 }
 ```
 
-> El mapa muestra IPs que más atacan según los sensores de DShield, agregadas por zona (no se publican IPs). Se actualiza cada 3 horas; el efecto "en directo" lo pone la animación del frontend.
+> **Qué es (y qué no es) el mapa.** `sources/attacks/{n}/{fecha}` de SANS ISC no es un top del día: es el ranking acumulado de DShield (IPs vistas desde hace años) filtrado a las que siguen activas desde esa fecha. Se piden 2000 IPs (`[mapa] ips`), se geolocalizan offline con DB-IP y se agregan por zona y país; **no se publica ninguna IP**. Por eso la web lo rotula «RANKING DSHIELD · IPS ACTIVAS HOY» y no «últimas 24 horas». Si un día salen menos de 10 países, el job deja un aviso en GitHub Actions. Se actualiza cada 3 horas.
 
 ## Seguridad
 
@@ -200,7 +232,17 @@ Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y
 - **Librerías de terceros.**
   - globe.gl y three.js van autoalojados, en versión fija, con su SHA-256 en `web/assets/vendor/VERSIONS.md`.
   - La copia está parcheada para cumplir la CSP con un script reproducible (`scripts/vendor_globe.py --check`).
-- **Divulgación responsable.** Ver [`SECURITY.md`](SECURITY.md) y `/.well-known/security.txt` (RFC 9116).
+- **Cadena de suministro y CI.**
+  - Acciones de GitHub fijadas por SHA (con la versión en un comentario) y un test que lo exige.
+  - Dependencias de Python con versión exacta y hashes SHA-256 (`requirements.in` → `pip-compile --generate-hashes`), instaladas con `--require-hashes`.
+  - wrangler con versión exacta y lockfile con integridad, instalado con `npm ci --ignore-scripts` en un job que solo puede leer el repo.
+  - Dependabot semanal con 14 días de espera para versiones recién publicadas.
+  - Permisos mínimos por job (`permissions: {}` por defecto); el token de Cloudflare solo tiene «Workers Scripts: Edit», vive en un entorno restringido a `main` y solo lo ve el paso que despliega.
+- **Divulgación responsable.** Ver [`SECURITY.md`](SECURITY.md) y [`/.well-known/security.txt`](https://zerohour-cve.dev/.well-known/security.txt) (RFC 9116).
+
+## Licencia
+
+El código es [MIT](LICENSE). Los datos son de sus fuentes, con sus condiciones: geolocalización de [DB-IP](https://db-ip.com) (CC BY 4.0); *This product uses the NVD API but is not endorsed or certified by the NVD.*
 
 ## Ideas para seguir
 
