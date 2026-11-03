@@ -74,36 +74,34 @@
 @keyframes gm-ring { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .gm__ring, .ff-ring { display: none; } }
 
-/* ---------- Radar ---------- */
-.radar { display: block; width: 100%; height: auto; }
+/* ---------- Radar de urgencia (cambios-v2 §8) ---------- */
+.radarp .panel__body { display: grid; gap: 8px; justify-items: center; align-content: start; }
+.radar { display: block; width: 100%; max-width: 300px; height: auto; }
 .radar__disc { fill: #0C1117; stroke: var(--line-3); }
 .radar__tick { stroke: var(--line-2); }
 .radar__tick--major { stroke: var(--line-3); }
 .radar__sector { stroke: var(--line-1); }
-.radar__lbl { font-family: var(--f-mono); font-size: 7.5px; letter-spacing: .6px; fill: var(--text-3); }
+.radar__lbl { font-family: var(--f-mono); font-size: 14px; fill: var(--text-2); }
+.radar__lbl--none { fill: var(--text-3); }
 .radar__ring { fill: none; stroke: var(--line-2); }
 .radar__ring--hoy { stroke: rgba(255, 79, 109, .6); stroke-dasharray: 2 3; }
-.radar__ringlbl { font-family: var(--f-mono); font-size: 6.5px; letter-spacing: .5px; fill: var(--text-3); }
-.radar__ringlbl--hoy { fill: var(--sev-critical); }
-.radar__beam { stroke: var(--ok); stroke-opacity: .75; }
+.radar__ringlbl { font-family: var(--f-mono); font-size: 11.5px; fill: var(--text-3); }
+.radar__ringlbl--hoy { fill: var(--kev-title); }
+.radar__beam { stroke: var(--ok); stroke-opacity: .8; }
 .radar__center { fill: var(--ok); }
 .radar__sweep { transform-origin: 150px 150px; animation: spin var(--t-radar) linear infinite; }
 .blip .hit { fill: transparent; }
-.blip--critical .core { fill: var(--sev-critical); } .blip--high .core { fill: var(--sev-high); }
-.blip--medium .core { fill: var(--sev-medium); } .blip--low .core { fill: var(--sev-low); }
-.blip .core { transform-box: fill-box; transform-origin: center; animation: blip var(--t-radar) linear infinite; animation-delay: var(--delay); }
-.blip:hover .core, .blip:focus .core { stroke: var(--text-1); stroke-width: 1.5; }
+.blip .core { fill: var(--vc); transform-box: fill-box; transform-origin: center; animation: blip var(--t-radar) linear infinite; animation-delay: var(--delay); }
 .blip:focus { outline: none; }
-.blip:focus-visible .hit { stroke: var(--ok); stroke-width: 1.5; }
-@keyframes blip { 0% { transform: scale(1.9); opacity: 1; } 8% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: .35; } }
-.radar-legend { display: grid; gap: 4px; padding: 0 18px 16px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; letter-spacing: .06em; color: var(--text-3); }
-.radar-legend b { color: var(--text-1); font-weight: 500; }
-.radar-legend a { color: var(--sev-critical); text-decoration: none; }
-.radar-legend a:hover { text-decoration: underline; }
-.radar-tip { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10px; min-height: 16px; color: var(--text-1); padding: 0 18px 4px; }
-
-.radarp .panel__body { display: grid; gap: 8px; justify-items: center; align-content: start; }
-.radarp .radar { max-width: 300px; }
+.blip:hover .hit, .blip:focus-visible .hit { stroke: var(--text-1); stroke-width: 1.2; }
+@keyframes blip { 0% { transform: scale(1.8); opacity: 1; } 8% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: .45; } }
+.radar-tip { min-height: 18px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-1); text-align: center; }
+.radar-legend { width: 100%; display: grid; gap: 6px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.vdist { display: grid; margin: 0; padding: 0; list-style: none; }
+.vdist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-1); }
+.vdist li:last-child { border-bottom: 0; }
+.vdist b { font-family: var(--f-mono); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.vdist li.is-zero .vtag, .vdist li.is-zero b { opacity: .5; }
 
 /* ---------- Resumen del día ---------- */
 .sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }

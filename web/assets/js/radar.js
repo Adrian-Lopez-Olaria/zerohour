@@ -1,16 +1,19 @@
 /* =============================================================================
    radar.js · radar de urgencia del top 10
-   Distancia al centro = urgencia (centro = 100) · ángulo = fabricante (guía §5).
+   Distancia al centro = urgencia (centro = 100) · ángulo = fabricante.
    SVG montado con svg(): los colores y la tipografía van por clase CSS, nada inline.
+   v2 (cambios-v2 §8): nombres de sector legibles (14 u, 9 caracteres), anillos a
+   11,5 u, viewBox más ancho y, debajo, cómo se lee + reparto del top por veredicto.
+   Un sector NUNCA se llama como una CNA: sin fabricante → «SIN FABRICANTE».
    ============================================================================= */
 import { el, svg, frag } from './util/dom.js';
-import { scoreBand } from './util/format.js';
-import { cveHref } from './render/comunes.js';
+import { cveHref, isProv, VERDICTS, verdictOf, vtag } from './render/comunes.js';
 
 const C = 150;                        // centro en un lienzo de 300
 const R = 118;                        // radio útil
 const SWEEP_S = 6;                    // = --t-radar; sincroniza el destello de cada blip
 const RINGS = [[85, 'HOY'], [70, 'SEMANA'], [40, 'PLANIF.']];
+export const NO_VENDOR = 'SIN FABRICANTE';
 
 const rOf = (s) => 6 + (100 - s) / 100 * (R - 6);
 const f1 = (n) => n.toFixed(1);
@@ -18,10 +21,20 @@ function polar(r, deg) {
   const t = deg * Math.PI / 180;
   return [C + r * Math.sin(t), C - r * Math.cos(t)];
 }
-// Sin fabricante en NVD: se agrupa por el CNA que la publicó (p. ej. vuldb.com)
-const vendorOf = (c) => c.vendor || c.cna || 'Sin fabricante';
+export const vendorOf = (c) => c.vendor || NO_VENDOR;
 
-/** Devuelve un fragmento: SVG del radar + línea de estado + leyenda. */
+/** Nombre del sector: 9 caracteres; «SIN FABRICANTE» en dos líneas, entero. */
+function sectorLabel(v, x, y, anchor) {
+  const name = v.toUpperCase();
+  if (v === NO_VENDOR) {
+    return svg('text', { class: 'radar__lbl radar__lbl--none', x: f1(x), y: f1(y - 4), 'text-anchor': anchor }, [
+      svg('tspan', { x: f1(x), text: 'SIN' }), svg('tspan', { x: f1(x), dy: '15', text: 'FABRICANTE' }),
+    ]);
+  }
+  return svg('text', { class: 'radar__lbl', x: f1(x), y: f1(y + 5), 'text-anchor': anchor, text: name.slice(0, 9) }, name.length > 9 ? svg('title', { text: v }) : null);
+}
+
+/** Devuelve un fragmento: SVG del radar + línea de estado + leyenda con el reparto. */
 export function renderRadar(top) {
   const vendors = [...new Set(top.map(vendorOf))].sort((a, b) => a.localeCompare(b, 'es'));
   const sect = 360 / vendors.length;
@@ -32,20 +45,20 @@ export function renderRadar(top) {
   const seen = {};
 
   const blips = top.map((c) => {
-    const v = vendorOf(c);
+    const v = vendorOf(c), vd = verdictOf(c.score);
     const n = (seen[v] = (seen[v] || 0) + 1);
     // Cada CVE del mismo fabricante ocupa su propia fracción del sector
     const ang = vendors.indexOf(v) * sect + sect * (n - 0.5) / perVendor[v];
     const [x, y] = polar(rOf(c.score), ang);
-    const size = c.score >= 85 ? 5 : c.score >= 70 ? 4 : 3.2;
+    const size = c.score >= 85 ? 5 : c.score >= 70 ? 4.2 : 3.4;
     const label = `${c.id} · ${v} · ${c.score}`;
     const href = cveHref(c.id);
     const show = () => { tip.textContent = label; };
     const hide = () => { tip.textContent = ''; };
     return svg(href ? 'a' : 'g', {
-      class: `blip blip--${scoreBand(c.score)}`,
+      class: `blip v-${vd.key}`,
       href,
-      'aria-label': href ? `${c.id}, ${v}, score ${c.score}` : null,
+      'aria-label': href ? `${c.id}, ${v.toLowerCase()}, score ${c.score}${isProv(c) ? ' provisional' : ''}, ${vd.label.toLowerCase()}` : null,
       style: { '--delay': `${f1(ang / 360 * SWEEP_S)}s` },
       on: { mouseenter: show, focus: show, mouseleave: hide, blur: hide },
     }, [
@@ -63,11 +76,11 @@ export function renderRadar(top) {
   const sectors = vendors.flatMap((v, i) => {
     const a = i * sect, mid = (a + sect / 2) * Math.PI / 180;
     const [x2, y2] = polar(R, a);
-    const lx = C + (R + 15) * Math.sin(mid), ly = C - (R + 15) * Math.cos(mid);
+    const lx = C + (R + 12) * Math.sin(mid), ly = C - (R + 12) * Math.cos(mid);
     const anchor = Math.abs(Math.sin(mid)) < 0.2 ? 'middle' : Math.sin(mid) > 0 ? 'start' : 'end';
     return [
-      svg('line', { class: 'radar__sector', x1: C, y1: C, x2: f1(x2), y2: f1(y2) }),
-      svg('text', { class: 'radar__lbl', x: f1(lx), y: f1(ly + 3), 'text-anchor': anchor, text: v.toUpperCase().slice(0, 9) }),
+      vendors.length > 1 ? svg('line', { class: 'radar__sector', x1: C, y1: C, x2: f1(x2), y2: f1(y2) }) : null,
+      sectorLabel(v, lx, ly, anchor),
     ];
   });
 
@@ -75,20 +88,21 @@ export function renderRadar(top) {
     const hoy = s === 85;
     return [
       svg('circle', { class: 'radar__ring' + (hoy ? ' radar__ring--hoy' : ''), cx: C, cy: C, r: f1(rOf(s)) }),
-      svg('text', { class: 'radar__ringlbl' + (hoy ? ' radar__ringlbl--hoy' : ''), x: C + 3, y: f1(C - rOf(s) - 3), text: `${s} ${l}` }),
+      svg('text', { class: 'radar__ringlbl' + (hoy ? ' radar__ringlbl--hoy' : ''), x: C + 3, y: f1(C - rOf(s) - 3), text: l }),
     ];
   });
 
   const [sx, sy] = polar(R, -0.62 * 180 / Math.PI); // cuña de ~35° detrás de la línea de barrido
-  const inner = top.filter((c) => c.score >= 85);
+  const dist = VERDICTS.map((v) => [v, top.filter((c) => verdictOf(c.score) === v).length]);
 
   const radar = svg('svg', {
-    class: 'radar', viewBox: '-34 -4 368 308', role: 'group',
-    'aria-label': `Radar de urgencia: ${top.length} CVE del top. Distancia al centro según el score (centro = 100) y ángulo según el fabricante. ${inner.length} en el anillo interior (score 85 o más).`,
+    class: 'radar', viewBox: '-80 -18 460 336', role: 'group',
+    'aria-label': `Radar de urgencia: ${top.length} CVE del top. Distancia al centro según el score (centro = 100) y ángulo según el fabricante. `
+      + dist.filter(([, n]) => n).map(([v, n]) => `${v.label.toLowerCase()}: ${n}`).join(', ') + '.',
   }, [
     svg('defs', [svg('linearGradient', { id: 'zh-radar-sw', x1: 0, y1: 0, x2: 1, y2: 0 }, [
       svg('stop', { offset: 0, 'stop-color': '#38D996', 'stop-opacity': 0 }),
-      svg('stop', { offset: 1, 'stop-color': '#38D996', 'stop-opacity': 0.28 }),
+      svg('stop', { offset: 1, 'stop-color': '#38D996', 'stop-opacity': 0.22 }),
     ])]),
     svg('circle', { class: 'radar__disc', cx: C, cy: C, r: R }),
     ...ticks, ...sectors, ...rings,
@@ -100,19 +114,14 @@ export function renderRadar(top) {
     ...blips,
   ]);
 
-  const innerList = inner.length
-    ? inner.flatMap((c, i) => {
-      const href = cveHref(c.id), txt = c.id.replace(/^CVE-/, '');
-      return [i ? ' · ' : null, href ? el('a', { href, text: txt }) : txt];
-    })
-    : [el('b', { text: 'vacío' })];
-
   return frag([
     radar,
     tip,
     el('div', { class: 'radar-legend' }, [
-      el('span', { text: 'DISTANCIA = URGENCIA (CENTRO = 100) · ÁNGULO = FABRICANTE' }),
-      el('span', ['ANILLO INTERIOR: ', ...innerList]),
+      el('span', { text: 'Cuanto más al centro, más urgente. Cada sector es un fabricante.' }),
+      el('ul', { class: 'vdist', 'aria-label': 'Reparto del top por veredicto' }, dist.map(([v, n]) =>
+        el('li', { class: n ? null : 'is-zero' }, [vtag(v), el('b', { text: String(n) })]))),
+      top.some(isProv) ? el('span', { text: '* Score provisional: NVD aún no ha puntuado la CVE.' }) : null,
     ]),
   ]);
 }
