@@ -6,6 +6,12 @@
      política; solo script-src 'self'.
    - Sin WebGL, o si la librería/tierra no llegan en 9 s → proyección plana.
    - Se pausa cuando no está en pantalla (vista oculta, scroll o pestaña).
+   v2 (cambios-v2 §6):
+   - Un marcador por país (suma de ataques, en su zona con más ataques).
+   - Escala logarítmica relativa al día: tamaño 6 + t·14 px y color por tramo
+     (t ≥ 0,72 alto · ≥ 0,40 medio · resto bajo); la leyenda lo traduce a cifras.
+   - Etiquetas solo para 6 países y nunca dos a menos de 9°; ondas para 12.
+   - Zoom: botones + / − / ⌖, pellizco y Ctrl + rueda (la rueda sola hace scroll).
    ============================================================================= */
 import { el, svg, clear } from './util/dom.js';
 import { nf, prefersReducedMotion } from './util/format.js';
@@ -14,14 +20,66 @@ const LIB_URL = new URL('../vendor/globe.gl-2.46.2.zh.min.js', import.meta.url).
 const LIB_CSS = new URL('../vendor/globe.gl-2.46.2.zh.css', import.meta.url).href;
 const LAND_URL = new URL('../geo/tierra.json', import.meta.url).href;
 const TIMEOUT_MS = 9000;
-const ROTATE_SPEED = 0.35;
-const ATTACK_HEX = { hi: '#FF4F6D', mid: '#FFB547', lo: '#4CF2A3' };   // = --sev-critical / --warn / --ok (WebGL no lee variables CSS)
+const ROTATE_SPEED = 0.3;
+const ALT_MIN = 0.45, ALT_MAX = 3.2, ZOOM_STEP = 0.45;
+const HOME = { lat: 30, lng: 10 };
+const MAX_LABELS = 6, MAX_RINGS = 12, LABEL_MIN_DEG = 9;
+// = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
+const TIER_HEX = { hi: '#FF4F6D', mid: '#F5B544', lo: '#6CB6FF' };
 
-export const attackBand = (n) => (n >= 3000 ? 'hi' : n >= 1000 ? 'mid' : 'lo');
-const attackSize = (n) => Math.round(7 + Math.sqrt(n) / 5);          // px · 290 → 10 px · 4.812 → 21 px
 const narrow = () => innerWidth < 760;
+const S = { zone: null, mode: null, globe: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), flatZoom: 1 };
 
-const S = { zone: null, mode: null, globe: null, map: null, land: null, reduced: false, scheduled: false };
+/* ───────── escala: por país, logarítmica y relativa al día ───────── */
+
+/** Un marcador por país: suma de ataques, colocado en la zona de ese país con más ataques. */
+export function countryMarkers(map) {
+  const by = new Map();
+  for (const p of (map ? map.points : [])) {
+    let m = by.get(p.cc);
+    if (!m) { m = { cc: p.cc, country: p.country, attacks: 0, lat: p.lat, lon: p.lon, best: -1 }; by.set(p.cc, m); }
+    m.attacks += p.attacks;
+    if (p.attacks > m.best) { m.best = p.attacks; m.lat = p.lat; m.lon = p.lon; }
+  }
+  return [...by.values()].sort((a, b) => b.attacks - a.attacks);
+}
+
+/** Escala del día: t = (log10(a+1) − min) / (max − min), con min y max de los países. */
+export function makeScale(markers) {
+  const v = markers.map((m) => Math.log10(m.attacks + 1));
+  const lo = v.length ? Math.min(...v) : 0;
+  const hi = v.length ? Math.max(...v, lo + 0.001) : 1;
+  const t = (a) => Math.max(0, Math.min(1, (Math.log10(a + 1) - lo) / (hi - lo)));
+  return {
+    t,
+    tier: (a) => { const x = t(a); return x >= 0.72 ? 'hi' : x >= 0.4 ? 'mid' : 'lo'; },
+    size: (a) => Math.round((6 + t(a) * 14) * (narrow() ? 0.75 : 1)),
+    threshold: (x) => Math.round(Math.pow(10, lo + x * (hi - lo)) - 1),   // ataques en el corte x
+  };
+}
+let SCALE = makeScale([]);
+
+/** «1,2K», «385K», «1,4M». */
+export const kfmt = (v) => (v >= 1e6 ? nf(v / 1e6, 1) + 'M' : v >= 1e4 ? nf(v / 1e3, 0) + 'K' : v >= 1e3 ? nf(v / 1e3, 1) + 'K' : nf(v));
+
+/** Etiquetas: los 6 primeros países que no queden a menos de 9° de otro ya etiquetado (NL/DE…). */
+export function labelSet(markers) {
+  const out = new Set(), placed = [];
+  for (const m of markers) {
+    if (out.size >= MAX_LABELS) break;
+    if (placed.some((p) => Math.hypot(p.lat - m.lat, (p.lon - m.lon) * Math.cos(m.lat * Math.PI / 180)) < LABEL_MIN_DEG)) continue;
+    out.add(m); placed.push(m);
+  }
+  return out;
+}
+
+function setData(map) {
+  S.map = map;
+  S.markers = countryMarkers(map);
+  SCALE = makeScale(S.markers);
+  S.labels = labelSet(S.markers);
+  renderLegend();
+}
 
 /* ───────── tierra ───────── */
 
@@ -78,59 +136,78 @@ function loadLibCss() {
   document.head.appendChild(el('link', { rel: 'stylesheet', href: LIB_CSS, dataset: { zh: 'globe-css' } }));
 }
 
-const sortedPoints = (map) => (map ? map.points.slice().sort((a, b) => b.attacks - a.attacks) : []);
+/** Leyenda: los cortes del día en cifras reales y cómo hacer zoom según el dispositivo. */
+function renderLegend() {
+  const lg = S.zone && S.zone.querySelector('#map-legend');
+  if (!lg) return;
+  clear(lg);
+  if (!S.markers.length) return;
+  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  lg.append(
+    el('span', { class: 'map-legend__keys' }, [
+      el('span', [el('i', { class: 'lg-hi' }), `≥ ${kfmt(SCALE.threshold(0.72))}`]),
+      el('span', [el('i', { class: 'lg-mid' }), `≥ ${kfmt(SCALE.threshold(0.4))}`]),
+      el('span', [el('i', { class: 'lg-lo' }), 'menos']),
+    ]),
+    el('span', { text: coarse ? 'Arrastra para girar · pellizca para zoom' : 'Arrastra para girar · Ctrl + rueda para zoom' }),
+  );
+}
 
 /* ───────── globo 3D ───────── */
 
-function markerEl(p, i) {
+function markerEl(m, i) {
   return el('div', {
-    class: `gm gm--${attackBand(p.attacks)}`,
-    style: {
-      '--s': `${Math.round(attackSize(p.attacks) * (narrow() ? 0.65 : 1))}px`,
-      '--d': `${S.reduced ? 0 : 600 + i * 90}ms`,
-    },
+    class: `gm gm--${SCALE.tier(m.attacks)}`,
+    style: { '--s': `${SCALE.size(m.attacks)}px`, '--d': `${(i * 0.17).toFixed(2)}s` },
   }, [
-    el('span', { class: 'gm__ring' }),
-    el('span', { class: 'gm__ring gm__ring--2' }),
+    i < MAX_RINGS ? el('span', { class: 'gm__ring' }) : null,
     el('span', { class: 'gm__dot' }),
-    p.attacks >= 2000 ? el('span', { class: 'gm__lbl' }, [`${p.cc} `, el('em', { text: `${nf(p.attacks / 1000, 1)}K` })]) : null,
+    S.labels.has(m) ? el('span', { class: 'gm__lbl' }, [m.cc, el('em', { text: kfmt(m.attacks) })]) : null,
   ]);
 }
 
-function setGlobeData(map) {
-  const pts = sortedPoints(map);
-  const idx = new Map(pts.map((p, i) => [p, i]));
+function setGlobeData() {
+  const ms = S.markers;
   S.globe
-    .ringsData(S.reduced ? [] : pts)
-    .htmlElementsData(pts)
-    .htmlElement((p) => markerEl(p, idx.get(p) || 0));
+    .ringsData(S.reduced ? [] : ms.slice(0, MAX_RINGS))
+    .htmlElementsData(ms)
+    .htmlElement((m) => markerEl(m, ms.indexOf(m)));
+}
+
+/** Altitud de la vista inicial según la forma del panel: en uno alto y estrecho, más lejos. */
+function baseAlt(host) {
+  const r = host.clientWidth ? host.clientHeight / host.clientWidth : 1;
+  return Math.min(ALT_MAX, Math.max(1.9, 1.8 * r));
 }
 
 function createGlobe() {
   const Globe = globalThis.Globe;
   if (typeof Globe !== 'function') throw new Error('globe.gl no se registró');
   const host = S.zone.querySelector('#globe');
-  const g = Globe({ animateIn: !S.reduced })(host)
+  const g = Globe({ animateIn: false })(host)
     .width(host.clientWidth).height(host.clientHeight)
     .backgroundColor('rgba(0,0,0,0)')
     .enablePointerInteraction(false)          // sin hover/tooltip: menos coste y ninguna ruta hacia innerHTML
-    .showAtmosphere(true).atmosphereColor('#4CF2A3').atmosphereAltitude(0.13)
+    .showAtmosphere(true).atmosphereColor('#3D7FB8').atmosphereAltitude(0.1)
     .showGraticules(true)
     .pointsData(S.land).pointLat('lat').pointLng('lng').pointAltitude(0.002).pointRadius(0.36).pointResolution(5)
-    .pointColor(() => 'rgba(159,217,196,0.5)').pointsMerge(true)
-    .ringLat('lat').ringLng('lon').ringAltitude(0.003).ringPropagationSpeed(1.4)
-    .ringColor((p) => { const c = ATTACK_HEX[attackBand(p.attacks)]; return (t) => c + Math.round((1 - t) * 200).toString(16).padStart(2, '0'); })
-    .ringMaxRadius((p) => 1.6 + Math.sqrt(p.attacks) / 18)
-    .ringRepeatPeriod((p) => Math.max(900, 2600 - Math.sqrt(p.attacks) * 18))
+    .pointColor(() => 'rgba(126,152,178,0.5)').pointsMerge(true)
+    .ringLat('lat').ringLng('lon').ringAltitude(0.003).ringPropagationSpeed(1.2).ringRepeatPeriod(2200)
+    .ringColor((m) => { const c = TIER_HEX[SCALE.tier(m.attacks)]; return (t) => c + Math.round((1 - t) * 180).toString(16).padStart(2, '0'); })
+    .ringMaxRadius((m) => 1.2 + SCALE.t(m.attacks) * 3.4)
     .htmlLat('lat').htmlLng('lon').htmlAltitude(0.01)
-    .pointOfView({ lat: 28, lng: 12, altitude: narrow() ? 2.55 : 2.35 }, 0);
+    .pointOfView({ ...HOME, altitude: baseAlt(host) }, 0);
   S.globe = g;
-  setGlobeData(S.map);
+  setGlobeData();
 
   const mat = g.globeMaterial();
-  if (mat && mat.color) { mat.color.set('#071312'); if (mat.emissive) mat.emissive.set('#030807'); if ('shininess' in mat) mat.shininess = 4; }
+  if (mat && mat.color) { mat.color.set('#0E151D'); if (mat.emissive) mat.emissive.set('#05080B'); if ('shininess' in mat) mat.shininess = 2; }
   const ctr = g.controls();
-  ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enableZoom = false; ctr.enablePan = false;
+  ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enablePan = false;
+  ctr.enableZoom = true; ctr.minDistance = 100 * (1 + ALT_MIN); ctr.maxDistance = 100 * (1 + ALT_MAX);
+  // La rueda sin Ctrl hace scroll de la página (el globo no la «atrapa»); con Ctrl, zoom. El pellizco siempre.
+  host.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
+  host.addEventListener('pointerdown', () => { ctr.autoRotate = false; });
 
   // Solo se dibuja cuando se ve: vista oculta, fuera de pantalla o pestaña en segundo plano → pausa
   let onScreen = true;
@@ -139,16 +216,12 @@ function createGlobe() {
   document.addEventListener('visibilitychange', sync);
 
   // Redimensionar un canvas lo borra: aunque esté en pausa, se pinta un fotograma con el
-  // tamaño nuevo (globo y marcadores) y después se vuelve al estado que toque.
+  // tamaño nuevo y después se vuelve al estado que toque.
   let wasNarrow = narrow();
   new ResizeObserver(() => {
     if (!host.clientWidth) return;
     g.width(host.clientWidth).height(host.clientHeight);
-    if (narrow() !== wasNarrow) {               // p. ej. al girar una tablet: tamaño de marcador y distancia de cámara
-      wasNarrow = narrow();
-      setGlobeData(S.map);
-      g.pointOfView({ altitude: wasNarrow ? 2.55 : 2.35 }, 0);
-    }
+    if (narrow() !== wasNarrow) { wasNarrow = narrow(); setGlobeData(); }   // tamaño de marcador en móvil
     g.resumeAnimation();
     requestAnimationFrame(() => requestAnimationFrame(sync));
   }).observe(host);
@@ -158,21 +231,72 @@ function createGlobe() {
   S.zone.classList.remove('is-flat');
 }
 
+/* ───────── zoom (botones) ───────── */
+
+function zoomBy(d) {
+  if (S.mode === 'globe' && S.globe) {
+    const p = S.globe.pointOfView();
+    S.globe.pointOfView({ altitude: Math.min(ALT_MAX, Math.max(ALT_MIN, p.altitude + d)) }, S.reduced ? 0 : 400);
+    S.globe.controls().autoRotate = false;
+    S.globe.resumeAnimation();
+  } else if (S.mode === 'flat') {
+    S.flatZoom = Math.min(4, Math.max(1, S.flatZoom * (d < 0 ? 1.5 : 1 / 1.5)));
+    applyFlatZoom();
+  }
+}
+
+function resetView() {
+  if (S.mode === 'globe' && S.globe) {
+    S.globe.pointOfView({ ...HOME, altitude: baseAlt(S.zone.querySelector('#globe')) }, S.reduced ? 0 : 600);
+    S.globe.controls().autoRotate = !S.reduced;
+    S.globe.resumeAnimation();
+  } else if (S.mode === 'flat') {
+    S.flatZoom = 1;
+    applyFlatZoom();
+  }
+}
+
+/** Botones + / − / ⌖ (36 px). Funcionan igual en el globo y en la vista plana. */
+export function zoomControls() {
+  const btn = (label, ic, fn) => el('button', { type: 'button', 'aria-label': label, title: label, on: { click: fn } }, zoomIcon(ic));
+  return el('div', { class: 'zoom', role: 'group', 'aria-label': 'Zoom del mapa' }, [
+    btn('Acercar', 'plus', () => zoomBy(-ZOOM_STEP)),
+    btn('Alejar', 'minus', () => zoomBy(ZOOM_STEP)),
+    btn('Restablecer la vista', 'reset', resetView),
+  ]);
+}
+const ZOOM_ICON = { plus: 'M8 2.5v11M2.5 8h11', minus: 'M2.5 8h11', reset: 'M8 2.5v3M8 10.5v3M2.5 8h3M10.5 8h3' };
+function zoomIcon(k) {
+  return svg('svg', { viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'square', 'aria-hidden': 'true', focusable: 'false' }, [
+    k === 'reset' ? svg('circle', { cx: 8, cy: 8, r: 5.5 }) : null,
+    svg('path', { d: ZOOM_ICON[k] }),
+  ]);
+}
+
 /* ───────── vista plana (respaldo) ───────── */
 
 const W = 720, H = 300;
 const px = (lng) => (lng + 180) / 360 * W;
 const py = (lat) => (82 - lat) / 140 * H;
 
-function flatMarks(map) {
-  return svg('g', { class: 'ff-marks' }, sortedPoints(map).flatMap((p, i) => {
-    const r = (attackSize(p.attacks) / 2.2).toFixed(1), x = px(p.lon).toFixed(1), y = py(p.lat).toFixed(1);
-    const band = attackBand(p.attacks);
-    return [
-      svg('circle', { class: `ff-ring ff--${band}`, cx: x, cy: y, r, style: { '--d': `${(i * 0.13).toFixed(2)}s` } }),
-      svg('circle', { class: `ff-dot ff--${band}`, cx: x, cy: y, r }),
-    ];
+function flatMarks() {
+  return svg('g', { class: 'ff-marks' }, S.markers.map((m, i) => {
+    const r = (SCALE.size(m.attacks) / 2.6).toFixed(1), x = px(m.lon), y = py(m.lat);
+    const tier = SCALE.tier(m.attacks);
+    return svg('g', [
+      i < MAX_RINGS ? svg('circle', { class: `ff-ring ff--${tier}`, cx: x.toFixed(1), cy: y.toFixed(1), r, style: { '--d': `${(i * 0.17).toFixed(2)}s` } }) : null,
+      svg('circle', { class: `ff-dot ff--${tier}`, cx: x.toFixed(1), cy: y.toFixed(1), r }),
+      S.labels.has(m) ? svg('text', { class: 'ff-lbl', x: (x + Number(r) + 3).toFixed(1), y: (y + 3).toFixed(1), text: `${m.cc} ${kfmt(m.attacks)}` }) : null,
+    ]);
   }));
+}
+
+/** Zoom de la vista plana: el viewBox entre ×1 y ×4, centrado. */
+function applyFlatZoom() {
+  const s = S.zone && S.zone.querySelector('#globe-flat svg');
+  if (!s) return;
+  const w = W / S.flatZoom, h = H / S.flatZoom;
+  s.setAttribute('viewBox', `${((W - w) / 2).toFixed(1)} ${((H - h) / 2).toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
 }
 
 function mountFlat(note) {
@@ -182,11 +306,12 @@ function mountFlat(note) {
   const land = S.land && S.land.length
     ? svg('path', { class: 'ff-land', d: S.land.map((p) => `M${px(p.lng).toFixed(1)} ${py(p.lat).toFixed(1)}h1.6v1.6h-1.6z`).join('') })
     : null;
-  box.appendChild(el('span', { class: 'note', text: note }));
-  box.appendChild(svg('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet', 'aria-hidden': 'true', focusable: 'false' }, [land, flatMarks(S.map)]));
+  box.appendChild(el('span', { class: 'map-flat-note', text: note }));
+  box.appendChild(svg('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet', 'aria-hidden': 'true', focusable: 'false' }, [land, flatMarks()]));
   S.mode = 'flat';
   S.zone.classList.add('is-flat');
   S.zone.classList.remove('is-globe');
+  applyFlatZoom();
 }
 
 /* ───────── API ───────── */
@@ -195,7 +320,7 @@ async function mount() {
   S.reduced = prefersReducedMotion();
   if (!webglOK()) {
     S.land = await loadLand().catch(() => null);
-    mountFlat('WEBGL NO DISPONIBLE · PROYECCIÓN PLANA');
+    mountFlat('SIN WEBGL · PROYECCIÓN PLANA');
     return;
   }
   try {
@@ -226,14 +351,14 @@ function whenOnScreen(node, fn) {
  * Programa el montaje del globo para después del contenido principal: tras el evento
  * load, en el primer hueco libre (requestIdleCallback) y solo cuando la zona se ve.
  * Así no compite con el LCP, no bloquea otra pantalla si el usuario ya se fue del
- * briefing (montarlo cuesta cientos de ms) y en móvil, donde queda bajo el top 10,
- * no se descarga hasta que se baja hasta él.
+ * briefing (montarlo cuesta cientos de ms) y en móvil no se descarga hasta que se ve.
  */
 export function scheduleGlobe(zone, map) {
-  if (S.scheduled || !zone) return;
-  S.scheduled = true;
+  if (!zone) return;
   S.zone = zone;
-  S.map = map;
+  setData(map);
+  if (S.scheduled) return;
+  S.scheduled = true;
   const start = () => whenOnScreen(zone, () => { mount(); });
   const go = () => {
     if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 2000 });
@@ -245,10 +370,10 @@ export function scheduleGlobe(zone, map) {
 
 /** Nuevos datos del mapa (refresco cada 10 min). */
 export function updateGlobe(map) {
-  S.map = map;
-  if (S.mode === 'globe' && S.globe) setGlobeData(map);
+  setData(map);
+  if (S.mode === 'globe' && S.globe) setGlobeData();
   else if (S.mode === 'flat' && S.zone) {
     const old = S.zone.querySelector('#globe-flat .ff-marks');
-    if (old) old.replaceWith(flatMarks(map));
+    if (old) old.replaceWith(flatMarks());
   }
 }
