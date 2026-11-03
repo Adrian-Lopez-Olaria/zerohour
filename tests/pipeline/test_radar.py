@@ -47,6 +47,45 @@ def test_fetch_isc_attackers_normaliza_y_filtra(radar, fake_get):
     assert out == [("45.142.1.7", 10)]   # ceros quitados; privada, inválida y NaN fuera
 
 
+def test_config_mapa_pide_2000_ips(radar):
+    """Con 200 IPs el ranking acumulado de DShield daba 4-5 países (diagnóstico C)."""
+    assert radar.CONFIG["mapa"]["ips"] == 2000 and radar.CONFIG["mapa"]["min_paises"] == 10
+
+
+def ips_publicas(n):
+    return [f"45.{i // 250}.{i % 250}.1" for i in range(n)]
+
+
+def test_build_map_con_2000_filas(radar, fake_get, monkeypatch, tmp_path, capsys):
+    """2000 filas de sources/attacks → se leen todas, se agregan por zona y por país, sin IPs."""
+    ips = ips_publicas(2000)
+    fake_get({"sources/attacks": [{"ip": ip, "attacks": 2000 - i} for i, ip in enumerate(ips)]})
+    out, _ = radar.fetch_isc_attackers(2000)
+    assert len(out) == 2000
+    # 60 países, varias zonas por país (geolocalización simulada: DB-IP no se descarga en tests)
+    geo = {ip: {"lat": float(i % 60) - 30, "lon": float(i % 7) * 10 + (i % 60), "cc": f"{chr(65 + (i % 60) // 26)}{chr(65 + (i % 60) % 26)}",
+                "country": f"País {i % 60}"} for i, ip in enumerate(ips)}
+    monkeypatch.setattr(radar, "geolocate", lambda xs: {x: geo[x] for x in xs})
+    monkeypatch.setattr(radar, "fetch_isc_ports", lambda d: [])
+    monkeypatch.setattr(radar, "DATA", tmp_path)
+    radar.build_map()
+    import json
+    m = json.loads((tmp_path / "map.json").read_text(encoding="utf-8"))
+    assert len(m["by_country"]) == 60 and sum(c["sources"] for c in m["by_country"]) == 2000
+    assert sum(p["attacks"] for p in m["points"]) == sum(2000 - i for i in range(2000))
+    assert "No es un recuento de 24 horas" in m["note"] and "2000 IPs" in m["note"]
+    assert "45.0.0.1" not in json.dumps(m)                                  # nunca se publican IPs
+    assert "⚠" not in capsys.readouterr().out                               # 60 países: sin aviso
+
+
+def test_mapa_avisa_con_menos_de_10_paises(radar, monkeypatch, capsys):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    assert radar.map_coverage_warning(4, 200) is True
+    out = capsys.readouterr().out
+    assert "⚠ Mapa con solo 4 países" in out and "::warning title=Mapa de ataques::" in out
+    assert radar.map_coverage_warning(10, 2000) is False
+
+
 # ───────────────────────── stack con exclusiones (config.toml) ─────────────────────────
 
 def rec(**kw):

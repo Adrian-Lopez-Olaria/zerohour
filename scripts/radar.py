@@ -1380,12 +1380,28 @@ def build_map() -> None:
         "updated_at": now.isoformat(),
         "data_day": day,
         "source": "SANS Internet Storm Center (DShield) · geolocalización IP Geolocation by DB-IP (CC BY 4.0)",
-        "note": "IPs con más ataques reportados por sensores DShield, agregadas por zona.",
+        # Lo que es de verdad: el ranking acumulado de DShield, no un recuento de las últimas 24 h
+        "note": (f"Ranking de DShield: las {len(attackers)} IPs con más ataques acumulados entre las que "
+                 f"siguen activas el {day}, geolocalizadas y agregadas por zona. No es un recuento de 24 horas."),
         "points": sorted(points.values(), key=lambda p: p["attacks"], reverse=True),
         "by_country": sorted(countries.values(), key=lambda c: c["attacks"], reverse=True),
         "top_ports": ports,
     })
     log(f"✔ Mapa: {len(points)} puntos en {len(countries)} países")
+    map_coverage_warning(len(countries), len(attackers))
+
+
+def map_coverage_warning(n_countries: int, n_ips: int) -> bool:
+    """Avisa si el mapa sale con pocos países (criterio: al menos [mapa] min_paises). No falla
+    el job: el mapa se publica igual, pero queda una anotación visible en GitHub Actions."""
+    minimum = int(CONFIG["mapa"].get("min_paises", 10))
+    if n_countries >= minimum:
+        return False
+    msg = f"Mapa con solo {n_countries} países (mínimo {minimum}) a partir de {n_ips} IPs de DShield"
+    log(f"⚠ {msg}")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Mapa de ataques::{msg}", flush=True)
+    return True
 
 
 # ──────────────────────────────── main ────────────────────────────────
