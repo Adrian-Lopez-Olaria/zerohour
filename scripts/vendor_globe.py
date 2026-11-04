@@ -57,8 +57,11 @@ HEADER = ("// ZEROHOUR: copia autoalojada y PARCHEADA de globe.gl {v} (sin <styl
 
 
 def fetch(url: str) -> bytes:
+    # Solo https: urlopen también abriría file:// u otros esquemas (bandit B310)
+    if not url.startswith("https://"):
+        raise ValueError(f"solo se descarga por https: {url!r}")
     req = urllib.request.Request(url, headers={"User-Agent": "zerohour-vendor/1.0"})
-    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310 (URL fija https)
+    with urllib.request.urlopen(req, timeout=120) as r:  # nosec B310 nosemgrep: dynamic-urllib-use-detected (esquema comprobado arriba)
         return r.read()
 
 

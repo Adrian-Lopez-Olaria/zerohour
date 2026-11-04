@@ -50,6 +50,7 @@ concurrency:
 
 jobs:
   recolectar:
+    name: recolectar
     runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
     timeout-minutes: 25
     permissions:
@@ -87,6 +88,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           b64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          # nosemgrep: unsafe-add-mask-workflow-command (solo corre en main: quien pudiera lanzar
+          # un workflow con ::stop-commands:: ya tendría el token; Actions no enmascara su base64)
           echo "::add-mask::${b64}"
           if git -c "http.extraheader=AUTHORIZATION: basic ${b64}"                ls-remote --exit-code --heads "https://github.com/${REPO}.git" deploy > /dev/null; then
             echo "existe=true" >> "$GITHUB_OUTPUT"
@@ -192,6 +195,7 @@ jobs:
           retention-days: 7
 
   publicar:
+    name: publicar
     needs: recolectar
     if: needs.recolectar.outputs.mode != 'nada'
     runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
@@ -225,12 +229,15 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           b64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          # nosemgrep: unsafe-add-mask-workflow-command (solo corre en main: quien pudiera lanzar
+          # un workflow con ::stop-commands:: ya tendría el token; Actions no enmascara su base64)
           echo "::add-mask::${b64}"      # Actions enmascara el token, no su base64: se añade a mano
           export GIT_AUTH_HEADER="AUTHORIZATION: basic ${b64}"
           bash scripts/publicar_deploy.sh _deploy "https://github.com/${REPO}.git" \
             "deploy: ${MODE} · $(date -u +'%Y-%m-%d %H:%M') UTC · código ${SHA::7}"
 
   desplegar:
+    name: desplegar
     needs: publicar
     runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
     timeout-minutes: 10
@@ -294,6 +301,7 @@ jobs:
         run: |
           want="$(python3 -c 'import json;print(json.load(open("_deploy/web/data/latest.json"))["generated_at"])')"
           for i in 1 2 3 4 5 6; do
+            # nosemgrep: gha-curl-pipe-shell (no ejecuta lo descargado: un programa fijo lee el JSON)
             got="$(curl -fsS "${SITIO}/data/latest.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["generated_at"])' || true)"
             [ "$got" = "$want" ] && break
             sleep 10

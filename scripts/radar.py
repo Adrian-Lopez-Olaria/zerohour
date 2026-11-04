@@ -1289,7 +1289,10 @@ def _dbip_download(month: str) -> Path | None:
                     if size > DBIP_MAX_GZ:
                         raise ValueError("descarga de DB-IP demasiado grande")
                     f.write(chunk)
-        sha1, out = hashlib.sha1(), 0
+        # SHA-1 porque es el único hash que publica DB-IP: comprueba que la descarga llegó entera
+        # e intacta (integridad), no es una firma. Quien pudiera cambiar el fichero en DB-IP también
+        # cambiaría el hash de su página, así que un hash más fuerte no añadiría nada aquí.
+        sha1, out = hashlib.sha1(usedforsecurity=False), 0   # nosemgrep: insecure-hash-algorithm-sha1
         with gzip.open(gz_tmp, "rb") as src, mmdb_tmp.open("wb") as dst:
             while chunk := src.read(1 << 20):
                 out += len(chunk)

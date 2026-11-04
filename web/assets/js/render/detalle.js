@@ -439,8 +439,4 @@ export function renderDetalle(root, ctx, id) {
     el('div', { class: 'det-col' }, [decisionPanel(c, i, list.length, ed.date), metricsStrip(c), descPanel(c), cvssPanel(c), ssvcPanel(c)]),
     el('div', { class: 'det-col' }, [kevPanel(c, ed.date), breakdownPanel(c, ed.data.scoring_weights), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
   ]));
-
-  // La pestaña DETALLE de la navegación apunta a la última ficha vista
-  const navA = document.querySelector('.nav__a[data-view="detalle"]');
-  if (navA) navA.setAttribute('href', cveHref(c.id));
 }
