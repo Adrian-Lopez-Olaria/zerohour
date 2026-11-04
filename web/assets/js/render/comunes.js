@@ -107,7 +107,9 @@ export function chips(tags, long = false, max = 0) {
   const shown = max ? list.slice(0, max) : list, rest = list.slice(shown.length);
   const restTxt = rest.map((t) => TAG[t].long).join(' · ');
   return el('span', { class: 'chips' + (long ? ' chips--lg' : '') }, [
-    ...shown.map((t) => el('span', { class: `chip chip--${t}`, title: TAG[t].title }, [icon(t), long ? TAG[t].long : TAG[t].short])),
+    // En la versión corta, el lector de pantalla oye el nombre largo («EXPLOTADA», no «KEV»)
+    ...shown.map((t) => el('span', { class: `chip chip--${t}`, title: TAG[t].title }, long ? [icon(t), TAG[t].long]
+      : [icon(t), el('span', { 'aria-hidden': 'true', text: TAG[t].short }), el('span', { class: 'sr-only', text: TAG[t].long.toLowerCase() })])),
     rest.length ? el('span', { class: 'chip chip--more', title: restTxt }, [`+${rest.length}`, el('span', { class: 'sr-only', text: `: ${restTxt}` })]) : null,
   ]);
 }
@@ -125,15 +127,6 @@ export function scoreCell(c) {
   ]);
 }
 
-/** Texto completo de una fila para lectores de pantalla (la fila es un único enlace). */
-export function rowLabel(c, pos) {
-  const tags = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
-  const k = sevKey(c.severity);
-  return `${pos ? pos + '. ' : ''}${c.id}, ${whoLine(c)}, score ${c.score}${isProv(c) ? ' provisional' : ''}, ${verdictOf(c.score).label.toLowerCase()}, `
-    + `${k === 'UNSCORED' ? 'sin puntuar' : `CVSS ${fmtCvss(c.cvss)} ${SEV[k].label.toLowerCase()}`}, EPSS ${fmtPctl(c.epss_percentile)}`
-    + (tags.length ? `, ${tags.join(', ')}` : '');
-}
-
 /** Fabricante · producto, o «Fabricante pendiente en NVD · CNA x» en cursiva. */
 export function vendorCell(c) {
   const w = who(c);
@@ -145,6 +138,8 @@ export function vendorCell(c) {
 /**
  * Fila de CVE v2 (top y listado): posición | ID + fabricante / severidad, CVSS, EPSS y chips | score.
  * Borde izquierdo en el color del veredicto; VIGILAR atenuada. opts: { pos, chipsMax, desc, extra }.
+ * La fila es un enlace SIN aria-label: su nombre sale del propio contenido, así contiene el texto
+ * visible (WCAG 2.5.3, «label in name») y el control por voz funciona diciendo el ID de la CVE.
  */
 export function cveRow(c, opts = {}) {
   const v = verdictOf(c.score), href = cveHref(c.id);
@@ -161,7 +156,7 @@ export function cveRow(c, opts = {}) {
     el('span', { class: 'row__score' }, scoreCell(c)),
   ];
   const cls = `row v-${v.key}${v.key === 'vigilar' ? ' is-dim' : ''}`;
-  const row = href ? el('a', { class: cls, href, 'aria-label': rowLabel(c, opts.pos) }, cells) : el('div', { class: cls }, cells);
+  const row = href ? el('a', { class: cls, href }, cells) : el('div', { class: cls }, cells);
   return el('li', { class: opts.extra ? 'is-extra' : null }, row);
 }
 

@@ -101,7 +101,9 @@
 .vdist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-1); }
 .vdist li:last-child { border-bottom: 0; }
 .vdist b { font-family: var(--f-mono); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
-.vdist li.is-zero .vtag, .vdist li.is-zero b { opacity: .5; }
+/* Los veredictos con 0 se atenúan con --text-3 (6,1:1), no con transparencia: con opacity .5 el
+   texto bajaba a 2,3:1 y no pasaba AA. La forma (■ ◧ □ ○) se mantiene. */
+.vdist li.is-zero .vtag, .vdist li.is-zero b { color: var(--text-3); }
 
 /* ---------- Resumen del día ---------- */
 .sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }
