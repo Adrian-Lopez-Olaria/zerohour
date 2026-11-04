@@ -15,8 +15,9 @@ import {
   verdictOf, vtag,
 } from './comunes.js';
 import {
-  nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, dDayMon, verdict, daysFromToday,
+  nf, pad, fmtCvss, fmtPctl, fmtEpss, dShort, dDayMon, verdict, daysBetween,
 } from '../util/format.js';
+import { dueLine, breakdownBar } from './filas.js';
 
 // kev/poc: filas de las ediciones anteriores a la fase 6; explotada/exploit: las actuales
 const BD_LABEL = { cvss: 'CVSS', epss: 'EPSS', kev: 'KEV', explotada: 'EXPLOTADA', ransomware: 'RANSOM', poc: 'POC', exploit: 'EXPLOIT', stack: 'STACK' };
@@ -89,11 +90,11 @@ function dial(c) {
  * Acciones, de lo más urgente a lo menos, construidas SOLO con campos existentes (kev, tags,
  * score). kev.ransomware es booleano (true/false) en nuestros datos.
  */
-function todoList(c) {
+function todoList(c, edicion) {
   const has = (t) => c.tags.includes(t), out = [];
   const li = (cls, ic, kids) => el('li', { class: cls || null }, [icon(ic), el('span', kids)]);
   if (c.kev) {
-    const dl = kevDeadline(c.kev);
+    const dl = kevDeadline(c.kev, edicion);
     out.push(li('crit', 'kev', [el('b', { text: 'Explotada activamente (KEV). ' }),
       `CISA da de plazo hasta el ${dDayMon(c.kev.due_date).toLowerCase()}`, dl ? [': ', el('b', { text: dl })] : null, '.']));
     if (c.kev.ransomware === true) out.push(li('crit', 'ransomware', [el('b', { text: 'Usada en campañas de ransomware. ' }), 'Trátala como posible incidente si está expuesta.']));
@@ -110,7 +111,7 @@ function todoList(c) {
   return el('ul', { class: 'todo' }, out);
 }
 
-function decisionPanel(c, i, n) {
+function decisionPanel(c, i, n, edicion) {
   const v = verdictOf(c.score);
   return el('section', { class: `panel decision v-${v.key}`, 'aria-labelledby': 'h-dec' }, [
     panelHead('', 'Qué hacer', isProv(c) ? 'SCORE PROVISIONAL' : `Nº ${i + 1} DE ${n} POR URGENCIA`, 'h-dec'),
@@ -119,8 +120,11 @@ function decisionPanel(c, i, n) {
       el('div', { class: 'decision__v' }, [
         vtag(v),
         el('span', { class: 'label', text: isProv(c) ? 'Sin CVSS de NVD: el score puede subir' : `CVSS ${fmtCvss(c.cvss)} · EPSS ${fmtPctl(c.epss_percentile)}` }),
+        // D3: el plazo CISA y el desglose de Órbita, los mismos componentes que el top 10
+        dueLine(c, edicion),
+        breakdownBar(c),
       ]),
-      todoList(c),
+      todoList(c, edicion),
     ]),
   ]);
 }
@@ -175,10 +179,12 @@ function floorNote(c, keys) {
 
 /* ───────── textos de apoyo ───────── */
 
-function kevDeadline(kev) {
-  const d = daysFromToday(kev && kev.due_date);
+/* Días hasta el plazo de CISA contados desde la fecha de la EDICIÓN (como el top y la guía
+   Órbita §5.4), de calendario a calendario: el cambio de hora no descuadra el día. */
+function kevDeadline(kev, edicion) {
+  const d = daysBetween(edicion, kev && kev.due_date);
   if (d == null) return null;
-  return d > 0 ? `quedan ${d} ${d === 1 ? 'día' : 'días'}` : d === 0 ? 'vence hoy' : `venció hace ${-d} ${d === -1 ? 'día' : 'días'}`;
+  return d > 0 ? `${d === 1 ? 'queda' : 'quedan'} ${d} ${d === 1 ? 'día' : 'días'}` : d === 0 ? 'vence hoy' : `venció hace ${-d} ${d === -1 ? 'día' : 'días'}`;
 }
 
 function parseVector(vector) {
@@ -231,14 +237,14 @@ function cvssPanel(c) {
   ]);
 }
 
-function kevPanel(c) {
+function kevPanel(c, edicion) {
   if (!c.kev) {
     return el('section', { class: 'panel', 'aria-labelledby': 'h-kev' }, [
       panelHead('', 'Catálogo KEV', 'CISA', 'h-kev'),
       el('div', { class: 'panel__body' }, el('p', { class: 'kev-none' }, [el('i', { 'aria-hidden': 'true' }), 'No figura en el catálogo de explotación activa.'])),
     ]);
   }
-  const d = daysFromToday(c.kev.due_date);
+  const d = daysBetween(edicion, c.kev.due_date);
   return el('section', { class: 'panel kev-box', 'aria-labelledby': 'h-kev' }, [
     panelHead('', 'Explotada · catálogo KEV', 'CISA', 'h-kev'),
     el('div', { class: 'panel__body' }, el('dl', { class: 'kev-grid' }, [
@@ -430,8 +436,8 @@ export function renderDetalle(root, ctx, id) {
     chips(c.tags, true),
   ]));
   root.appendChild(el('div', { class: 'det-grid' }, [
-    el('div', { class: 'det-col' }, [decisionPanel(c, i, list.length), metricsStrip(c), descPanel(c), cvssPanel(c), ssvcPanel(c)]),
-    el('div', { class: 'det-col' }, [kevPanel(c), breakdownPanel(c, ed.data.scoring_weights), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
+    el('div', { class: 'det-col' }, [decisionPanel(c, i, list.length, ed.date), metricsStrip(c), descPanel(c), cvssPanel(c), ssvcPanel(c)]),
+    el('div', { class: 'det-col' }, [kevPanel(c, ed.date), breakdownPanel(c, ed.data.scoring_weights), pocPanel(c), newsPanel(c), cwePanel(c), linksPanel(c)]),
   ]));
 
   // La pestaña DETALLE de la navegación apunta a la última ficha vista

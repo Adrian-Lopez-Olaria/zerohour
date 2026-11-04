@@ -21,7 +21,6 @@ export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /* ───────── bandas del score ZEROHOUR (marcas 40 / 70 / 85 de la guía) ───────── */
 export const scoreBand = (s) => (s >= 85 ? 'critical' : s >= 70 ? 'high' : s >= 40 ? 'medium' : 'low');
-export const scoreVar = (s) => `var(--sev-${scoreBand(s)})`;
 export const verdictBand = (s) => (s >= 85 ? 3 : s >= 70 ? 2 : s >= 40 ? 1 : 0);
 export const verdict = (s) => (s >= 85 ? 'ACTUAR HOY' : s >= 70 ? 'ESTA SEMANA' : s >= 40 ? 'PLANIFICAR' : 'VIGILAR');
 
@@ -73,13 +72,6 @@ export function daysBetween(a, b) {
 /** «6 nov» a partir de AAAA-MM-DD, sin pasar por zonas horarias. */
 export const dDayMonYmd = (ymd) => { const m = YMD_RE.exec(String(ymd || '')); return m ? `${+m[3]} ${MESES[+m[2] - 1]}` : '—'; };
 
-/** Días naturales desde hoy (hora de Madrid) hasta una fecha AAAA-MM-DD. Negativo si ya pasó; null si no es válida. */
-export function daysFromToday(ymd, now = Date.now()) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
-  const today = fmtYMD.format(now);
-  const toUtc = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
-  return Math.round((toUtc(ymd) - toUtc(today)) / 86400000);
-}
 export const tLocal = (iso) => { const t = parseIso(iso); return t == null ? '--:--' : fmtHM.format(t); };
 export const tUTC = (iso) => { const t = parseIso(iso); return t == null ? '--:--' : new Date(t).toISOString().slice(11, 16); };
 export const hmUTC = (date) => `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;

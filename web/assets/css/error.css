@@ -2,16 +2,16 @@
    ERROR · página 404 (estática, sin JS). Reutiliza tokens, cabecera y botones.
    ============================================================================= */
 .err { padding-top: var(--sp-7); padding-bottom: var(--sp-7); min-height: calc(100vh - 160px); }
-.eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
+.eyebrow { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: var(--fs-note); letter-spacing: .08em; color: var(--text-3); text-transform: uppercase; }
 .eyebrow b { color: var(--fail); font-weight: 600; }
 .err__grid { display: grid; grid-template-columns: minmax(160px, 260px) 1fr; align-items: center; gap: var(--sp-6) var(--sp-7); margin-top: var(--sp-6); }
 
 /* Radar apagado: anillos y cruz con la línea de los controles, barrido parado y sin contactos */
-.err__radar { width: 100%; height: auto; fill: none; stroke: var(--line-3); stroke-width: 1; }
-.err__radar .err__sweep { fill: var(--ok-dim); stroke: none; }
+.err__radar { width: 100%; height: auto; fill: none; stroke: var(--line-hi); stroke-width: 1; }
+.err__radar .err__sweep { fill: rgba(255, 181, 71, .08); stroke: none; }
 .err__radar .err__hub { fill: var(--text-3); stroke: none; }
 
-.err__h { margin: 0; font-family: var(--f-display); font-weight: 900; font-size: var(--fs-h2); line-height: .95; text-transform: uppercase; letter-spacing: .005em; }
+.err__h { margin: 0; font-weight: 300; font-size: var(--fs-h2); line-height: .95; text-transform: uppercase; letter-spacing: .005em; }
 .err__code { display: block; font-size: var(--fs-id); line-height: .86; color: var(--sev-critical); font-variant-numeric: tabular-nums; }
 .err__p { max-width: 560px; margin: var(--sp-4) 0 0; color: var(--text-2); }
 .err__p .mono { color: var(--text-1); font-size: var(--fs-small); white-space: nowrap; }

@@ -81,23 +81,6 @@
   --t-pulse: 2.8s;
   --t-radar: 6s;
   --t-fly: 900ms;
-
-  /* ── Alias de la v2 para las vistas que aún no se han rehecho (se retiran en el bloque E) ── */
-  --line-1: var(--line); --line-2: var(--line); --line-3: var(--line-hi);
-  --bg-3: var(--bg-2);
-  --info: var(--map-lo);
-  --kev-title: var(--v-hoy);
-  --warn: var(--acc);
-  --warn-dim: rgba(255, 181, 71, .08);
-  --ok-dim: rgba(255, 181, 71, .08);
-  --f-display: var(--f-text);
-  --mono-stretch: 100%;
-  --fs-label: 11.5px;
-  --fs-chip: 12px;
-  --fs-data: 13px;
-  --track-label: .08em;
-  --radius: var(--r-chip);
-  --strip-h: 0px;
 }
 @media (max-width: 760px) {
   :root { --gutter: 14px; --gap: 16px; --fs-kpi: 24px; --fs-score: 30px; }

@@ -12,9 +12,10 @@
 import { el, clear } from '../util/dom.js';
 import { sevKey } from '../data.js';
 import {
-  SEV_ORDER, VERDICTS, verdictOf, vtag, sevTag, emptyBlock, icon, editionBanner, byUrgency, cveRow, groupedRows,
+  SEV_ORDER, VERDICTS, verdictOf, vtag, sevTag, emptyBlock, icon, editionBanner, byUrgency,
 } from './comunes.js';
 import { nf, dLong } from '../util/format.js';
+import { orbRow, orbRows, rowsFoot } from './filas.js';
 
 const PAGE = 50;
 const DEBOUNCE_MS = 140;
@@ -34,7 +35,6 @@ const fresh = () => ({ q: '', vendor: '', sort: 'score', sev: new Set(SEV_ORDER)
 let LS = fresh();
 let V = null;            // estado de la vista construida para una edición concreta
 let focusSearchPending = false;
-const MOBILE = matchMedia('(max-width: 760px)');   // 2 chips por fila en móvil, 3 en el resto
 
 /** Pide el foco en el buscador (atajo "/"); se aplica al pintar la vista. */
 export function requestSearchFocus() {
@@ -50,7 +50,8 @@ function applySearchFocus() {
 
 function rowFor(c) {
   let li = V.rows.get(c);
-  if (!li) { li = cveRow(c, { desc: true, chipsMax: MOBILE.matches ? 2 : 3 }); V.rows.set(c, li); }
+  // Fila de Órbita (la misma del top): plazo CISA y desglose en las accionables, descripción debajo
+  if (!li) { li = orbRow(c, { desc: true, edicion: V.edition.date }); V.rows.set(c, li); }
   return li;
 }
 
@@ -82,9 +83,9 @@ function paint(focusFrom = -1) {
     // Agrupadas por veredicto; el número de cada grupo es el total de resultados, no solo los visibles
     const totals = {};
     for (const c of V.list) { const k = verdictOf(c.score).key; totals[k] = (totals[k] || 0) + 1; }
-    V.out.appendChild(el('div', { class: 'rows' }, groupedRows(page, { totals, numbered: false, rowFn: rowFor })));
+    V.out.appendChild(orbRows(page, { totals, rowFn: rowFor }));
   } else {
-    V.out.appendChild(el('div', { class: 'rows' }, el('ol', { class: 'rows__list' }, page.map(rowFor))));
+    V.out.appendChild(orbRows(page, { noGroups: true, rowFn: rowFor }));
   }
   const rest = V.list.length - V.shown;
   V.more.hidden = rest <= 0;
@@ -204,19 +205,13 @@ function build(root, ctx, keepFocusOnReset = false) {
   root.append(...buildControls(), el('div', { class: 'list panel' }, [
     V.out,
     V.moreWrap,
-    el('div', { class: 'panel__foot' }, el('span', { class: 'label', text: '* Score provisional · EPSS en percentil' })),
+    el('div', { class: 'list__foot' }, rowsFoot(V.cves)),
   ]));
   V.root = root;
   refilter();
   if (keepFocusOnReset) { const r = root.querySelector('.filters__reset'); if (r) r.focus(); }
 }
 
-// Al cruzar el ancho de móvil cambia el número de chips: las filas en caché se rehacen
-MOBILE.addEventListener('change', () => {
-  if (!V) return;
-  V.rows = new Map();
-  paint();
-});
 
 /** Pinta el listado de la edición activa (se reconstruye solo si cambia la edición). */
 export function renderListado(root, ctx) {

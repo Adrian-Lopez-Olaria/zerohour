@@ -6,9 +6,9 @@
    solo entonces (cada fichero pesa lo mismo que un latest.json).
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
-import { SEV, SEV_ORDER, sevTag, panelHead, emptyBlock, cveHref } from './comunes.js';
+import { SEV, SEV_ORDER, sevTag, panelHead, emptyBlock, cveHref, verdictOf } from './comunes.js';
 import { chartSvg, chartTable } from '../chart.js';
-import { nf, dLong, dShort, dWeek, dDay, scoreVar } from '../util/format.js';
+import { nf, dLong, dShort, dWeek, dDay } from '../util/format.js';
 
 const RANGES = [7, 14, 30];
 const H = { sel: null, range: 7, root: null, ctx: null, dayBtns: [], chartBody: null, sumBody: null, sumHead: null, rangeBtns: [] };
@@ -92,7 +92,7 @@ function paintSummary() {
 
   const topList = d.top.length ? el('ol', { class: 'daytop' }, d.top.map((t) => {
     const inToday = isToday && state.data.latest.cves.some((c) => c.id === t.id);
-    const label = [el('span', { class: 'daytop__id', text: t.id }), t.score != null ? el('b', { class: 'daytop__s', style: { '--sc': scoreVar(t.score) }, text: nf(t.score) }) : null];
+    const label = [el('span', { class: 'daytop__id', text: t.id }), t.score != null ? el('b', { class: `daytop__s v-${verdictOf(t.score).key}`, text: nf(t.score) }) : null];
     return el('li', inToday && cveHref(t.id) ? el('a', { href: cveHref(t.id) }, label) : el('span', label));
   })) : null;
 
@@ -102,9 +102,9 @@ function paintSummary() {
     on: {
       click: async () => {
         openBtn.setAttribute('aria-disabled', 'true');
-        status.textContent = isToday ? '' : 'CARGANDO LA EDICIÓN…';
+        status.textContent = isToday ? '' : 'Cargando la edición…';
         try { await H.ctx.openDay(d.date); } catch (e) {
-          status.textContent = `NO SE PUDO CARGAR ESA EDICIÓN${e && e.message ? ` (${e.message})` : ''}. LOS FICHEROS DIARIOS SE CONSERVAN UN TIEMPO LIMITADO.`;
+          status.textContent = `No se pudo cargar esa edición${e && e.message ? ` (${e.message})` : ''}. Los ficheros diarios se conservan un tiempo limitado.`;
         } finally { openBtn.removeAttribute('aria-disabled'); }
       },
     },
@@ -120,12 +120,12 @@ function paintSummary() {
     ]),
     el('dl', { class: 'statrows' }, [
       ...SEV_ORDER.map((k) => el('div', [el('dt', sevTag(k === 'UNSCORED' ? null : k)), el('dd', { text: nf(s.by_severity[k]) })])),
-      el('div', [el('dt', { text: 'NUEVAS EN KEV' }), el('dd', { class: 'hot-kev', text: nf(s.kev_new) })]),
-      el('div', [el('dt', { text: 'CON POC' }), el('dd', { text: nf(s.with_poc) })]),
-      el('div', [el('dt', { text: 'EN MI STACK' }), el('dd', { class: 'hot-stack', text: nf(s.in_stack) })]),
-      el('div', [el('dt', { text: 'REMOTAS' }), el('dd', { text: nf(s.remote) })]),
+      el('div', [el('dt', { text: 'Nuevas en KEV' }), el('dd', { class: 'hot-kev', text: nf(s.kev_new) })]),
+      el('div', [el('dt', { text: 'Con PoC' }), el('dd', { text: nf(s.with_poc) })]),
+      el('div', [el('dt', { text: 'En mi stack' }), el('dd', { class: 'hot-stack', text: nf(s.in_stack) })]),
+      el('div', [el('dt', { text: 'Remotas' }), el('dd', { text: nf(s.remote) })]),
     ]),
-    topList ? el('p', { class: 'label', text: `TOP ${d.top.length} DE ESE DÍA` }) : null,
+    topList ? el('p', { class: 'label', text: `Top ${d.top.length} de ese día` }) : null,
     topList,
     el('div', { class: 'daysum__actions' }, [isToday ? el('a', { class: 'btn btn--ghost', href: '#briefing', text: 'Abrir el briefing' }) : null, openBtn]),
     status,
@@ -143,7 +143,7 @@ export function renderHistorico(root, ctx) {
 
   const title = el('div', { class: 'page-head' }, [
     el('h1', { id: 'h-hist', text: 'Histórico' }),
-    days.length ? el('span', { class: 'label', text: `${plural(days.length, 'EDICIÓN', 'EDICIONES')} · ${dShort(days[0].date)} – ${dShort(days[days.length - 1].date)}` }) : null,
+    days.length ? el('span', { class: 'label', text: `${plural(days.length, 'edición', 'ediciones')} · ${dShort(days[0].date)} – ${dShort(days[days.length - 1].date)}` }) : null,
   ]);
   root.appendChild(title);
 
@@ -175,7 +175,7 @@ export function renderHistorico(root, ctx) {
         chartHead, H.chartBody,
         el('div', { class: 'legend', 'aria-hidden': 'true' }, [
           ...SEV_ORDER.map((k) => el('span', [el('i', { class: `sevbg--${k}` }), SEV[k].label])),
-          el('span', [el('i', { class: 'ln' }), 'NUEVAS EN KEV (EJE DCHO.)']),
+          el('span', [el('i', { class: 'ln' }), 'Nuevas en KEV (eje derecho)']),
         ]),
       ]),
       el('aside', { class: 'panel', 'aria-labelledby': 'h-day' }, [H.sumHead, H.sumBody]),

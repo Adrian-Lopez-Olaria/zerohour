@@ -5,7 +5,7 @@
    ============================================================================= */
 import { el, svg, safeUrl } from '../util/dom.js';
 import { sevKey, ID_RE } from '../data.js';
-import { clamp, scoreVar, dLong, verdictBand, pad, fmtCvss, fmtPctl } from '../util/format.js';
+import { dLong, verdictBand } from '../util/format.js';
 
 export const SEV = Object.freeze({
   CRITICAL: { label: 'Crítica', bars: 4 },
@@ -128,97 +128,6 @@ export function chips(tags, long = false, max = 0) {
   return el('span', { class: 'chips' + (long ? ' chips--lg' : '') }, [
     ...shown.map((t) => el('span', { class: `chip chip--${t}`, title: TAG[t].title }, [icon(t), long ? TAG[t].long : TAG[t].short])),
     rest.length ? el('span', { class: 'chip chip--more', title: restTxt }, [`+${rest.length}`, el('span', { class: 'sr-only', text: `: ${restTxt}` })]) : null,
-  ]);
-}
-
-/** Score v2: cifra en el color del veredicto + barra 64 × 4 con marcas 40/70/85; * si es provisional. */
-export function scoreCell(c) {
-  const prov = isProv(c), v = verdictOf(c.score);
-  const n = clamp(Math.round(c.score), 0, 100);
-  return el('span', {
-    class: `score v-${v.key}${prov ? ' score--prov' : ''}`, role: 'img',
-    'aria-label': `Score ${n} de 100${prov ? ', provisional' : ''}, ${v.label}`,
-  }, [
-    el('span', { class: 'score__n', 'aria-hidden': 'true' }, [String(n), prov ? el('sup', { text: '*' }) : null]),
-    el('span', { class: 'score__bar', 'aria-hidden': 'true', style: { '--v': n } }, el('i')),
-  ]);
-}
-
-/** Texto completo de una fila para lectores de pantalla (la fila es un único enlace). */
-export function rowLabel(c, pos) {
-  const tags = TAG_ORDER.filter((t) => c.tags.includes(t)).map((t) => TAG[t].long.toLowerCase());
-  const k = sevKey(c.severity);
-  return `${pos ? pos + '. ' : ''}${c.id}, ${whoLine(c)}, score ${c.score}${isProv(c) ? ' provisional' : ''}, ${verdictOf(c.score).label.toLowerCase()}, `
-    + `${k === 'UNSCORED' ? 'sin puntuar' : `CVSS ${fmtCvss(c.cvss)} ${SEV[k].label.toLowerCase()}`}, EPSS ${fmtPctl(c.epss_percentile)}`
-    + (tags.length ? `, ${tags.join(', ')}` : '');
-}
-
-/** Fabricante · producto, o «Fabricante pendiente en NVD · CNA x» en cursiva. */
-export function vendorCell(c) {
-  const w = who(c);
-  return el('span', { class: 'row__vp' }, w.pending
-    ? [w.sub ? `${w.sub} · ` : null, el('span', { class: 'pend', text: w.pendingText })]
-    : w.line);
-}
-
-/**
- * Fila de CVE v2 (top y listado): posición | ID + fabricante / severidad, CVSS, EPSS y chips | score.
- * Borde izquierdo en el color del veredicto; VIGILAR atenuada. opts: { pos, chipsMax, desc, extra }.
- */
-export function cveRow(c, opts = {}) {
-  const v = verdictOf(c.score), href = cveHref(c.id);
-  const cells = [
-    el('span', { class: 'row__n', 'aria-hidden': 'true', text: opts.pos ? pad(opts.pos) : '' }),
-    el('span', { class: 'row__main' }, [
-      el('span', { class: 'row__l1' }, [el('span', { class: 'row__id', text: c.id }), vendorCell(c)]),
-      el('span', { class: 'row__l2' }, [
-        el('span', { class: 'row__meta' }, [sevTag(c.severity), el('span', { text: `CVSS ${fmtCvss(c.cvss)}` }), el('span', { text: `EPSS ${fmtPctl(c.epss_percentile)}` })]),
-        c.tags.length ? chips(c.tags, false, opts.chipsMax || 3) : null,
-      ]),
-      opts.desc ? el('span', { class: 'row__desc', lang: 'en', text: c.description || '' }) : null,
-    ]),
-    el('span', { class: 'row__score' }, scoreCell(c)),
-  ];
-  const cls = `row v-${v.key}${v.key === 'vigilar' ? ' is-dim' : ''}`;
-  const row = href ? el('a', { class: cls, href, 'aria-label': rowLabel(c, opts.pos) }, cells) : el('div', { class: cls }, cells);
-  return el('li', { class: opts.extra ? 'is-extra' : null }, row);
-}
-
-/**
- * Filas agrupadas por veredicto, en el orden recibido (ya por urgencia): una cabecera .grp
- * «■ ACTUAR HOY ······ 2 CVE» cada vez que cambia. opts.limit: las filas desde ese índice
- * llevan .is-extra (en móvil se ocultan hasta «Ver las 10»). opts.start: numeración.
- */
-export function groupedRows(list, opts = {}) {
-  const out = [];
-  const start = opts.start || 0;
-  let i = 0;
-  while (i < list.length) {
-    const v = verdictOf(list[i].score);
-    let j = i;
-    while (j < list.length && verdictOf(list[j].score) === v) j++;
-    const total = opts.totals ? opts.totals[v.key] : j - i;
-    const extra = opts.limit != null && i >= opts.limit;
-    out.push(el('div', { class: 'grp' + (extra ? ' is-extra' : '') }, [vtag(v), el('span', { class: 'grp__n', text: `${total} CVE` })]));
-    const make = opts.rowFn || ((c, o) => cveRow(c, o));       // el listado pasa sus filas en caché
-    out.push(el('ol', { class: 'rows__list', start: String(start + i + 1) }, list.slice(i, j).map((c, k) =>
-      make(c, { ...opts, pos: opts.numbered === false ? 0 : start + i + k + 1, extra: opts.limit != null && i + k >= opts.limit }))));
-    i = j;
-  }
-  return out;
-}
-
-/** Barra de score 0–100 con marcas en 40/70/85; rayada y con * si es provisional. */
-export function sbar(c) {
-  const prov = isProv(c);
-  const v = clamp(Math.round(c.score), 0, 100);
-  return el('span', {
-    class: 'sbar' + (prov ? ' sbar--prov' : ''), role: 'img',
-    'aria-label': `Score ${v} de 100${prov ? ', provisional' : ''}`,
-    style: { '--v': v, '--sc': scoreVar(v) },
-  }, [
-    el('span', { class: 'sbar__track' }, el('span', { class: 'sbar__fill' })),
-    el('span', { class: 'sbar__n', text: v }),
   ]);
 }
 
