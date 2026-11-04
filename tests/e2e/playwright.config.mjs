@@ -15,11 +15,11 @@ export default defineConfig({
   workers: CI ? 2 : 4,
   retries: CI ? 1 : 0,
   forbidOnly: CI,
-  reporter: CI ? [['list'], ['html', { open: 'never', outputFolder: '../../playwright-report' }]] : 'list',
+  reporter: CI ? [['list'], ['github'], ['html', { open: 'never', outputFolder: '../../playwright-report' }]] : 'list',
   outputDir: '../../test-results',
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
-    channel: CI ? undefined : 'chrome',
+    channel: CI || process.env.PWCHROMIUM ? undefined : 'chrome',
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
     trace: CI ? 'retain-on-failure' : 'off',
   },
