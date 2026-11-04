@@ -12,7 +12,10 @@ import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField } from '../globe.js';
 import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
 
-const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 137: 'NETBIOS', 443: 'HTTPS', 445: 'SMB', 2222: 'SSH-ALT', 2323: 'TELNET-ALT', 3306: 'MYSQL', 3389: 'RDP', 5060: 'SIP', 8000: 'HTTP-ALT', 8080: 'HTTP-ALT', 9000: 'HTTP-ALT' };
+/* Nombre del servicio por número de puerto: una etiqueta de la interfaz, no un dato del JSON
+   (guía Órbita §5.10). Si el puerto no está en la tabla, el nombre va vacío. */
+const PORT_NAME = { 21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 110: 'POP3', 123: 'NTP', 137: 'NetBIOS', 143: 'IMAP', 161: 'SNMP', 443: 'HTTPS', 445: 'SMB', 1433: 'MS SQL', 2222: 'SSH alt.', 2323: 'Telnet alt.', 3306: 'MySQL', 3389: 'RDP', 5060: 'SIP', 5432: 'PostgreSQL', 5900: 'VNC', 6379: 'Redis', 8000: 'HTTP alt.', 8080: 'HTTP proxy', 8443: 'HTTPS alt.', 9000: 'HTTP alt.', 9200: 'Elasticsearch' };
+const MAX_PORTS = 6;
 const MAX_NEWS = 8;
 
 /* ───────── tira de cifras (Órbita §5.2, con los contadores que aprobó dirección en la fase 6) ───────── */
@@ -203,24 +206,40 @@ function topPanel(top, empty, st, edicion) {
 
 /* ───────── debajo: países, puertos, prensa ───────── */
 
-function rankList(rows) {
-  return el('ol', { class: 'rank' }, rows.map((r) => el('li', [
-    el('span', { class: 'cc', text: r.code }),
-    el('span', { class: 'nm', text: r.name }),
-    el('span', { class: 'v num', text: r.value }),
-    el('span', { class: 'bar' + (r.band ? ` bar--${r.band}` : ''), 'aria-hidden': 'true', style: { '--w': r.w } }, el('i')),
-  ])));
-}
-
+/** Puertos más atacados (map.json · top_ports): puerto (Azeret), servicio y registros DShield. */
 function portsPanel(map) {
-  const rows = map ? map.top_ports : [];
+  const rows = map ? map.top_ports.slice(0, MAX_PORTS) : [];
   const maxP = Math.max(1, ...rows.map((p) => p.records));
   return el('section', { class: 'panel ports', id: 'panel-ports', 'aria-labelledby': 'h-ports' }, [
-    panelHead('', 'Puertos más atacados', 'REGISTROS', 'h-ports'),
+    panelHead('', 'Puertos más atacados', 'registros DShield', 'h-ports'),
     rows.length
-      ? rankList(rows.map((p) => ({ code: String(p.port), name: PORTS[p.port] || `TCP/${p.port}`, value: kfmt(p.records), w: Math.round(p.records / maxP * 100) })))
-      : emptyBlock(null, map ? 'Sin datos de puertos en esta lectura de SANS ISC.' : 'El mapa de ataques no se pudo leer en esta edición.', true),
+      ? el('ol', { class: 'plist' }, rows.map((p) => el('li', [
+        el('span', { class: 'plist__p', text: String(p.port) }),
+        el('span', { class: 'plist__s', text: PORT_NAME[p.port] || '' }),
+        el('span', { class: 'plist__n', text: kfmt(p.records) }),
+        el('span', { class: 'plist__bar', 'aria-hidden': 'true', style: { '--w': Math.max(2, Math.round(p.records / maxP * 100)) } }),
+      ])))
+      : el('p', { class: 'muted-line', text: map ? 'Sin datos de puertos en esta lectura de SANS ISC.' : 'El mapa de ataques no se pudo leer en esta edición.' }),
   ]);
+}
+
+/**
+ * Top 10 ↔ radar (guía §5.9): al pasar o enfocar una fila, su punto del radar crece y la fila se
+ * ilumina, y al revés. Un solo listener delegado por evento en la vista; enlazan por data-id.
+ */
+function linkTopRadar(root) {
+  if (root.dataset.hot) return;
+  root.dataset.hot = '1';
+  const hot = (e, on) => {
+    const n = e.target.closest && e.target.closest('[data-id]');
+    if (!n) return;
+    const id = n.getAttribute('data-id');
+    for (const x of root.querySelectorAll('[data-id]')) if (x.getAttribute('data-id') === id) x.classList.toggle('is-hot', on);
+  };
+  root.addEventListener('pointerover', (e) => hot(e, true));
+  root.addEventListener('pointerout', (e) => hot(e, false));
+  root.addEventListener('focusin', (e) => hot(e, true));
+  root.addEventListener('focusout', (e) => hot(e, false));
 }
 
 /* ───────── vista ───────── */
@@ -254,6 +273,7 @@ export function renderBriefing(root, state) {
 
   // Al cruzar los 1000 px cambia cuántas filas se ven sin «Ver las 10»: se rehace solo el top
   if (!WIDE.onchange) WIDE.onchange = () => { const old = document.getElementById('panel-top'); if (old) old.replaceWith(topPanel(top, empty, latest.stats, latest.date)); };
+  linkTopRadar(root);
   scheduleGlobe(document.getElementById('globe-zone'), map);
 }
 
