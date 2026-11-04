@@ -220,6 +220,9 @@ export function normalizeMap(raw) {
   return {
     updated_at: raw.updated_at ?? null,
     data_day: raw.data_day ?? null,
+    // Textos del pipeline para el pie del mapa (se pintan con textContent, tal cual)
+    note: str(raw.note).slice(0, 400),
+    source: str(raw.source).slice(0, 200),
     points: arr(raw.points).map((p) => ({ lat: num(p.lat), lon: num(p.lon), country: str(p.country), cc: str(p.cc), attacks: num(p.attacks) || 0, sources: num(p.sources) || 0 })).filter((p) => p.lat != null && p.lon != null),
     by_country: arr(raw.by_country).map((c) => ({ cc: str(c.cc), country: str(c.country), attacks: num(c.attacks) || 0 })),
     top_ports: arr(raw.top_ports).map((p) => ({ port: num(p.port), records: num(p.records) || 0, sources: num(p.sources) || 0, targets: num(p.targets) || 0 })).filter((p) => p.port != null),

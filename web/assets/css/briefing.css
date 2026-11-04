@@ -35,44 +35,92 @@
 .top10 { min-width: 0; }
 .panel__more { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 
-/* ---------- Mapa de origen de ataques (cambios-v2 §6) ---------- */
-.map-body { position: relative; flex: 1; padding: 0; min-height: 420px; display: flex; }
-.globe-box { position: relative; flex: 1; min-height: 100%; overflow: hidden; touch-action: pan-y; }
+/* ---------- Escenario del globo (guía Órbita §5.7–5.8) ---------- */
+.mapp { display: grid; justify-items: center; min-width: 0; }
+.mapp__h { width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 10px; }
+.mapp__t { margin: 0; color: var(--acc); }
+.mapp__x { margin: 0; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.globe-box { position: relative; width: 100%; max-width: 560px; aspect-ratio: 1; margin-top: 4px; }
+.globe-box--off { aspect-ratio: auto; max-width: none; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--bg-1); }
+.globe-stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gp-star { fill: none; stroke: var(--star); stroke-width: 1; stroke-linecap: round; stroke-opacity: .3; }
+.gp-star--b { stroke-width: 1.6; stroke-opacity: .5; }
+.globe-view { position: absolute; inset: 0; border-radius: 50%; touch-action: pan-y; }
+.globe-view:focus-visible { outline: 2px solid var(--acc); outline-offset: -6px; }
 .globe { position: absolute; inset: 0; cursor: grab; }
 .globe:active { cursor: grabbing; }
 .globe canvas { outline: none; }
-.globe-flat { position: absolute; inset: 16px; display: none; }
-.globe-flat svg { width: 100%; height: 100%; }
+.globe-flat { position: absolute; inset: 0; display: none; touch-action: none; cursor: grab; }
 .globe-box.is-flat .globe { display: none; }
 .globe-box.is-flat .globe-flat { display: block; }
-.zoom { position: absolute; top: 10px; right: 10px; z-index: 3; display: grid; gap: 4px; }
-.zoom button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line-3); border-radius: var(--radius); background: rgba(16, 22, 29, .9); color: var(--text-1); cursor: pointer; }
-.zoom button:hover { border-color: var(--text-2); }
-.zoom button svg { width: 14px; height: 14px; }
-.map-legend { position: absolute; left: 12px; bottom: 10px; z-index: 3; display: grid; gap: 4px; font-size: 10.5px; color: var(--text-3); pointer-events: none; }
-.map-legend__keys { display: flex; gap: 12px; }
-.map-legend__keys span { display: inline-flex; align-items: center; gap: 5px; }
-.map-legend__keys i { display: inline-block; border-radius: var(--radius-dot); }
-.lg-hi { width: 11px; height: 11px; background: var(--map-hi); }
-.lg-mid { width: 8px; height: 8px; background: var(--map-mid); }
-.lg-lo { width: 6px; height: 6px; background: var(--map-lo); }
-.map-flat-note { position: absolute; top: -6px; left: 0; z-index: 3; font-size: 10.5px; color: var(--warn); }
-.ff-land { fill: rgba(126, 152, 178, .45); }
-.ff-dot { fill-opacity: .9; }
-.ff--hi { fill: var(--map-hi); stroke: var(--map-hi); } .ff--mid { fill: var(--map-mid); stroke: var(--map-mid); } .ff--lo { fill: var(--map-lo); stroke: var(--map-lo); }
-.ff-ring { transform-box: fill-box; transform-origin: center; fill: none; animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: var(--d, 0s); }
-.ff-lbl { font-size: 8px; fill: var(--text-1); }
+.zoom { position: absolute; right: 0; bottom: 8%; z-index: 3; display: grid; gap: 6px; }
+.zb { width: var(--tap); height: var(--tap); display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--bg-1); color: var(--text-1); cursor: pointer; }
+.zb .ico { width: 16px; height: 16px; stroke-width: 1.8; }
+.zb:hover { border-color: var(--line-hi); background: var(--bg-2); }
+.zb:disabled { color: var(--text-3); cursor: default; opacity: .6; }
+.globe-hint { position: absolute; right: 0; top: 4px; z-index: 3; width: 130px; margin: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-3); text-align: right; pointer-events: none; }
+.globe-tip { position: absolute; left: 0; right: 0; top: 4px; z-index: 3; min-height: 1.4em; margin: 0; font-size: 13px; font-weight: 600; color: var(--acc); text-align: center; pointer-events: none; }
+.globe-note { position: absolute; left: 0; bottom: 4px; z-index: 3; margin: 0; font-size: 11.5px; color: var(--acc); pointer-events: none; }
 
-/* Marcador de país sobre el globo (capa htmlElementsData de globe.gl): un solo anillo de pulso */
+/* Marcador de país (capa htmlElementsData de globe.gl). Solo el punto recibe el ratón (tooltip). */
 .gm { position: relative; width: 0; height: 0; pointer-events: none; }
 .gm--hi { --c: var(--map-hi); } .gm--mid { --c: var(--map-mid); } .gm--lo { --c: var(--map-lo); }
-.gm__dot, .gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: var(--radius-dot); }
-.gm__dot { background: var(--c); opacity: .9; box-shadow: 0 0 0 1px rgba(10, 14, 19, .8); }
-.gm__ring { border: 1px solid var(--c); opacity: 0; animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: var(--d); }
-.gm__lbl { position: absolute; left: calc(var(--s) / 2 + 5px); top: -8px; white-space: nowrap; padding: 1px 4px; background: rgba(10, 14, 19, .82); font-size: 10.5px; color: var(--text-1); }
-.gm__lbl em { font-style: normal; color: var(--text-3); margin-left: 4px; }
-@keyframes gm-ring { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.6); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .gm__ring, .ff-ring { display: none; } }
+.gm__dot, .gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; }
+.gm__dot { background: var(--c); box-shadow: 0 0 0 1.5px #030914; pointer-events: auto; cursor: pointer; }
+.gm__ring { display: none; border: 2px solid var(--c); opacity: .5; transform: scale(1.6); }
+.gm__lbl { position: absolute; top: 0; white-space: nowrap; font-size: 15px; font-weight: 700; color: var(--text-1); paint-order: stroke; -webkit-text-stroke: 3px #030914; text-shadow: 0 0 3px #030914; }
+.gm__lbl em { font-style: normal; font-weight: 400; color: var(--text-2); }
+.gm__lbl.is-r { left: calc(var(--s) / 2 + 5px); transform: translateY(-50%); }
+.gm__lbl.is-l { right: calc(var(--s) / 2 + 5px); transform: translateY(-50%); }
+.gm__lbl.is-t { left: 0; bottom: calc(var(--s) / 2 + 4px); top: auto; transform: translateX(-50%); }
+.gm__lbl.is-b { left: 0; top: calc(var(--s) / 2 + 4px); transform: translateX(-50%); }
+.gm__lbl.is-off { visibility: hidden; }
+/* Con reducir movimiento no hay anillos animados de globe.gl: anillo fijo al 50 % en los 5 primeros */
+@media (prefers-reduced-motion: reduce) { .gm__ring { display: block; } }
+
+/* Globo SVG de respaldo (mismo aspecto: esfera iluminada, atmósfera, tierra en puntos) */
+.gp { width: 100%; height: 100%; overflow: visible; }
+.gp.is-zoomed { overflow: hidden; border-radius: 50%; }
+.gp-atm { fill: none; stroke: #3B7BFF; stroke-opacity: .14; stroke-width: 36; }
+.gp-sphere { fill: #071634; stroke: var(--globe-rim); stroke-width: 1.2; stroke-opacity: .8; }
+.gp-grat { fill: none; stroke: #16305E; stroke-width: .9; stroke-opacity: .8; }
+.gp-land { fill: none; stroke: var(--globe-land); stroke-linecap: round; stroke-width: 2.6; }
+.gp-land--far { stroke: var(--globe-land-far); stroke-width: 2; }
+.gp-m { stroke: #030914; stroke-width: 1.5; cursor: pointer; }
+.gp--hi { fill: var(--map-hi); stroke: var(--map-hi); } .gp--mid { fill: var(--map-mid); stroke: var(--map-mid); } .gp--lo { fill: var(--map-lo); stroke: var(--map-lo); }
+.gp-m.gp--hi, .gp-m.gp--mid, .gp-m.gp--lo { stroke: #030914; }
+.gp-pulse { fill: none; stroke-width: 2.2; }
+.gp-lbl { font-size: 15px; font-weight: 700; fill: var(--text-1); paint-order: stroke; stroke: #030914; stroke-width: 4px; stroke-linejoin: round; }
+.gp-lbl__n { font-weight: 400; fill: var(--text-2); }
+
+/* Ranking de países: 3 en el móvil, 5 en escritorio; filete del color de su tramo */
+.cc { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+.cc li { border-top: 2px solid var(--map-lo); min-width: 0; }
+.cc li:nth-child(n+4) { display: none; }
+.cc .cc--hi { border-color: var(--map-hi); } .cc .cc--mid { border-color: var(--map-mid); }
+.cc__b { width: 100%; min-height: var(--tap); display: grid; padding: 6px 0 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cc__b:hover .cc__c { color: var(--text-1); text-decoration: underline; }
+.cc__b:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 4px; }
+.cc__c { font-size: 11.5px; font-stretch: 87.5%; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc__n { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cc__s { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.mapfoot { width: 100%; max-width: 560px; margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-3); }
+
+@media (max-width: 999px) {
+  /* Móvil: el globo no pasa del ~40 % de la primera pantalla */
+  .globe-box { max-width: min(100%, 42vh); }
+  .zoom { right: -2px; }
+  .globe-box { margin-bottom: 22px; }
+  .globe-hint { left: 0; right: 0; top: auto; bottom: -22px; width: auto; text-align: center; }
+  .globe-tip { top: 0; }
+}
+@media (min-width: 1000px) {
+  .mapp__h { flex-direction: column; align-items: center; }
+  .zoom { right: 2%; bottom: 14%; }
+  .cc { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 560px; }
+  .cc li:nth-child(n+4) { display: block; }
+  .mapfoot { text-align: center; }
+}
 
 /* ---------- Radar de urgencia (cambios-v2 §8) ---------- */
 .radarp .panel__body { display: grid; gap: 8px; justify-items: center; align-content: start; }

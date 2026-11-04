@@ -9,11 +9,10 @@ import { el, clear } from '../util/dom.js';
 import { panelHead, emptyBlock, extLink, langOf, icon, verdictOf, vshape, cveHref, who } from './comunes.js';
 import { orbRows, rowsFoot } from './filas.js';
 import { renderRadar } from '../radar.js';
-import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt } from '../globe.js';
+import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField } from '../globe.js';
 import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
 
 const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: 'HTTP', 137: 'NETBIOS', 443: 'HTTPS', 445: 'SMB', 2222: 'SSH-ALT', 2323: 'TELNET-ALT', 3306: 'MYSQL', 3389: 'RDP', 5060: 'SIP', 8000: 'HTTP-ALT', 8080: 'HTTP-ALT', 9000: 'HTTP-ALT' };
-const MAX_COUNTRIES = 10;
 const MAX_NEWS = 8;
 
 /* ───────── tira de cifras (Órbita §5.2, con los contadores que aprobó dirección en la fase 6) ───────── */
@@ -114,44 +113,62 @@ function newsPanel(news) {
   ]);
 }
 
-/* ───────── mapa de origen de ataques (globe.js monta el globo o la vista plana) ───────── */
-
-/* Etiquetas honestas (diagnóstico C): los datos son el ranking acumulado de DShield filtrado a
-   las IPs que siguen activas hoy, no un recuento de las últimas 24 horas. */
-const nCountries = (map) => (map ? new Set(map.points.map((p) => p.cc)).size : 0);
-const mapMeta = (map) => (map && map.points.length ? `RANKING DSHIELD · IPS ACTIVAS HOY · ${nCountries(map)} PAÍSES` : 'SIN LECTURA');
+/* ───────── escenario del globo (guía Órbita §5.7–5.8) ─────────
+   Textos coherentes (corrección 6 de dirección): el título dice lo que son los datos (el
+   ranking de DShield de IPs activas hoy) y el tooltip, los botones y el ranking usan la misma
+   unidad que map.json y su nota: «ataques acumulados» e «IPs activas». */
+const MAP_TITLE = 'Ranking DShield · IPs activas hoy';
+const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
 function mapSummary(map) {
   if (!map || !map.points.length) return 'Mapa de origen de ataques no disponible en esta lectura.';
   const ms = countryMarkers(map);
-  return `Origen de los ataques según el ranking de DShield (SANS ISC): las IPs con más ataques acumulados que siguen activas hoy, en ${ms.length} países. `
-    + `Más actividad: ${ms.slice(0, 3).map((m) => `${countryName(m.cc, m.country)} ${nf(m.attacks)}`).join(', ')}. Usa los botones para acercar o alejar.`;
+  return `Globo: ${MAP_TITLE}. ${ms.length} países; más ataques acumulados: ${ms.slice(0, 3).map((m) => `${countryName(m.cc, m.country)} ${nf(m.attacks)}`).join(', ')}.`;
 }
 
+const mapSub = (map) => `${nf(countryMarkers(map).length)} países · lectura de las ${tUTC(map.updated_at)} UTC`;
+
 function mapFoot(map) {
-  return el('div', { class: 'panel__foot', id: 'map-foot' }, [
-    el('span', { class: 'label', text: map && map.updated_at ? `LECTURA ${tUTC(map.updated_at)} UTC` : 'SIN LECTURA DEL MAPA' }),
-    el('span', { class: 'label', text: 'RANKING ACUMULADO · NO ES UN RECUENTO DE 24 H' }),
-  ]);
+  return el('p', { class: 'mapfoot', id: 'map-foot', text: [map.note, map.source ? `Fuente: ${map.source}.` : ''].filter(Boolean).join(' ') });
+}
+
+/** Los 5 países con más ataques (3 en el móvil): cada uno es un botón que lleva el globo hasta él. */
+function countryButtons(map) {
+  const ms = countryMarkers(map).slice(0, 5), scale = makeScale(countryMarkers(map));
+  return el('ol', { class: 'cc', id: 'map-cc', 'aria-label': 'Países con más ataques acumulados' }, ms.map((m) => el('li', { class: `cc--${scale.tier(m.attacks)}` },
+    el('button', { type: 'button', class: 'cc__b', 'aria-label': `Llevar el globo a ${markerText(m)}`, on: { click: () => flyTo(m.lat, m.lon) } }, [
+      el('span', { class: 'cc__c', text: countryName(m.cc, m.country) }),
+      el('span', { class: 'cc__n', text: kfmt(m.attacks) }),
+      el('span', { class: 'cc__s', text: `${nf(m.sources)} ${m.sources === 1 ? 'IP' : 'IPs'}` }),
+    ]))));
 }
 
 function mapPanel(map) {
-  return el('section', { class: 'panel mapp', id: 'panel-map', 'aria-labelledby': 'h-map' }, [
-    el('div', { class: 'panel__head' }, [
-      el('h2', { class: 'panel__title', id: 'h-map', text: 'Origen de ataques' }),
-      el('span', { class: 'panel__meta', id: 'map-meta', text: mapMeta(map) }),
+  const ok = map && map.points.length;
+  return el('section', { class: 'mapp', id: 'panel-map', 'aria-labelledby': 'h-map' }, [
+    el('header', { class: 'mapp__h' }, [
+      el('h2', { class: 'mapp__t kicker', id: 'h-map', text: MAP_TITLE }),
+      el('p', { class: 'mapp__x', id: 'map-sub', text: ok ? mapSub(map) : 'Sin lectura del mapa' }),
     ]),
-    el('div', { class: 'panel__body map-body' }, [
-      // El resumen va como texto (no como role=img del contenedor): así los botones de zoom siguen accesibles
+    ok ? el('div', { class: 'globe-box', id: 'globe-zone' }, [
+      starField(),
       el('p', { class: 'sr-only', id: 'map-sum', text: mapSummary(map) }),
-      el('div', { class: 'globe-box', id: 'globe-zone' }, [
+      el('div', {
+        class: 'globe-view', id: 'globe-view', tabindex: '0', role: 'group',
+        'aria-label': 'Globo interactivo. Flechas para girar, más y menos para acercar o alejar, cero para volver a la vista inicial.',
+      }, [
         el('div', { class: 'globe', id: 'globe', 'aria-hidden': 'true' }),
         el('div', { class: 'globe-flat', id: 'globe-flat', 'aria-hidden': 'true' }),
-        map && map.points.length ? zoomControls() : null,
-        el('div', { class: 'map-legend', id: 'map-legend', 'aria-hidden': 'true' }),
       ]),
-    ]),
-    mapFoot(map),
+      zoomControls(),
+      el('p', { class: 'globe-hint', text: COARSE ? 'Arrastra para girar · pellizca para acercar' : 'Arrastra para girar · Ctrl + rueda para acercar' }),
+      el('p', { class: 'globe-tip', id: 'globe-tip', 'aria-live': 'polite' }),
+      el('p', { class: 'globe-note', id: 'globe-note' }),
+    ]) : el('div', { class: 'globe-box globe-box--off' }, emptyBlock('Mapa no disponible',
+      map ? 'Sin orígenes de ataque en esta lectura de SANS ISC. El resto del briefing funciona con normalidad.'
+        : 'El mapa de ataques no se pudo leer en esta edición (map.json). El resto del briefing funciona con normalidad.', true)),
+    ok ? countryButtons(map) : null,
+    ok ? mapFoot(map) : null,
   ]);
 }
 
@@ -195,19 +212,6 @@ function rankList(rows) {
   ])));
 }
 
-function countriesPanel(map) {
-  const rows = map ? map.by_country.slice(0, MAX_COUNTRIES) : [];
-  // Barra en escala logarítmica y color del tramo del mapa (misma escala que los marcadores)
-  const scale = makeScale(countryMarkers(map));
-  const maxL = Math.log10(Math.max(1, ...rows.map((c) => c.attacks)) + 1);
-  return el('section', { class: 'panel geo', id: 'panel-cty', 'aria-labelledby': 'h-cty' }, [
-    panelHead('', 'Países de origen', rows.length ? `TOP ${rows.length} · ESCALA LOG` : '', 'h-cty'),
-    rows.length
-      ? rankList(rows.map((c) => ({ code: c.cc, name: countryName(c.cc, c.country), value: nf(c.attacks), w: Math.max(2, Math.round(Math.log10(c.attacks + 1) / maxL * 100)), band: scale.tier(c.attacks) })))
-      : emptyBlock(null, map ? 'Sin orígenes de ataque en esta lectura de SANS ISC.' : 'El mapa de ataques no se pudo leer en esta edición.', true),
-  ]);
-}
-
 function portsPanel(map) {
   const rows = map ? map.top_ports : [];
   const maxP = Math.max(1, ...rows.map((p) => p.records));
@@ -233,7 +237,7 @@ export function renderBriefing(root, state) {
     el('div', { class: 'brief__head' }, [leadLine(top), kpiStrip(latest, index)]),
     el('div', { class: 'brief' }, [
       topPanel(top, empty, latest.stats, latest.date),
-      el('div', { class: 'stage' }, [mapPanel(map), countriesPanel(map)]),
+      el('div', { class: 'stage' }, mapPanel(map)),
       el('div', { class: 'side' }, [
         el('section', { class: 'panel radarp', 'aria-labelledby': 'h-radar' }, [
           panelHead('', 'Radar', 'centro = más urgente', 'h-radar'),
@@ -253,17 +257,17 @@ export function renderBriefing(root, state) {
   scheduleGlobe(document.getElementById('globe-zone'), map);
 }
 
-/** Tras refrescar map.json: re-pinta solo lo que depende del mapa (sin animaciones ni perder el foco del resto). */
+/** Tras refrescar map.json: re-pinta solo lo que depende del mapa (sin perder el foco del resto). */
 export function refreshMapPanels(state) {
   const map = state.map;
+  if (!map || !map.points.length || !document.getElementById('globe-zone')) return;
   const swap = (id, node) => { const old = document.getElementById(id); if (old) old.replaceWith(node); };
-  swap('panel-cty', countriesPanel(map));
-  swap('panel-ports', portsPanel(map));
+  swap('map-cc', countryButtons(map));
   swap('map-foot', mapFoot(map));
-  const sm = document.getElementById('sum-map');
-  if (sm) sm.textContent = map && map.updated_at ? `${tUTC(map.updated_at)} UTC` : 'sin lectura';
-  const meta = document.getElementById('map-meta'), sum = document.getElementById('map-sum');
-  if (meta) meta.textContent = mapMeta(map);
+  swap('panel-ports', portsPanel(map));
+  const sub = document.getElementById('map-sub'), sum = document.getElementById('map-sum'), sm = document.getElementById('sum-map');
+  if (sub) sub.textContent = mapSub(map);
   if (sum) sum.textContent = mapSummary(map);
+  if (sm) sm.textContent = `lectura de las ${tUTC(map.updated_at)} UTC`;
   updateGlobe(map);
 }
