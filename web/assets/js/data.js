@@ -256,10 +256,13 @@ export async function loadData(opts = {}) {
     return { latest: normalizeLatest(b.latest), map: b.map ? normalizeMap(b.map) : null, index: b.index ? normalizeIndex(b.index) : null, mapError: null, indexError: null };
   }
   const base = opts.base || DATA_BASE;
-  const latest = normalizeLatest(await getJson(base + 'latest.json')); // si latest falla, propaga (pantalla de error)
+  // Las tres peticiones a la vez (antes iban en serie: tres viajes de red antes de pintar nada)
+  const [rl, rm, ri] = await Promise.allSettled(['latest.json', 'map.json', 'index.json'].map((f) => getJson(base + f)));
+  if (rl.status === 'rejected') throw rl.reason;                     // sin latest: pantalla de error
+  const latest = normalizeLatest(rl.value);
   let map = null, index = null, mapError = null, indexError = null;
-  try { map = normalizeMap(await getJson(base + 'map.json')); } catch (e) { mapError = e; }
-  try { index = normalizeIndex(await getJson(base + 'index.json')); } catch (e) { indexError = e; }
+  if (rm.status === 'fulfilled') { try { map = normalizeMap(rm.value); } catch (e) { mapError = e; } } else mapError = rm.reason;
+  if (ri.status === 'fulfilled') { try { index = normalizeIndex(ri.value); } catch (e) { indexError = e; } } else indexError = ri.reason;
   return { latest, map, index, mapError, indexError };
 }
 

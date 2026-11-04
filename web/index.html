@@ -20,6 +20,23 @@
 <link rel="stylesheet" href="assets/css/vistas.css">
 
 <script type="module" src="assets/js/main.js"></script>
+<!-- Todo el grafo de módulos a la vez (sin esto, cada nivel de import es otro viaje de red
+     antes de pedir latest.json). tests/pipeline/test_netlify.py lo mantiene al día. -->
+<link rel="modulepreload" href="assets/js/data.js">
+<link rel="modulepreload" href="assets/js/router.js">
+<link rel="modulepreload" href="assets/js/util/dom.js">
+<link rel="modulepreload" href="assets/js/util/format.js">
+<link rel="modulepreload" href="assets/js/render/comunes.js">
+<link rel="modulepreload" href="assets/js/render/cabecera.js">
+<link rel="modulepreload" href="assets/js/render/briefing.js">
+<link rel="modulepreload" href="assets/js/render/listado.js">
+<link rel="modulepreload" href="assets/js/render/detalle.js">
+<link rel="modulepreload" href="assets/js/render/historico.js">
+<link rel="modulepreload" href="assets/js/render/filas.js">
+<link rel="modulepreload" href="assets/js/radar.js">
+<link rel="modulepreload" href="assets/js/globe.js">
+<link rel="modulepreload" href="assets/js/chart.js">
+<link rel="modulepreload" href="assets/js/globo-plano.js">
 </head>
 
 <body>

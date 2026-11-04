@@ -17,7 +17,8 @@ import { mountFlatGlobe } from './globo-plano.js';
 
 const LIB_URL = new URL('../vendor/globe.gl-2.46.2.zh.min.js', import.meta.url).href;
 const LIB_CSS = new URL('../vendor/globe.gl-2.46.2.zh.css', import.meta.url).href;
-const LAND_URL = new URL('../geo/tierra.json', import.meta.url).href;
+const LAND_URL = new URL('../geo/tierra.json', import.meta.url).href;     // puntos: globo SVG
+const LAND_TEX = new URL('../geo/tierra.png', import.meta.url).href;      // textura: globo 3D
 const TIMEOUT_MS = 9000;
 const ROTATE_SPEED = 0.8;                 // OrbitControls: ≈ 5°/s a 60 fps
 const RESUME_MS = 3000;
@@ -288,25 +289,11 @@ function placeLabels() {
   }
 }
 
-/**
- * La tierra en puntos como TEXTURA (rendimiento): se pinta una vez en un <canvas> equirectangular
- * y se pasa al globo como data: (la CSP ya permite img-src data:). Con pointsData, globe.gl creaba
- * ~4.800 geometrías y bloqueaba el hilo principal más de un segundo en un móvil. Los puntos se
- * ensanchan con 1/cos(lat) para que en la esfera sigan siendo redondos.
- */
-function landTexture(land) {
-  const W = 1536, H = 768, c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const x = c.getContext('2d');
-  x.fillStyle = '#0A1F44'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#4F82D6';
-  for (const p of land || []) {
-    const px = (p.lng + 180) / 360 * W, py = (90 - p.lat) / 180 * H, r = 1.8;
-    const rx = Math.min(r / Math.max(Math.cos(p.lat * Math.PI / 180), 0.15), 12);
-    x.beginPath(); x.ellipse(px, py, rx, r, 0, 0, 2 * Math.PI); x.fill();
-  }
-  return c.toDataURL('image/png');
-}
+/* La tierra del globo 3D es una TEXTURA estática (assets/geo/tierra.png, la genera
+   scripts/textura_tierra.py a partir de tierra.json): antes se pintaba en un <canvas> al cargar y
+   eso, más codificar el PNG, bloqueaba el hilo principal. Con pointsData eran ~4.800 geometrías. */
+
+const pause = () => new Promise((r) => setTimeout(r, 0));   // cede el hilo entre pasos pesados
 
 function baseAlt(host) {
   const r = host.clientWidth ? host.clientHeight / host.clientWidth : 1;
@@ -324,14 +311,13 @@ function createGlobe() {
     .enablePointerInteraction(false)          // sin hover de la librería: ninguna ruta hacia innerHTML
     .showAtmosphere(true).atmosphereColor('#3B7BFF').atmosphereAltitude(0.18)
     .showGraticules(true)
-    .globeImageUrl(landTexture(S.land))
+    .globeImageUrl(LAND_TEX)
     .ringLat('lat').ringLng('lon').ringAltitude(0.003).ringPropagationSpeed(1.2).ringRepeatPeriod(2800)
     .ringColor((m) => { const c = TIER_HEX[SCALE.tier(m.attacks)]; return (t) => c + Math.round((1 - t) * 200).toString(16).padStart(2, '0'); })
     .ringMaxRadius((m) => 1.2 + SCALE.t(m.attacks) * 3.4)
     .htmlLat('lat').htmlLng('lon').htmlAltitude(0.01)
     .pointOfView({ ...HOME, altitude: S.altHome }, 0);
   S.globe = g;
-  setGlobeData();
 
   const mat = g.globeMaterial();
   // La textura ya trae el azul de la esfera (#0A1F44) y la tierra (#4F82D6): el material no la tiñe
@@ -366,6 +352,8 @@ function createGlobe() {
   S.zone.classList.add('is-globe');
   S.zone.classList.remove('is-flat');
   syncZoomButtons();
+  // Los marcadores (nodos HTML de CSS2D) en otra tarea: la creación del globo ya es larga
+  setTimeout(() => { if (S.globe) setGlobeData(); }, 0);
 }
 
 /* ───────── respaldo SVG ───────── */
@@ -398,10 +386,10 @@ async function mount() {
   }
   try {
     loadLibCss();
-    const [, land] = await withTimeout(Promise.all([import(LIB_URL), loadLand()]), TIMEOUT_MS);
-    S.land = land;
+    await withTimeout(import(LIB_URL), TIMEOUT_MS);
     if (!S.zone.isConnected) return;
     await new Promise((r) => whenOnScreen(S.zone, r));
+    await pause();
     createGlobe();
   } catch (e) {
     console.warn('[zerohour] globo no disponible, se usa el globo SVG:', e && e.message);

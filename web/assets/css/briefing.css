@@ -117,6 +117,9 @@
 @media (min-width: 1000px) {
   .mapp__h { flex-direction: column; align-items: center; }
   .zoom { right: 2%; bottom: 14%; }
+  /* El escenario cabe en la primera pantalla a cualquier alto: el globo encoge (540 px a 900 de alto)
+     y deja holgura para que una línea más del pie (otra plataforma, otro redondeo) no lo empuje */
+  .globe-box:not(.globe-box--off) { max-width: min(560px, calc(100vh - 360px)); }
   .cc { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 560px; }
   .cc li:nth-child(n+4) { display: block; }
   .mapfoot { text-align: center; }

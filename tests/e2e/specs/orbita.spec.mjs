@@ -21,7 +21,7 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     expect(top.top - kpis.bottom).toBe(24);
     expect(stage.top).toBe(top.top);
     expect(side.top).toBe(top.top);
-    for (const r of [top, stage, side]) expect(r.bottom).toBeLessThanOrEqual(900);
+    for (const [n, r] of Object.entries({ top, stage, side })) expect(r.bottom, `${n} acaba en ${r.bottom} px`).toBeLessThanOrEqual(900);
     expect(await page.locator('#panel-top .orow').count()).toBe(10);
   });
 

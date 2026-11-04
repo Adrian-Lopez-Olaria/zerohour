@@ -186,6 +186,7 @@ def test_dev_server_manda_las_cabeceras_de_netlify(servidor):
     ("/assets/css/base.css", "text/css; charset=utf-8"),
     ("/assets/fonts/saira-latin-wdth-normal.woff2", "font/woff2"),
     ("/assets/geo/tierra.json", "application/json; charset=utf-8"),
+    ("/assets/geo/tierra.png", "image/png"),
     ("/.well-known/security.txt", "text/plain; charset=utf-8"),
 ])
 def test_dev_server_tipos_mime(servidor, ruta, tipo):
