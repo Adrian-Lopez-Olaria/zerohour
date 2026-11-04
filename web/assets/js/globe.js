@@ -288,6 +288,26 @@ function placeLabels() {
   }
 }
 
+/**
+ * La tierra en puntos como TEXTURA (rendimiento): se pinta una vez en un <canvas> equirectangular
+ * y se pasa al globo como data: (la CSP ya permite img-src data:). Con pointsData, globe.gl creaba
+ * ~4.800 geometrías y bloqueaba el hilo principal más de un segundo en un móvil. Los puntos se
+ * ensanchan con 1/cos(lat) para que en la esfera sigan siendo redondos.
+ */
+function landTexture(land) {
+  const W = 1536, H = 768, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0A1F44'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#4F82D6';
+  for (const p of land || []) {
+    const px = (p.lng + 180) / 360 * W, py = (90 - p.lat) / 180 * H, r = 1.8;
+    const rx = Math.min(r / Math.max(Math.cos(p.lat * Math.PI / 180), 0.15), 12);
+    x.beginPath(); x.ellipse(px, py, rx, r, 0, 0, 2 * Math.PI); x.fill();
+  }
+  return c.toDataURL('image/png');
+}
+
 function baseAlt(host) {
   const r = host.clientWidth ? host.clientHeight / host.clientWidth : 1;
   return Math.max(1.8, 1.7 * r);
@@ -304,8 +324,7 @@ function createGlobe() {
     .enablePointerInteraction(false)          // sin hover de la librería: ninguna ruta hacia innerHTML
     .showAtmosphere(true).atmosphereColor('#3B7BFF').atmosphereAltitude(0.18)
     .showGraticules(true)
-    .pointsData(S.land).pointLat('lat').pointLng('lng').pointAltitude(0.002).pointRadius(0.34).pointResolution(5)
-    .pointColor(() => '#4F82D6').pointsMerge(true)
+    .globeImageUrl(landTexture(S.land))
     .ringLat('lat').ringLng('lon').ringAltitude(0.003).ringPropagationSpeed(1.2).ringRepeatPeriod(2800)
     .ringColor((m) => { const c = TIER_HEX[SCALE.tier(m.attacks)]; return (t) => c + Math.round((1 - t) * 200).toString(16).padStart(2, '0'); })
     .ringMaxRadius((m) => 1.2 + SCALE.t(m.attacks) * 3.4)
@@ -315,7 +334,8 @@ function createGlobe() {
   setGlobeData();
 
   const mat = g.globeMaterial();
-  if (mat && mat.color) { mat.color.set('#0A1F44'); if (mat.emissive) mat.emissive.set('#030914'); if ('shininess' in mat) mat.shininess = 3; }
+  // La textura ya trae el azul de la esfera (#0A1F44) y la tierra (#4F82D6): el material no la tiñe
+  if (mat && mat.color) { mat.color.set('#ffffff'); if (mat.emissive) mat.emissive.set('#030914'); if ('shininess' in mat) mat.shininess = 3; }
   const ctr = g.controls();
   ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enablePan = false;
   S.zone.dataset.spin = S.reduced ? 'off' : 'on';

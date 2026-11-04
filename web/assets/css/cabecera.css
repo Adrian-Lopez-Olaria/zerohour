@@ -16,7 +16,8 @@
 .nav__a[aria-current="page"] { color: var(--acc); font-weight: 700; }
 
 /* Línea de edición y fuentes */
-.status { flex: 1 1 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding-bottom: 6px; font-size: 12.5px; font-stretch: 87.5%; color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* min-height: la línea se rellena al llegar los datos; reservar su alto evita que empuje el contenido (CLS) */
+.status { min-height: 32px; flex: 1 1 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding-bottom: 6px; font-size: 12.5px; font-stretch: 87.5%; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .status__dot { width: 7px; height: 7px; border-radius: var(--radius-dot); background: var(--ok); flex: none; }
 .status.has-err .status__dot { background: var(--fail); }
 .status.has-warn:not(.has-err) .status__dot { background: var(--acc); }
@@ -48,6 +49,9 @@
 }
 @media (max-width: 999px) {
   .srcs__list { left: 0; right: auto; }
+  /* La navegación va siempre en su propia fila: si no, el cambio de fuente (swap) podía hacerla
+     saltar de la fila de la marca a la siguiente y mover toda la página (CLS) */
+  .nav { flex: 1 1 100%; justify-content: flex-end; }
 }
 
 /* =============================================================================

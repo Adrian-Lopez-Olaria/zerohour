@@ -34,7 +34,9 @@ p .link { text-decoration: underline; text-decoration-thickness: 1px; text-under
 .skip:focus { top: 8px; }
 
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
-main { overflow-x: clip; }
+/* min-height: hasta que llegan los datos, main está vacío y el pie quedaría arriba; al pintarse el
+   briefing, el pie bajaría en pantalla (CLS). Con esta altura empieza ya fuera de la vista. */
+main { overflow-x: clip; min-height: 100vh; }
 
 /* Definiciones SVG fuera de pantalla (símbolo del logo) — sin estilos inline por la CSP */
 .logo-defs { position: absolute; }
