@@ -5,7 +5,7 @@
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
 import {
-  SEV, SEV_ORDER, panelHead, emptyBlock, extLink, langOf, groupedRows,
+  SEV, SEV_ORDER, icon, panelHead, emptyBlock, extLink, langOf, groupedRows,
 } from './comunes.js';
 import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt } from '../globe.js';
@@ -15,64 +15,56 @@ const PORTS = { 21: 'FTP', 22: 'SSH', 23: 'TELNET', 25: 'SMTP', 53: 'DNS', 80: '
 const MAX_COUNTRIES = 10;
 const MAX_NEWS = 8;
 
-/* ───────── contadores (6 en una franja; aprobados en el punto de control B) ───────── */
+/* ───────── tira de cifras (Órbita §5.2, con los contadores que aprobó dirección en la fase 6) ───────── */
 
-/** Delta frente a la media de los 7 días anteriores a la edición (▲ ámbar sube, ▼ verde baja).
-    Sin 7 días completos de histórico, o en un día vacío, no se muestra (no se inventa). */
+/**
+ * Variación frente a la media de los 7 días anteriores (index.json), en una línea pequeña bajo la
+ * cifra (D2). Sin 7 días de histórico, con el día vacío o sin la serie, no se pinta nada.
+ */
 function makeDelta(latest, index) {
   const prev = index ? index.days.filter((d) => d.date < latest.date).slice(-7) : [];
   return (value, pick) => {
     if (prev.length < 7 || !latest.stats.new_cves) return null;
-    const avg = prev.reduce((a, d) => a + pick(d.stats), 0) / prev.length;
+    const vals = prev.map((d) => pick(d.stats));
+    if (vals.some((v) => v == null)) return null;          // serie incompleta (p. ej. antes de la fase 6)
+    const avg = vals.reduce((a, v) => a + v, 0) / vals.length;
     if (!avg) return null;
-    const p = Math.round((value - avg) / avg * 100);
-    return el('span', { class: 'kpi__d', title: `Media de los 7 días anteriores: ${nf(avg, avg < 10 ? 1 : 0)}` }, [
-      p > 0 ? el('span', { class: 'up', text: `▲ ${p} %` }) : p < 0 ? el('span', { class: 'down', text: `▼ ${Math.abs(p)} %` }) : el('span', { text: '= 0 %' }),
-      ' vs 7 d',
-    ]);
+    const pct = Math.round((value - avg) / avg * 100);
+    return el('span', { class: 'kpi__d', title: `Media de los 7 días anteriores: ${nf(avg, avg < 10 ? 1 : 0)}` },
+      `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${nf(Math.abs(pct))} % vs 7 d`);
   };
 }
 
-/**
- * Una celda: etiqueta (larga, y corta en móvil con la larga para lectores de pantalla),
- * cifra (en gris si es 0) y, opcionales, el delta y una línea de detalle.
- */
-function kpi({ label, short, value, cls = '', delta = null, sub = null, title = null, extra = null }) {
-  return el('div', { class: `kpi ${cls}${value === 0 ? ' kpi--zero' : ''}`.trim(), title }, [
-    el('dt', short ? [el('span', { class: 'kpi__long', text: label }), el('span', { class: 'kpi__short', 'aria-hidden': 'true', text: short })] : label),
-    el('dd', { class: 'kpi__row' }, [el('span', { class: 'kpi__v num', text: nf(value) }), delta]),
-    sub ? el('dd', { class: 'kpi__sub', text: sub }) : null,
-    extra,
+function kpi({ label, value, cls = '', delta = null, title = null, sr = null }) {
+  return el('li', { class: `kpi ${cls}${value === 0 ? ' kpi--zero' : ''}`.trim(), title }, [
+    el('span', { class: 'kpi__v num', text: nf(value) }),
+    el('span', { class: 'kpi__l', text: label }),
+    sr ? el('span', { class: 'sr-only', text: sr }) : null,
+    delta,
   ]);
 }
 
 function kpiStrip(latest, index) {
   const st = latest.stats;
   const delta = makeDelta(latest, index);
-  // Explotadas = nuevas en KEV hoy + CVE de la edición con SSVC «active» de CISA (aún fuera de KEV)
+  // Explotadas = nuevas en KEV hoy + CVE de la edición con SSVC «active» de CISA (aún fuera de KEV).
+  // index.json no guarda el recuento SSVC por día: para no comparar series distintas, sin variación.
   const ssvc = latest.cves.filter((c) => c.tags.includes('ssvc')).length;
   const explot = st.kev_new + ssvc;
-  const exploitCell = st.with_exploit != null
-    ? kpi({ label: 'Exploit verificado', short: 'EXPLOIT', value: st.with_exploit,
-      sub: `${nf(st.with_detection || 0)} detección · ${nf(Math.max(0, st.with_poc - st.with_exploit - (st.with_detection || 0)))} PoC sin verificar` })
-    // Ediciones anteriores a la fase 6: no hay exploits verificados, solo PoC
-    : kpi({ label: 'Con PoC', short: 'POC', value: st.with_poc });
-  return el('dl', { class: 'kpis panel', 'aria-label': 'Cifras del día' }, [
-    kpi({ label: 'CVE nuevas', short: 'NUEVAS', value: st.new_cves, cls: 'kpi--wide', delta: delta(st.new_cves, (s) => s.new_cves),
-      extra: st.new_cves ? [
-        el('dd', { class: 'split', 'aria-hidden': 'true' }, SEV_ORDER.map((k) => el('i', { class: `sevbg--${k}`, style: { flex: String(st.by_severity[k] || 0) } }))),
-        el('dd', { class: 'split__legend' }, SEV_ORDER.filter((k) => st.by_severity[k]).map((k) => el('span', [el('b', { text: nf(st.by_severity[k]) }), ` ${SEV[k].label.toLowerCase()}`]))),
-      ] : null }),
-    kpi({ label: 'Críticas', short: 'CRÍTICAS', value: st.by_severity.CRITICAL, delta: delta(st.by_severity.CRITICAL, (s) => s.by_severity.CRITICAL),
-      sub: `${nf(st.by_severity.UNSCORED)} sin puntuar` }),
-    kpi({ label: 'Explotadas', short: 'EXPLOT.', value: explot, cls: explot ? 'kpi--kev' : '',
-      sub: `${nf(st.kev_new)} KEV · ${nf(ssvc)} SSVC`,
-      title: 'Nuevas en el catálogo KEV hoy (incluye CVE antiguas que entran hoy en KEV) más las CVE de hoy que CISA marca como explotadas en SSVC',
-      extra: el('dd', { class: 'sr-only', text: 'Incluye CVE antiguas que entran hoy en KEV.' }) }),
-    exploitCell,
-    kpi({ label: 'Mi stack', short: 'STACK', value: st.in_stack, cls: 'kpi--stack' }),
-    kpi({ label: 'Remotas', short: 'REMOTAS', value: st.remote,
-      sub: st.new_cves ? `${nf(Math.round(st.remote / st.new_cves * 100))} % de las nuevas` : null }),
+  return el('ul', { class: 'kpis', 'aria-label': 'Cifras del día' }, [
+    kpi({ label: 'CVE nuevas', value: st.new_cves, delta: delta(st.new_cves, (s) => s.new_cves) }),
+    kpi({ label: 'Críticas', value: st.by_severity.CRITICAL, delta: delta(st.by_severity.CRITICAL, (s) => s.by_severity.CRITICAL),
+      title: `${nf(st.by_severity.UNSCORED)} sin puntuar todavía` }),
+    kpi({ label: 'Explotadas', value: explot, cls: explot ? 'kpi--kev' : '',
+      title: `${nf(st.kev_new)} nuevas en el catálogo KEV hoy (incluye CVE antiguas que entran hoy en KEV) y ${nf(ssvc)} de hoy que CISA marca como explotadas en SSVC`,
+      sr: `: ${nf(st.kev_new)} KEV y ${nf(ssvc)} SSVC; incluye CVE antiguas que entran hoy en KEV` }),
+    st.with_exploit != null
+      ? kpi({ label: 'Exploit verificado', value: st.with_exploit, delta: delta(st.with_exploit, (s) => s.with_exploit),
+        title: `${nf(st.with_detection || 0)} con plantilla de detección · ${nf(Math.max(0, st.with_poc - st.with_exploit - (st.with_detection || 0)))} con PoC sin verificar` })
+      // Ediciones anteriores a la fase 6: no hay exploits verificados, solo PoC
+      : kpi({ label: 'Con PoC', value: st.with_poc, delta: delta(st.with_poc, (s) => s.with_poc) }),
+    kpi({ label: 'Mi stack', value: st.in_stack, delta: delta(st.in_stack, (s) => s.in_stack) }),
+    kpi({ label: 'Remotas', value: st.remote, delta: delta(st.remote, (s) => s.remote) }),
   ]);
 }
 
@@ -146,7 +138,7 @@ let topOpen = false;
 function topPanel(top, empty, st) {
   const head = el('div', { class: 'panel__head' }, [
     el('h2', { class: 'panel__title', id: 'h-top', text: 'Las que importan hoy' }),
-    el('span', { class: 'panel__meta' }, [`${top.length} DE ${nf(st.new_cves)} · `, el('a', { href: '#listado', text: 'LISTADO →' })]),
+    el('span', { class: 'panel__meta' }, [`${top.length} DE ${nf(st.new_cves)} · `, el('a', { href: '#listado' }, ['Listado ', icon('arrow')])]),
   ]);
   if (empty || !top.length) {
     return el('section', { class: 'panel top10', id: 'panel-top', 'aria-labelledby': 'h-top' }, [head,

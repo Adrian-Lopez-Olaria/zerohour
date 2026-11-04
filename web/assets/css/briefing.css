@@ -14,26 +14,19 @@
 .sum { grid-area: sum; } .geo { grid-area: geo; } .ports { grid-area: ports; } .newsp { grid-area: news; }
 .muted-line { margin: 0; font-size: var(--fs-small); color: var(--text-3); padding: 6px 0; }
 
-/* ---------- Contadores: un panel, 6 celdas separadas por filetes ---------- */
-.kpis { display: grid; grid-template-columns: 2.1fr repeat(5, minmax(0, 1fr)); margin: 0; }
-.kpi { display: grid; align-content: start; gap: 2px; min-width: 0; min-height: 103px; padding: 8px 14px 9px; border-left: 1px solid var(--line-2); }
-.kpi:first-child { border-left: 0; }
-.kpi dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi dd { margin: 0; }
-.kpi__row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.kpi__v { font-family: var(--f-display); font-weight: 800; font-size: var(--fs-kpi); line-height: 1; font-variant-numeric: tabular-nums; }
-.kpi__d, .kpi__sub { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
-.kpi__d .up { color: var(--warn); } .kpi__d .down { color: var(--ok); }
-.kpi__sub { line-height: 1.35; }
-.kpi__short { display: none; }
-.kpi--kev .kpi__v { color: var(--sev-critical); }
-.kpi--kev .kpi__sub { color: var(--kev-title); }
-.kpi--stack .kpi__v { color: var(--ok); }
+/* ---------- Tira de cifras (Órbita §5.2): 6 celdas, filete de 1 px, radio 12 ---------- */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-strip); overflow: hidden; }
+.kpi { display: grid; align-content: start; gap: 0; min-width: 0; padding: 8px 10px; background: var(--bg-1); }
+.kpi__v { font-size: var(--fs-kpi); font-weight: 300; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi__l { font-size: 12px; font-stretch: 87.5%; line-height: 1.25; color: var(--text-2); }
+.kpi__d { font-size: 11px; font-stretch: 87.5%; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.kpi--kev .kpi__v { color: var(--v-hoy); font-weight: 500; }
 .kpi--zero .kpi__v { color: var(--text-3); }
-.split { display: flex; height: 5px; gap: 1px; margin-top: 5px; }
-.split i { display: block; height: 100%; }
-.split__legend { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); }
-.split__legend b { color: var(--text-2); font-weight: 500; }
+@media (min-width: 1000px) {
+  .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); width: 640px; justify-self: center; }
+  .kpi { padding: 6px 12px; text-align: center; }
+  .kpi__l { font-size: 11.5px; }
+}
 
 /* ---------- Mapa de origen de ataques (cambios-v2 §6) ---------- */
 .map-body { position: relative; flex: 1; padding: 0; min-height: 420px; display: flex; }
@@ -49,19 +42,19 @@
 .zoom button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line-3); border-radius: var(--radius); background: rgba(16, 22, 29, .9); color: var(--text-1); cursor: pointer; }
 .zoom button:hover { border-color: var(--text-2); }
 .zoom button svg { width: 14px; height: 14px; }
-.map-legend { position: absolute; left: 12px; bottom: 10px; z-index: 3; display: grid; gap: 4px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); pointer-events: none; }
+.map-legend { position: absolute; left: 12px; bottom: 10px; z-index: 3; display: grid; gap: 4px; font-size: 10.5px; color: var(--text-3); pointer-events: none; }
 .map-legend__keys { display: flex; gap: 12px; }
 .map-legend__keys span { display: inline-flex; align-items: center; gap: 5px; }
 .map-legend__keys i { display: inline-block; border-radius: var(--radius-dot); }
 .lg-hi { width: 11px; height: 11px; background: var(--map-hi); }
 .lg-mid { width: 8px; height: 8px; background: var(--map-mid); }
 .lg-lo { width: 6px; height: 6px; background: var(--map-lo); }
-.map-flat-note { position: absolute; top: -6px; left: 0; z-index: 3; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--warn); }
+.map-flat-note { position: absolute; top: -6px; left: 0; z-index: 3; font-size: 10.5px; color: var(--warn); }
 .ff-land { fill: rgba(126, 152, 178, .45); }
 .ff-dot { fill-opacity: .9; }
 .ff--hi { fill: var(--map-hi); stroke: var(--map-hi); } .ff--mid { fill: var(--map-mid); stroke: var(--map-mid); } .ff--lo { fill: var(--map-lo); stroke: var(--map-lo); }
 .ff-ring { transform-box: fill-box; transform-origin: center; fill: none; animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: var(--d, 0s); }
-.ff-lbl { font-family: var(--f-mono); font-size: 8px; fill: var(--text-1); }
+.ff-lbl { font-size: 8px; fill: var(--text-1); }
 
 /* Marcador de país sobre el globo (capa htmlElementsData de globe.gl): un solo anillo de pulso */
 .gm { position: relative; width: 0; height: 0; pointer-events: none; }
@@ -69,7 +62,7 @@
 .gm__dot, .gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: var(--radius-dot); }
 .gm__dot { background: var(--c); opacity: .9; box-shadow: 0 0 0 1px rgba(10, 14, 19, .8); }
 .gm__ring { border: 1px solid var(--c); opacity: 0; animation: gm-ring var(--t-pulse) ease-out infinite; animation-delay: var(--d); }
-.gm__lbl { position: absolute; left: calc(var(--s) / 2 + 5px); top: -8px; white-space: nowrap; padding: 1px 4px; background: rgba(10, 14, 19, .82); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-1); }
+.gm__lbl { position: absolute; left: calc(var(--s) / 2 + 5px); top: -8px; white-space: nowrap; padding: 1px 4px; background: rgba(10, 14, 19, .82); font-size: 10.5px; color: var(--text-1); }
 .gm__lbl em { font-style: normal; color: var(--text-3); margin-left: 4px; }
 @keyframes gm-ring { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .gm__ring, .ff-ring { display: none; } }
@@ -81,11 +74,11 @@
 .radar__tick { stroke: var(--line-2); }
 .radar__tick--major { stroke: var(--line-3); }
 .radar__sector { stroke: var(--line-1); }
-.radar__lbl { font-family: var(--f-mono); font-size: 14px; fill: var(--text-2); }
+.radar__lbl { font-size: 14px; fill: var(--text-2); }
 .radar__lbl--none { fill: var(--text-3); }
 .radar__ring { fill: none; stroke: var(--line-2); }
 .radar__ring--hoy { stroke: rgba(255, 79, 109, .6); stroke-dasharray: 2 3; }
-.radar__ringlbl { font-family: var(--f-mono); font-size: 11.5px; fill: var(--text-3); }
+.radar__ringlbl { font-size: 11.5px; fill: var(--text-3); }
 .radar__ringlbl--hoy { fill: var(--kev-title); }
 .radar__beam { stroke: var(--ok); stroke-opacity: .8; }
 .radar__center { fill: var(--ok); }
@@ -95,24 +88,24 @@
 .blip:focus { outline: none; }
 .blip:hover .hit, .blip:focus-visible .hit { stroke: var(--text-1); stroke-width: 1.2; }
 @keyframes blip { 0% { transform: scale(1.8); opacity: 1; } 8% { transform: scale(1); opacity: 1; } 100% { transform: scale(1); opacity: .45; } }
-.radar-tip { min-height: 18px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-1); text-align: center; }
-.radar-legend { width: 100%; display: grid; gap: 6px; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11px; color: var(--text-3); }
+.radar-tip { min-height: 18px; font-size: 11px; color: var(--text-1); text-align: center; }
+.radar-legend { width: 100%; display: grid; gap: 6px; font-size: 11px; color: var(--text-3); }
 .vdist { display: grid; margin: 0; padding: 0; list-style: none; }
 .vdist li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-1); }
 .vdist li:last-child { border-bottom: 0; }
-.vdist b { font-family: var(--f-mono); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.vdist b { font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .vdist li.is-zero .vtag, .vdist li.is-zero b { opacity: .5; }
 
 /* ---------- Resumen del día ---------- */
 .sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }
 .edmeta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--line-1); }
 .edmeta div { display: grid; gap: 2px; }
-.edmeta dt { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
-.edmeta dd { margin: 0; font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.edmeta dt { font-size: 10.5px; letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
+.edmeta dd { margin: 0; font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
 
 /* ---------- Países y puertos (.rank): países en escala log con el color del mapa ---------- */
 .rank { list-style: none; margin: 0; padding: 4px 14px 10px; }
-.rank li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 70px; gap: 3px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-1); font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 11.5px; }
+.rank li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 70px; gap: 3px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-1); font-size: 11.5px; }
 .rank li:last-child { border-bottom: 0; }
 .rank .cc { color: var(--text-3); }
 .rank .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-1); }
@@ -127,26 +120,16 @@
 .news-list li:last-child .news-list__a { border-bottom: 0; }
 .news-list__a span { font-size: 14px; line-height: 1.4; }
 a.news-list__a:hover span { text-decoration: underline; text-decoration-color: var(--ok); }
-.news-list small { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: 10.5px; color: var(--text-3); text-transform: uppercase; }
+.news-list small { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1179px) {
   .brief { grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis" "top top" "map radar"; }
   .more { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "sum sum" "geo ports" "news news"; }
-  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .kpi { border-top: 1px solid var(--line-2); min-height: 0; }
-  .kpi:nth-child(-n+3) { border-top: 0; }
-  .kpi:nth-child(3n+1) { border-left: 0; }
 }
 @media (max-width: 760px) {
   .brief { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kpis" "top" "map" "radar"; }
   .more { grid-template-columns: minmax(0, 1fr); grid-template-areas: "sum" "geo" "ports" "news"; }
-  .kpi { padding: 7px 10px 8px; }
-  .kpi dt { font-size: 10px; letter-spacing: .04em; }
-  .kpi__d, .kpi__sub, .split__legend { display: none; }
-  .kpi__long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .kpi__short { display: inline; }
-  .split { margin-top: 4px; height: 4px; }
   .map-body { min-height: 300px; }
   .radarp .radar { max-width: 340px; }
 }

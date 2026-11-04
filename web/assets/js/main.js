@@ -10,7 +10,7 @@ import { initRouter } from './router.js';
 import { el, clear } from './util/dom.js';
 import { parseIso } from './util/format.js';
 import { icon } from './render/comunes.js';
-import { startClocks, renderStrip, renderSourceAlerts } from './render/cabecera.js';
+import { startClocks, renderStatus, renderSourceAlerts } from './render/cabecera.js';
 import { renderBriefing, refreshMapPanels } from './render/briefing.js';
 import { renderListado, requestSearchFocus } from './render/listado.js';
 import { renderDetalle } from './render/detalle.js';
@@ -80,7 +80,7 @@ async function boot() {
   state.today = { date: data.latest.date, today: true, data: data.latest };
   state.edition = state.today;
   tBase = parseIso(data.latest.generated_at);
-  renderStrip(data.latest, state.map);
+  renderStatus(data.latest, state.map);
   renderSourceAlerts(data.latest);
 
   route = initRouter({
@@ -103,7 +103,7 @@ async function boot() {
   if (data.map && !fixture) {
     startMapRefresh((m) => {
       state.map = m;
-      renderStrip(state.data.latest, m);
+      renderStatus(state.data.latest, m);
       if (briefingDone) refreshMapPanels(state);
     }, SOURCE);
   }

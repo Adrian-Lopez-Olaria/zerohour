@@ -54,6 +54,9 @@ export const dDayMon = (iso) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
   return m && +m[2] >= 1 && +m[2] <= 12 ? `${m[3]} ${MONTHS[+m[2] - 1]}` : '—';
 };
+const fmtDMY = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ });
+/** «4 nov 2026» (cabecera). */
+export const dDayMonYear = (iso) => { const t = parseIso(iso); return t == null ? '—' : fmtDMY.format(t).replace('.', ''); };
 export const dDay = (iso) => { const t = parseIso(iso); return t == null ? '' : pad(Number(fmtYMD.format(t).slice(8, 10))); };
 
 /** Días naturales desde hoy (hora de Madrid) hasta una fecha AAAA-MM-DD. Negativo si ya pasó; null si no es válida. */

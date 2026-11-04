@@ -8,42 +8,55 @@ import { sevKey, ID_RE } from '../data.js';
 import { clamp, scoreVar, dLong, verdictBand, pad, fmtCvss, fmtPctl } from '../util/format.js';
 
 export const SEV = Object.freeze({
-  CRITICAL: { label: 'CRÍTICA', bars: 4 },
-  HIGH: { label: 'ALTA', bars: 3 },
-  MEDIUM: { label: 'MEDIA', bars: 2 },
-  LOW: { label: 'BAJA', bars: 1 },
-  UNSCORED: { label: 'SIN PUNTUAR', bars: 0 },
+  CRITICAL: { label: 'Crítica', bars: 4 },
+  HIGH: { label: 'Alta', bars: 3 },
+  MEDIUM: { label: 'Media', bars: 2 },
+  LOW: { label: 'Baja', bars: 1 },
+  UNSCORED: { label: 'Sin puntuar', bars: 0 },
 });
 export const SEV_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED'];
 
 export const TAG = Object.freeze({
-  kev: { short: 'KEV', long: 'EXPLOTADA', title: 'Explotada activamente (catálogo KEV de CISA)' },
-  ssvc: { short: 'SSVC', long: 'EXPLOTADA · SSVC', title: 'CISA la marca como explotada (SSVC «active»); aún no está en el catálogo KEV' },
-  ransomware: { short: 'RANSOM', long: 'RANSOMWARE', title: 'Uso conocido en campañas de ransomware' },
-  exploit: { short: 'EXPLOIT', long: 'EXPLOIT VERIFICADO', title: 'Exploit verificado: módulo de Metasploit o exploit verificado de Exploit-DB' },
-  deteccion: { short: 'DETECCIÓN', long: 'PLANTILLA DE DETECCIÓN', title: 'Plantilla de detección de Nuclei: hay una forma comprobada de disparar el fallo' },
-  poc: { short: 'POC', long: 'POC SIN VERIFICAR', title: 'PoC pública sin verificar (PoC-in-GitHub, Exploit-DB sin verificar o referencia de NVD)' },
-  stack: { short: 'STACK', long: 'MI STACK', title: 'Afecta a productos de mi inventario' },
-  incibe: { short: 'INCIBE', long: 'AVISO INCIBE', title: 'Aviso publicado por INCIBE-CERT' },
-  certeu: { short: 'CERT-EU', long: 'AVISO CERT-EU', title: 'Aviso de CERT-EU (solo publica los que considera graves)' },
-  news: { short: 'NEWS', long: 'EN NOTICIAS', title: 'Cubierta por medios especializados' },
-  remote: { short: 'RED', long: 'REMOTA', title: 'Explotable en remoto (vector de red)' },
-  library: { short: 'LIB', long: 'LIBRERÍA', title: 'Librería o dependencia de software' },
+  kev: { short: 'KEV', long: 'Explotada · KEV', title: 'Explotada activamente (catálogo KEV de CISA)' },
+  ssvc: { short: 'SSVC', long: 'Explotada · SSVC', title: 'CISA la marca como explotada (SSVC «active»); aún no está en el catálogo KEV' },
+  ransomware: { short: 'Ransom', long: 'Ransomware', title: 'Uso conocido en campañas de ransomware' },
+  exploit: { short: 'Exploit', long: 'Exploit verificado', title: 'Exploit verificado: módulo de Metasploit o exploit verificado de Exploit-DB' },
+  deteccion: { short: 'Detección', long: 'Plantilla de detección', title: 'Plantilla de detección de Nuclei: hay una forma comprobada de disparar el fallo (no es un exploit)' },
+  poc: { short: 'PoC*', long: 'PoC sin verificar', title: 'PoC pública sin verificar (PoC-in-GitHub, Exploit-DB sin verificar o referencia de NVD)' },
+  stack: { short: 'Mi stack', long: 'Mi stack', title: 'Afecta a productos de mi inventario' },
+  incibe: { short: 'INCIBE', long: 'Aviso INCIBE', title: 'Aviso publicado por INCIBE-CERT' },
+  certeu: { short: 'CERT-EU', long: 'Aviso CERT-EU', title: 'Aviso de CERT-EU (solo publica los que considera graves)' },
+  news: { short: 'Noticias', long: 'En noticias', title: 'Cubierta por medios especializados' },
+  remote: { short: 'Red', long: 'Remota', title: 'Explotable en remoto (vector de red)' },
+  library: { short: 'Librería', long: 'Librería', title: 'Librería o dependencia de software' },
 });
 export const TAG_ORDER = Object.keys(TAG);
 
 /* Veredictos: cortes y textos sin cambios (85 / 70 / 40); v2 añade clase y forma propias */
 export const VERDICTS = Object.freeze([
-  { key: 'hoy', band: 3, label: 'ACTUAR HOY' },
-  { key: 'semana', band: 2, label: 'ESTA SEMANA' },
-  { key: 'planificar', band: 1, label: 'PLANIFICAR' },
-  { key: 'vigilar', band: 0, label: 'VIGILAR' },
+  { key: 'hoy', band: 3, label: 'Actuar hoy', shape: 'full' },
+  { key: 'semana', band: 2, label: 'Esta semana', shape: 'half' },
+  { key: 'planificar', band: 1, label: 'Planificar', shape: 'empty' },
+  { key: 'vigilar', band: 0, label: 'Vigilar', shape: 'circle' },
 ]);
 export const verdictOf = (score) => VERDICTS[3 - verdictBand(score)];
 
-/** Veredicto con su forma (■ ◧ □ ○): se lee sin depender del color. */
+/**
+ * Forma del veredicto en SVG propio (cuadrado lleno, medio lleno, vacío y círculo): se lee sin
+ * color y no depende de glifos que el subconjunto latin de Saira no trae.
+ */
+export function vshape(v, cls) {
+  const kids = v.shape === 'circle'
+    ? [svg('circle', { cx: 6, cy: 6, r: 4.6, class: 'vs-line' })]
+    : [svg('rect', { x: 1.5, y: 1.5, width: 9, height: 9, class: 'vs-line' }),
+      v.shape === 'full' ? svg('rect', { x: 1.5, y: 1.5, width: 9, height: 9, class: 'vs-fill' }) : null,
+      v.shape === 'half' ? svg('rect', { x: 1.5, y: 1.5, width: 4.5, height: 9, class: 'vs-fill' }) : null];
+  return svg('svg', { viewBox: '0 0 12 12', class: `vshape v-${v.key}${cls ? ' ' + cls : ''}`, 'aria-hidden': 'true', focusable: 'false' }, kids);
+}
+
+/** Veredicto con su forma: se lee sin depender del color. */
 export function vtag(v, extra) {
-  return el('span', { class: `vtag v-${v.key}` }, [v.label, extra]);
+  return el('span', { class: `vtag v-${v.key}` }, [vshape(v), el('span', { text: v.label }), extra]);
 }
 
 /* Iconos propios: viewBox 16, trazo 1,5 px, extremos rectos (guía §6).
@@ -69,13 +82,19 @@ const ICON = {
   search: [['circle', { cx: 7, cy: 7, r: 5 }], ['path', { d: 'M10.6 10.6 15 15' }]],
   star: [['path', { d: 'M8 1.6l1.9 4 4.4.5-3.3 3 .9 4.3L8 11.2l-3.9 2.2.9-4.3-3.3-3 4.4-.5Z' }]],
   alert: [['path', { d: 'M8 1.5 15 14H1Z' }], ['path', { d: 'M8 6v4M8 11.6v1.2' }]],
+  // Controles e indicadores: sustituyen a ▾ → + − ⟲, que no están en el subconjunto latin
+  chevron: [['path', { d: 'M4 6l4 4 4-4' }]],
+  arrow: [['path', { d: 'M2.5 8h10.5M9 4l4 4-4 4' }]],
+  plus: [['path', { d: 'M8 3v10M3 8h10' }]],
+  minus: [['path', { d: 'M3 8h10' }]],
+  reset: [['path', { d: 'M3.2 6.2A5.2 5.2 0 1 1 3 9.6' }], ['path', { d: 'M2.6 2.8v3.6h3.6' }]],
   empty: [['circle', { cx: 8, cy: 8, r: 6.5 }], ['circle', { cx: 8, cy: 8, r: 3.5 }], ['path', { d: 'M8 8 13.5 4.5' }]],
 };
 
 export function icon(name, cls) {
   return svg('svg', {
-    class: cls, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5',
-    'stroke-linecap': 'square', 'stroke-linejoin': 'miter', 'aria-hidden': 'true', focusable: 'false',
+    class: 'ico' + (cls ? ' ' + cls : ''), viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5',
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false',
   }, (ICON[name] || []).map(([tag, attrs]) => svg(tag, attrs)));
 }
 

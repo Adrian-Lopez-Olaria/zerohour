@@ -352,19 +352,19 @@ function cwePanel(c) {
 function linksPanel(c) {
   const id = encodeURIComponent(c.id);
   const fixed = [
-    [c.links.nvd, 'NVD · NIST', 'nvd.nist.gov ↗'],
-    [c.links.mitre, 'CVE · CVE.ORG', 'cve.org ↗'],
-    [`https://api.first.org/data/v1/epss?cve=${id}`, 'EPSS · FIRST', 'first.org ↗'],
-    c.kev ? [`https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=${id}`, 'KEV · CISA', 'cisa.gov ↗'] : null,
+    [c.links.nvd, 'NVD · NIST', 'nvd.nist.gov'],
+    [c.links.mitre, 'CVE · CVE.ORG', 'cve.org'],
+    [`https://api.first.org/data/v1/epss?cve=${id}`, 'EPSS · FIRST', 'first.org'],
+    c.kev ? [`https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=${id}`, 'KEV · CISA', 'cisa.gov'] : null,
     // EUVD: la base europea de ENISA resuelve la CVE por su ID (formato verificado el 2026-11-01)
-    [`https://euvd.enisa.europa.eu/vulnerability/${id}`, 'EUVD · ENISA', 'euvd.enisa.europa.eu ↗'],
+    [`https://euvd.enisa.europa.eu/vulnerability/${id}`, 'EUVD · ENISA', 'euvd.enisa.europa.eu'],
   ].filter(Boolean);
   const rank = (r) => { const i = REF_PRIORITY.findIndex((t) => r.tags.includes(t)); return i < 0 ? 99 : i; };
   const refs = c.references.filter((r) => !c.exploit_refs.some((e) => e.url === r.url)).sort((a, b) => rank(a) - rank(b)).slice(0, MAX_REFS);
   return el('section', { class: 'panel', 'aria-labelledby': 'h-lnk' }, [
     panelHead('', 'Fuentes y referencias', '', 'h-lnk'),
     el('div', { class: 'panel__body panel__body--list' }, [
-      ...fixed.map(([u, t, s]) => extLink(u, { class: 'extl' }, [t, el('span', { text: s })])),
+      ...fixed.map(([u, t, s]) => extLink(u, { class: 'extl' }, [t, el('span', [s, ' ', icon('arrow', 'ico--out')])])),
       refs.length ? el('p', { class: 'label lk-sub', text: `REFERENCIAS DE NVD · ${refs.length}${c.references_total > refs.length ? ` DE ${c.references_total}` : ''}` }) : null,
       ...refs.map((r) => linkItem(r.url, hostPath(r.url) || 'Referencia descartada', r.tags.join(' · ') || 'SIN ETIQUETA')),
     ]),
@@ -382,7 +382,7 @@ function notFound(root, ctx, id) {
         : 'El enlace no tiene el formato CVE-AAAA-NNNN. Vuelve al listado para elegir una CVE.'),
     el('div', { class: 'panel__body nf-actions' }, [
       el('a', { class: 'btn btn--ghost', href: '#listado', text: 'Ir al listado' }),
-      id ? extLink(`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(id)}`, { class: 'link mono' }, 'Abrir en NVD ↗') : null,
+      id ? extLink(`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(id)}`, { class: 'link mono' }, ['Abrir en NVD ', icon('arrow')]) : null,
     ]),
   ]));
 }
@@ -406,8 +406,8 @@ export function renderDetalle(root, ctx, id) {
 
   const i = list.indexOf(c), prev = list[i - 1], next = list[i + 1];
   const navBtn = (cv, label, rel) => (cv
-    ? el('a', { class: 'btn btn--sm', href: cveHref(cv.id), rel, text: label })
-    : el('span', { class: 'btn btn--sm', 'aria-disabled': 'true', text: label }));
+    ? el('a', { class: 'btn btn--sm', href: cveHref(cv.id), rel }, label)
+    : el('span', { class: 'btn btn--sm', 'aria-disabled': 'true' }, label));
   const dash = c.id.lastIndexOf('-');
 
   root.appendChild(el('nav', { class: 'crumbs', 'aria-label': 'Ruta' }, [
@@ -415,7 +415,7 @@ export function renderDetalle(root, ctx, id) {
       el('a', { href: '#listado', text: 'LISTADO' }), el('span', { 'aria-hidden': 'true', text: '/' }),
       el('span', { class: 'crumbs__cur', 'aria-current': 'page', text: c.id }), el('span', { text: `Nº ${pad(i + 1)} DE ${list.length} POR URGENCIA` }),
     ]),
-    el('span', { class: 'crumbs__nav' }, [navBtn(prev, '← ANTERIOR', 'prev'), navBtn(next, 'SIGUIENTE →', 'next')]),
+    el('span', { class: 'crumbs__nav' }, [navBtn(prev, [icon('arrow', 'ico--back'), ' Anterior'], 'prev'), navBtn(next, ['Siguiente ', icon('arrow')], 'next')]),
   ]));
   if (banner) root.appendChild(banner);
   root.appendChild(el('header', { class: 'det-head' }, [

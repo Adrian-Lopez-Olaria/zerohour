@@ -1,0 +1,4 @@
+83f738bd44f3d7542f2adf6c78d2285b85c55fd349a44ded40f844fbcfbe1d81  azeret-mono-latin-400-normal.woff2
+be8abdd09a16e1a4469f9e25959e50c80dade1ecf97e52e8b3c80f000a2a5570  azeret-mono-latin-500-normal.woff2
+ff62faec90bbc6ca908b86dceab910a9283814787b38f8d288f05d43facae4ec  saira-latin-wdth-italic.woff2
+d5f1ee1ce85a2f6611d76bcd98738132f4706b099dc167f02c2093a1ec5eb975  saira-latin-wdth-normal.woff2

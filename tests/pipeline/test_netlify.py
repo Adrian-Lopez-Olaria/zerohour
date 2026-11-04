@@ -184,7 +184,7 @@ def test_dev_server_manda_las_cabeceras_de_netlify(servidor):
 @pytest.mark.parametrize("ruta, tipo", [
     ("/assets/js/main.js", "text/javascript; charset=utf-8"),
     ("/assets/css/base.css", "text/css; charset=utf-8"),
-    ("/assets/fonts/martian-mono-latin.woff2", "font/woff2"),
+    ("/assets/fonts/saira-latin-wdth-normal.woff2", "font/woff2"),
     ("/assets/geo/tierra.json", "application/json; charset=utf-8"),
     ("/.well-known/security.txt", "text/plain; charset=utf-8"),
 ])

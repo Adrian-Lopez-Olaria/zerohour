@@ -1,87 +1,104 @@
 /* =============================================================================
-   TOKENS v2 · «consola SOC»: grafito neutro, paneles planos, el color solo es estado
-   (zerohour-estilo.md v2, §2 y §3). Todas las variables de diseño viven aquí.
+   TOKENS · «Órbita» (design/orbita/zerohour-estilo-orbita.md §1 y §2)
+   Espacio azul profundo, un globo vivo en el centro y el color solo como información.
+   Contrastes medidos sobre --bg-0 / --bg-1 / --bg-2 (guía §1): todo el texto ≥ 5,6:1.
    ============================================================================= */
 :root {
-  /* Superficies y líneas: grafito azulado neutro, líneas sólidas */
-  --bg-0: #0A0E13;                         /* fondo de página, cabeceras de grupo */
-  --bg-1: #10161D;                         /* paneles, cabecera de la web */
-  --bg-2: #151D26;                         /* barra de título de panel, hover */
-  --bg-3: #1B2531;                         /* controles activos */
-  --line-1: #1C2631;                       /* filete entre filas */
-  --line-2: #26323F;                       /* borde de panel */
-  --line-3: #3A4859;                       /* borde de controles (solo decorativo) */
+  /* Superficies y líneas */
+  --bg-0: #04060C;                         /* fondo de página */
+  --bg-1: #0A0F1C;                         /* paneles, tira de cifras, botones */
+  --bg-2: #111A2E;                         /* hover de fila, pistas de barras, «Ver las 10» */
+  --line: #1C2945;                         /* bordes y filetes (decorativo, sin texto) */
+  --line-hi: #2E5299;                      /* borde al pasar por encima de un control */
 
-  /* Texto (contraste sobre --bg-1: 15,2 · 9,2 · 6,1) */
-  --text-1: #E6EBF1;
-  --text-2: #AEB9C7;
-  --text-3: #8A97A8;
+  /* Texto (17,9 · 10,0 · 6,6 sobre --bg-0) */
+  --text-1: #EAF1FF;
+  --text-2: #A9B7D3;
+  --text-3: #8393B4;
 
-  /* Estado */
-  --ok: #38D996;                           /* marca, LIVE, fuente OK, foco, navegación, mi stack */
-  --ok-dim: rgba(56, 217, 150, .10);
-  --warn: #F5B544;                         /* fuente parcial, exploit/PoC */
-  --warn-dim: rgba(245, 181, 68, .08);
-  --fail: #FF5A6E;                         /* fuente caída */
-  --info: #6CB6FF;                         /* librerías, tramo bajo del mapa */
+  /* Acento de marca: navegación activa, enlaces, título del mapa, foco, núcleo del radar.
+     Es el mismo ámbar que «Esta semana»: nunca se pega a un score (órdenes de dirección §3). */
+  --acc: #FFB547;
+  --ok: #5EE3A1;                           /* solo el piloto de fuentes OK */
+  --fail: #FF7D6E;                         /* fuente caída (= coral de «actuar hoy») */
+  --fail-bg: rgba(255, 125, 110, .08);
 
-  /* Severidad CVSS (sin cambios): las barras llevan el color; el texto, neutro */
-  --sev-critical: #FF4F6D;
-  --sev-high: #FF9940;
-  --sev-medium: #E9D55B;
-  --sev-low: #6CB6FF;
-  --sev-unscored: #8A97A8;
+  /* Veredictos: cortes fijos 85 / 70 / 40, cada uno con forma propia (SVG) */
+  --v-hoy: #FF7D6E;
+  --v-semana: #FFB547;
+  --v-planificar: #E9D56E;
+  --v-vigilar: #8393B4;
 
-  /* Veredicto = color del score; cada uno con forma propia (■ ◧ □ ○) */
-  --v-hoy: #FF4F6D;
-  --v-semana: #FF9940;
-  --v-planificar: #E9D55B;
-  --v-vigilar: #7F8FA3;
-  --kev-title: #FF8095;                    /* títulos sobre el tinte crítico (7,6:1) */
+  /* Severidad CVSS (listado, histórico): barras de color, texto neutro */
+  --sev-critical: #FF7D6E;
+  --sev-high: #FFB547;
+  --sev-medium: #E9D56E;
+  --sev-low: #7FB8FF;
+  --sev-unscored: #8393B4;
 
-  /* Mapa */
-  --map-land: rgba(126, 152, 178, .55);
-  --map-hi: #FF4F6D;
-  --map-mid: #F5B544;
-  --map-lo: #6CB6FF;
+  /* Mapa y globo */
+  --map-hi: #FF8A5C;
+  --map-mid: #FFC46B;
+  --map-lo: #7FB8FF;
+  --globe-land: #4F82D6;
+  --globe-land-far: #284C86;
+  --globe-rim: #3D6CC4;
+  --star: #9DB6E6;
 
-  /* Tipografía: mismas tres familias; la display solo en cifras */
-  --f-display: 'Big Shoulders Display', 'Big Shoulders', sans-serif;
-  --f-mono: 'Martian Mono', ui-monospace, monospace;
-  --f-text: 'Hanken Grotesk', sans-serif;
-  --mono-stretch: 87.5%;
-  --fs-kpi: 34px;
-  --fs-score: 26px;
-  --fs-id: clamp(36px, 5vw, 56px);
-  --fs-h2: clamp(30px, 3vw, 42px);         /* solo la página 404 */
+  /* Desglose del score */
+  --bd-cvss: #7FB8FF;
+  --bd-epss: #B7A6FF;
+  --bd-explotada: #FF7D6E;
+  --bd-ransomware: #FF4D6D;
+  --bd-exploit: #FFB547;
+  --bd-stack: #EAF1FF;
+
+  /* Tipografía: Saira para todo (cifras en 300 con tabular-nums); Azeret solo IDs y puertos */
+  --f-text: 'Saira', system-ui, sans-serif;
+  --f-mono: 'Azeret Mono', ui-monospace, monospace;
   --fs-body: 15px;
   --fs-small: 13px;
-  --fs-data: 12.5px;
-  --fs-label: 11px;                        /* mínimo de la interfaz */
-  --fs-chip: 10px;                         /* solo los chips bajan a 10 */
-  --track-label: .08em;
+  --fs-note: 11.5px;                       /* notas y pies; nada baja de 10,5 px */
+  --fs-kpi: 26px;
+  --fs-score: 26px;
+  --fs-id: clamp(30px, 4.2vw, 48px);
 
   /* Espaciado y forma */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
   --gutter: 24px;
-  --gap: 12px;
+  --gap: 20px;                             /* separación entre columnas */
   --maxw: 1440px;
-  --radius: 2px;                           /* paneles, chips y botones */
-  --radius-dot: 50%;                       /* puntos del globo y pilotos */
-  --hdr-h: 52px;
-  --strip-h: 32px;
-  --navbar-h: 58px;
+  --r-panel: 14px;
+  --r-strip: 12px;
+  --r-btn: 12px;
+  --r-chip: 4px;
+  --radius-dot: 50%;
+  --hdr-h: 56px;
+  --tap: 44px;                             /* zona táctil mínima */
 
-  /* Movimiento (cambios-v2 §11): solo lo que dice que el sistema está vivo. Se quedan el
-     barrido del radar y su destello, el piloto LIVE, el T+, un anillo de pulso por país y el
-     autogiro (0,3). Fuera: el barrido de fondo, el conteo de cifras, la entrada escalonada del
-     top, la aparición de los puntos del globo, el dial y la gráfica animados y el fundido entre
-     pantallas. Con prefers-reduced-motion, todo a cero (componentes.css y globe.js). */
-  --t-fast: 120ms;                         /* hover y foco */
-  --t-blink: 1.6s;                         /* piloto LIVE */
-  --t-pulse: 2.4s;                         /* anillo de pulso del globo: escala 1 → 2,6 */
-  --t-radar: 6s;                           /* una vuelta del barrido del radar */
+  /* Movimiento (guía §6) */
+  --t-fast: 150ms;
+  --t-pulse: 2.8s;
+  --t-radar: 6s;
+  --t-fly: 900ms;
+
+  /* ── Alias de la v2 para las vistas que aún no se han rehecho (se retiran en el bloque E) ── */
+  --line-1: var(--line); --line-2: var(--line); --line-3: var(--line-hi);
+  --bg-3: var(--bg-2);
+  --info: var(--map-lo);
+  --kev-title: var(--v-hoy);
+  --warn: var(--acc);
+  --warn-dim: rgba(255, 181, 71, .08);
+  --ok-dim: rgba(255, 181, 71, .08);
+  --f-display: var(--f-text);
+  --mono-stretch: 100%;
+  --fs-label: 11.5px;
+  --fs-chip: 12px;
+  --fs-data: 13px;
+  --track-label: .08em;
+  --radius: var(--r-chip);
+  --strip-h: 0px;
 }
 @media (max-width: 760px) {
-  :root { --gutter: 12px; --gap: 10px; --fs-kpi: 26px; --fs-score: 24px; --hdr-h: 48px; }
+  :root { --gutter: 14px; --gap: 16px; --fs-kpi: 24px; --fs-score: 30px; }
 }

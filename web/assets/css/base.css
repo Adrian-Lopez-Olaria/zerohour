@@ -1,29 +1,34 @@
 /* =============================================================================
-   BASE · reset ligero, tipografía raíz, utilidades compartidas
-   v2: fondo liso --bg-0 (sin retícula, grano, viñeta ni reglas laterales)
+   BASE · reset ligero, tipografía raíz y utilidades compartidas (Órbita)
+   Fondo liso --bg-0: nada de degradados a pantalla completa (el único permitido es la
+   iluminación del propio globo).
    ============================================================================= */
 *, *::before, *::after { box-sizing: border-box; }
 html { color-scheme: dark; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; min-height: 100vh; color: var(--text-1); background: var(--bg-0);
-  font-family: var(--f-text); font-size: var(--fs-body); line-height: 1.5;
+  font-family: var(--f-text); font-size: var(--fs-body); line-height: 1.4;
   -webkit-font-smoothing: antialiased; overflow-x: clip;
 }
-::selection { background: var(--ok); color: var(--bg-0); }
-a { color: inherit; }
+::selection { background: var(--acc); color: var(--bg-0); }
+a { color: inherit; text-underline-offset: 3px; }
 button, input, select { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+h1, h2, h3 { font-weight: 700; }
 
-.mono { font-family: var(--f-mono); font-stretch: var(--mono-stretch); }
-.label { font-family: var(--f-mono); font-stretch: var(--mono-stretch); font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text-3); }
+.mono { font-family: var(--f-mono); }
 .num { font-variant-numeric: tabular-nums lining-nums; }
+/* Nota pequeña: Saira normal (sin mayúsculas ni mono, como pidió Adrián) */
+.label { font-size: var(--fs-note); color: var(--text-3); }
+/* Rótulo corto en MAYÚSCULAS (1-3 palabras: títulos del mapa, grupos de veredicto, «Plazo CISA») */
+.kicker { font-size: 12.5px; font-weight: 700; font-stretch: 87.5%; letter-spacing: .1em; text-transform: uppercase; }
 
-.link { color: var(--text-1); text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; }
-.link:hover { text-decoration-color: var(--ok); }
+.link { color: var(--acc); text-decoration: none; }
+.link:hover { text-decoration: underline; }
 
 /* Accesibilidad: salto al contenido y texto solo para lectores de pantalla */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.skip { position: absolute; left: 12px; top: -48px; z-index: 60; padding: 10px 14px; background: var(--ok); color: var(--bg-0); font-family: var(--f-mono); font-size: 12px; }
+.skip { position: absolute; left: 12px; top: -60px; z-index: 60; padding: 10px 14px; border-radius: var(--r-btn); background: var(--acc); color: var(--bg-0); font-weight: 600; }
 .skip:focus { top: 8px; }
 
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gutter); }
@@ -31,3 +36,13 @@ main { overflow-x: clip; }
 
 /* Definiciones SVG fuera de pantalla (símbolo del logo) — sin estilos inline por la CSP */
 .logo-defs { position: absolute; }
+.lg-ring { fill: #071226; stroke: var(--map-lo); stroke-width: 1.6; }
+.lg-sweep { fill: var(--acc); opacity: .8; }
+.lg-hand { stroke: var(--text-1); stroke-width: 2; stroke-linecap: round; }
+.lg-hub { fill: var(--text-1); }
+
+/* Iconos SVG propios (viewBox 16): el subconjunto latin de Saira no trae ■ ◧ □ ○ ⟲ → ≥… */
+.ico { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; }
+.ico .ico-fill { fill: currentColor; stroke: none; }
+.ico--back { transform: rotate(180deg); }
+.ico--out { transform: rotate(-45deg); width: 12px; height: 12px; }

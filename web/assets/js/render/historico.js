@@ -169,7 +169,7 @@ export function renderHistorico(root, ctx) {
   H.sumBody = el('div', { class: 'panel__body daysum' });
 
   root.append(
-    el('section', { class: 'panel', 'aria-labelledby': 'h-days' }, [panelHead('DAY-01', 'Selector de días', 'PULSA UN DÍA · ← →', 'h-days'), daysBox]),
+    el('section', { class: 'panel', 'aria-labelledby': 'h-days' }, [panelHead('DAY-01', 'Selector de días', 'Pulsa un día o usa las flechas del teclado', 'h-days'), daysBox]),
     el('div', { class: 'hist-grid' }, [
       el('section', { class: 'panel', 'aria-labelledby': 'h-chart' }, [
         chartHead, H.chartBody,

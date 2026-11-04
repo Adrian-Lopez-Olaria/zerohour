@@ -145,8 +145,8 @@ function renderLegend() {
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   lg.append(
     el('span', { class: 'map-legend__keys' }, [
-      el('span', [el('i', { class: 'lg-hi' }), `≥ ${kfmt(SCALE.threshold(0.72))}`]),
-      el('span', [el('i', { class: 'lg-mid' }), `≥ ${kfmt(SCALE.threshold(0.4))}`]),
+      el('span', [el('i', { class: 'lg-hi' }), `desde ${kfmt(SCALE.threshold(0.72))}`]),
+      el('span', [el('i', { class: 'lg-mid' }), `desde ${kfmt(SCALE.threshold(0.4))}`]),
       el('span', [el('i', { class: 'lg-lo' }), 'menos']),
     ]),
     el('span', { text: coarse ? 'Arrastra para girar · pellizca para zoom' : 'Arrastra para girar · Ctrl + rueda para zoom' }),

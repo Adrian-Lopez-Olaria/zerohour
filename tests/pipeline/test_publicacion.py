@@ -116,6 +116,18 @@ def test_montar_solo_publica_la_lista_blanca(tmp_path):
     assert info["dias"] == 1
 
 
+def test_montar_no_publica_design_ni_nada_fuera_de_web(tmp_path):
+    """Órdenes de Órbita §0.3: nada de design/ (prototipos, capturas, paquete de fuentes) se publica."""
+    assert (ROOT / "design").is_dir()
+    shutil.copy2(ROOT / "netlify.toml", tmp_path / "netlify.toml")
+    shutil.copy2(ROOT / "wrangler.jsonc", tmp_path / "wrangler.jsonc")
+    out = tmp_path / "_deploy"
+    mon.montar(ROOT / "web", write_data(tmp_path / "data"), out, tmp_path)
+    top = {p.name for p in out.iterdir()}
+    assert top == {"web", "netlify.toml", "wrangler.jsonc"}
+    assert not any("design" in p.parts or p.suffix == ".zip" or "orbita" in p.name for p in out.rglob("*"))
+
+
 def test_montar_exige_netlify_toml(tmp_path):
     """Sin netlify.toml el sitio saldría sin CSP ni cabeceras: no se monta."""
     with pytest.raises(SystemExit, match="netlify.toml"):
