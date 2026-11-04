@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# E2E · Playwright contra dev_server.py (las mismas cabeceras que producción: CSP con
+# Trusted Types). Criterios de Órbita, estados especiales, respaldo sin WebGL, XSS y axe.
+# Solo lectura: no publica nada ni ve ningún secreto.
+# ─────────────────────────────────────────────────────────────────────────────
+name: E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "netlify.toml"
+      - "scripts/dev_server.py"
+      - "tests/e2e/**"
+      - "tests/fixtures/**"
+      - ".github/workflows/e2e.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "tests/e2e/**"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: tests/e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"           # dev_server.py: solo biblioteca estándar
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+
+      - name: Instalar Playwright (versión exacta y lockfile, sin scripts de terceros)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Instalar Chromium de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Pruebas
+        env:
+          CI: "true"
+        run: npx playwright test
+
+      - name: Informe si falla
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

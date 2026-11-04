@@ -1,0 +1,14 @@
+{
+  "name": "zerohour-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de extremo a extremo (Playwright) contra dev_server con las cabeceras de producción. Versiones exactas y lockfile: npm ci --ignore-scripts",
+  "license": "MIT",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1"
+  }
+}

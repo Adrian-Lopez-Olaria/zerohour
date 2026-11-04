@@ -42,3 +42,16 @@ updates:
       default-days: 14
     commit-message:
       prefix: "despliegue"
+
+  - package-ecosystem: npm
+    directory: /tests/e2e
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 14
+    groups:
+      e2e:
+        patterns: ["*"]
+    commit-message:
+      prefix: "e2e"

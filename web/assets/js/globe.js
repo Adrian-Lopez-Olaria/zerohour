@@ -139,7 +139,9 @@ function loadLibCss() {
 /* ───────── giro automático: parar al tocar y volver a los 3 s ───────── */
 
 function setAuto(on) {
-  if (S.globe) S.globe.controls().autoRotate = on && !S.reduced;
+  const spin = on && !S.reduced;
+  if (S.globe) S.globe.controls().autoRotate = spin;
+  if (S.zone) S.zone.dataset.spin = spin ? 'on' : 'off';
 }
 function hold() { clearTimeout(S.idle); setAuto(false); }
 function release() {
@@ -316,6 +318,7 @@ function createGlobe() {
   if (mat && mat.color) { mat.color.set('#0A1F44'); if (mat.emissive) mat.emissive.set('#030914'); if ('shininess' in mat) mat.shininess = 3; }
   const ctr = g.controls();
   ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enablePan = false;
+  S.zone.dataset.spin = S.reduced ? 'off' : 'on';
   ctr.enableZoom = true; ctr.minDistance = 100 * distOf(ALT_MIN); ctr.maxDistance = 100 * distOf(S.altHome);
   // Arrastrar, pellizcar o Ctrl + rueda: se para el giro y, 3 s después de soltar, vuelve
   ctr.addEventListener('start', hold);
@@ -352,7 +355,7 @@ function mountFlat(note) {
   S.flatZoom = 1;
   S.flat = mountFlatGlobe(box, {
     land: S.land, markers: S.markers, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
-    onHover: showTip,
+    onHover: showTip, onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
   });
   S.flat.onZoom((z) => { S.flatZoom = z; syncZoomButtons(); });
   const n = S.zone.querySelector('#globe-note');

@@ -25,6 +25,8 @@ h1, h2, h3 { font-weight: 700; }
 
 .link { color: var(--acc); text-decoration: none; }
 .link:hover { text-decoration: underline; }
+/* Dentro de un párrafo, el enlace se distingue también sin color (WCAG 1.4.1) */
+p .link { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
 /* Accesibilidad: salto al contenido y texto solo para lectores de pantalla */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

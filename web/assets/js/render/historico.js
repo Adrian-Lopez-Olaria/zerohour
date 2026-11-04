@@ -49,13 +49,15 @@ function dayButton(d) {
   const s = d.stats;
   const b = el('button', {
     type: 'button', class: 'day', dataset: { date: d.date }, 'aria-pressed': 'false', tabindex: '-1',
-    'aria-label': `${dLong(d.date)}: ${plural(s.new_cves, 'CVE', 'CVE')}, ${plural(s.kev_new, 'nueva en KEV', 'nuevas en KEV')}`,
     on: { click: () => selectDay(d.date) },
   }, [
-    el('span', { class: 'day__w', text: dWeek(d.date) }),
+    // Sin aria-label: el nombre es lo que se ve («LUN 02») y, solo para lectores de pantalla, la
+    // fecha completa y las cifras (WCAG 2.5.3: el nombre contiene el texto visible)
+    el('span', { class: 'day__w', text: dWeek(d.date) }), ' ',
     el('span', { class: 'day__d', text: dDay(d.date) }),
+    el('span', { class: 'sr-only', text: ` (${dLong(d.date)}: ${plural(s.new_cves, 'CVE', 'CVE')}, ${plural(s.kev_new, 'nueva en KEV', 'nuevas en KEV')})` }),
     el('span', { class: 'day__bar', 'aria-hidden': 'true' }, SEV_ORDER.map((k) => el('i', { class: `sevbg--${k}`, style: { flex: String(s.by_severity[k] || 0) } }))),
-    el('span', { class: 'day__n', text: `${nf(s.new_cves)} · K${nf(s.kev_new)}` }),
+    el('span', { class: 'day__n', 'aria-hidden': 'true', text: `${nf(s.new_cves)} · K${nf(s.kev_new)}` }),
   ]);
   return b;
 }

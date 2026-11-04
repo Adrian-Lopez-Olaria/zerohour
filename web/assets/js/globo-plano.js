@@ -112,8 +112,9 @@ export function mountFlatGlobe(host, o) {
     else pulse(ts);
   }
 
-  const hold = () => { auto = false; clearTimeout(idle); };
-  const release = () => { clearTimeout(idle); if (!o.reduced) idle = setTimeout(() => { auto = true; }, RESUME_MS); };
+  const spin = (on) => { auto = on; if (o.onSpin) o.onSpin(on); };
+  const hold = () => { spin(false); clearTimeout(idle); };
+  const release = () => { clearTimeout(idle); if (!o.reduced) idle = setTimeout(() => spin(true), RESUME_MS); };
   const setZoom = (z) => { st.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); dirty = true; };
 
   // Arrastre y pellizco con Pointer Events (touch-action: none solo en el globo plano)
@@ -155,6 +156,7 @@ export function mountFlatGlobe(host, o) {
 
   raf = requestAnimationFrame(frame);
   draw();
+  if (o.onSpin) o.onSpin(auto);
   return {
     zoomBy(f) { hold(); setZoom(st.zoom * f); release(); },
     rotate(dLat, dLon) { hold(); st.lat0 = Math.max(-60, Math.min(70, st.lat0 + dLat)); st.lon0 = ((st.lon0 + dLon + 540) % 360) - 180; dirty = true; release(); },

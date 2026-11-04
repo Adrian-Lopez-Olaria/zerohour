@@ -139,10 +139,13 @@ function mapFoot(map) {
 function countryButtons(map) {
   const ms = countryMarkers(map).slice(0, 5), scale = makeScale(countryMarkers(map));
   return el('ol', { class: 'cc', id: 'map-cc', 'aria-label': 'Países con más ataques acumulados' }, ms.map((m) => el('li', { class: `cc--${scale.tier(m.attacks)}` },
-    el('button', { type: 'button', class: 'cc__b', 'aria-label': `Llevar el globo a ${markerText(m)}`, on: { click: () => flyTo(m.lat, m.lon) } }, [
-      el('span', { class: 'cc__c', text: countryName(m.cc, m.country) }),
-      el('span', { class: 'cc__n', text: kfmt(m.attacks) }),
-      el('span', { class: 'cc__s', text: `${nf(m.sources)} ${m.sources === 1 ? 'IP' : 'IPs'}` }),
+    // Sin aria-label: el nombre accesible sale del texto visible (así contiene lo que se ve,
+    // WCAG 2.5.3) más unas palabras solo para lectores de pantalla con la unidad completa
+    el('button', { type: 'button', class: 'cc__b', title: `Llevar el globo a ${markerText(m)}`, on: { click: () => flyTo(m.lat, m.lon) } }, [
+      el('span', { class: 'sr-only', text: 'Llevar el globo a ' }),
+      el('span', { class: 'cc__c', text: countryName(m.cc, m.country) }), ' ',
+      el('span', { class: 'cc__n' }, [kfmt(m.attacks), el('span', { class: 'sr-only', text: ' ataques acumulados,' })]), ' ',
+      el('span', { class: 'cc__s' }, [`${nf(m.sources)} ${m.sources === 1 ? 'IP' : 'IPs'}`, el('span', { class: 'sr-only', text: ` ${m.sources === 1 ? 'activa' : 'activas'} (DShield)` })]),
     ]))));
 }
 
