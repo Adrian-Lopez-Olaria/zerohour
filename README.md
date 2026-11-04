@@ -8,13 +8,15 @@ En producción en **<https://zerohour-cve.dev>**.
 
 Todo corre gratis: el pipeline en **GitHub Actions** y la web en **Cloudflare Workers** (solo ficheros estáticos), con cabeceras de seguridad estrictas (CSP sin excepciones y Trusted Types).
 
-![Briefing de ZEROHOUR a 1440 × 900: seis contadores, el top 10 agrupado por veredicto, el globo de origen de ataques y el radar de urgencia](docs/capturas/v2-briefing-1440.png)
+![Briefing de ZEROHOUR a 1440 × 900: «Lo primero hoy», seis cifras, el top 10 agrupado por veredicto, el globo de origen de ataques, el radar y los puertos](docs/capturas/orbita-briefing-1440.png)
 
 | Móvil (390 px) | Ficha de una CVE | Listado |
 |---|---|---|
-| ![Briefing en móvil: contadores, top 5 y «Ver las 10»](docs/capturas/v2-briefing-390.png) | ![Ficha: «Qué hacer» primero, con el dial, el veredicto y las acciones](docs/capturas/v2-ficha-1440.png) | ![Listado agrupado por veredicto con buscador y filtros](docs/capturas/v2-listado-1440.png) |
+| ![Briefing en móvil: lead, cifras y el globo, con el top justo después](docs/capturas/orbita-briefing-390.png) | ![Ficha: «Qué hacer» primero, con el plazo CISA y el desglose del score](docs/capturas/orbita-ficha-1440.png) | ![Listado agrupado por veredicto con buscador y filtros](docs/capturas/orbita-listado-1440.png) |
 
-El diseño (v2, «consola SOC») está documentado en [`design/`](design/): la guía de estilo, la lista de cambios y el prototipo.
+El diseño es «Órbita»: el globo manda y los datos orbitan a su alrededor. Está documentado en [`design/orbita/`](design/orbita/) (guía de estilo, lista de cambios, prototipo y capturas). Las fuentes son Saira y Azeret Mono (OFL), autoalojadas; `design/` no se publica.
+
+Anchos intermedios: [1024 px](docs/capturas/orbita-briefing-1024.png) · [768 px](docs/capturas/orbita-briefing-768.png) · histórico: [1440 px](docs/capturas/orbita-historico-1440.png).
 
 ## Qué responde cada mañana
 
@@ -22,7 +24,8 @@ El diseño (v2, «consola SOC») está documentado en [`design/`](design/): la g
 - **Qué se está explotando ya.** Nuevas en el catálogo KEV de CISA y CVE que CISA marca como explotadas (SSVC) antes de que entren en KEV.
 - **Qué tiene código de ataque.** Exploits verificados (Metasploit, Exploit-DB), plantillas de detección (Nuclei) y PoC públicas sin verificar, cada uno con su peso.
 - **Qué me toca a mí.** Las que afectan a tu stack (`config.toml`).
-- **Desde dónde atacan.** Un globo con el origen de los ataques que ven los sensores de DShield, por país, y los puertos más atacados.
+- **Desde dónde atacan.** Un globo interactivo con el ranking de DShield de las IPs activas hoy, por país (se arrastra, se acerca y vuelve a girar solo a los 3 s), y los puertos más atacados. Sin WebGL hay un globo SVG de respaldo con el mismo comportamiento.
+- **Cuánto tiempo hay.** El plazo que da CISA para parchear cada CVE del catálogo KEV y el desglose del score, para saber de qué está hecho el número.
 
 ## Fuentes
 
