@@ -1,18 +1,21 @@
 /* =============================================================================
-   BRIEFING (v2, cambios-v2 §4)
-   Escritorio: contadores a todo el ancho y debajo top (1,5 fr) · mapa (1 fr) · radar
-   (300 px); el primer pantallazo cabe en 1440 × 900. Debajo: resumen · países · puertos
-   y prensa. 761–1179 px: contadores 3 × 2, top a todo el ancho, mapa y radar lado a
-   lado. ≤ 760 px: una columna.
+   BRIEFING «Órbita» (guía §4). Móvil primero; desde 1000 px, la composición de escritorio:
+   lead + tira de cifras y, 24 px debajo, top 10 (440) · globo (1fr) · radar y puertos (330),
+   que empiezan a la misma altura. «Más del día» va debajo del primer pantallazo.
    ============================================================================= */
-.brief { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis kpis" "top map radar"; align-items: stretch; }
-.kpis { grid-area: kpis; }
-.top10 { grid-area: top; }
-.mapp { grid-area: map; }
-.radarp { grid-area: radar; }
-.more { display: grid; gap: var(--gap); margin-top: var(--gap); grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 300px; grid-template-areas: "sum geo ports" "news geo ports"; align-items: start; }
-.sum { grid-area: sum; } .geo { grid-area: geo; } .ports { grid-area: ports; } .newsp { grid-area: news; }
+.brief__head { display: grid; gap: 10px; margin-top: 4px; }
+.brief { display: grid; gap: var(--gap); margin-top: 20px; }
+.stage { order: -1; display: grid; gap: 10px; min-width: 0; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
 .muted-line { margin: 0; font-size: var(--fs-small); color: var(--text-3); padding: 6px 0; }
+
+/* «Lo primero hoy» */
+.lead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-strip); background: var(--bg-1); font-size: 14px; }
+.lead__k { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--vc); }
+.lead__shape { width: 12px; height: 12px; }
+.lead__a { color: var(--text-2); text-decoration: none; }
+.lead__a b { color: var(--text-1); font-weight: 600; }
+.lead__a:hover { text-decoration: underline; }
 
 /* ---------- Tira de cifras (Órbita §5.2): 6 celdas, filete de 1 px, radio 12 ---------- */
 .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-strip); overflow: hidden; }
@@ -27,6 +30,10 @@
   .kpi { padding: 6px 12px; text-align: center; }
   .kpi__l { font-size: 11.5px; }
 }
+
+/* Top 10 */
+.top10 { min-width: 0; }
+.panel__more { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 
 /* ---------- Mapa de origen de ataques (cambios-v2 §6) ---------- */
 .map-body { position: relative; flex: 1; padding: 0; min-height: 420px; display: flex; }
@@ -96,13 +103,6 @@
 .vdist b { font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .vdist li.is-zero .vtag, .vdist li.is-zero b { opacity: .5; }
 
-/* ---------- Resumen del día ---------- */
-.sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }
-.edmeta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--line-1); }
-.edmeta div { display: grid; gap: 2px; }
-.edmeta dt { font-size: 10.5px; letter-spacing: var(--track-label); color: var(--text-3); text-transform: uppercase; }
-.edmeta dd { margin: 0; font-size: 12px; color: var(--text-1); font-variant-numeric: tabular-nums; }
-
 /* ---------- Países y puertos (.rank): países en escala log con el color del mapa ---------- */
 .rank { list-style: none; margin: 0; padding: 4px 14px 10px; }
 .rank li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 70px; gap: 3px 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line-1); font-size: 11.5px; }
@@ -114,22 +114,44 @@
 .rank .bar i { display: block; height: 100%; width: calc(var(--w) * 1%); background: var(--text-3); }
 .rank .bar--hi i { background: var(--map-hi); } .rank .bar--mid i { background: var(--map-mid); } .rank .bar--lo i { background: var(--map-lo); }
 
-/* ---------- Avisos y prensa ---------- */
-.news-list { list-style: none; margin: 0; padding: 2px 14px 8px; }
-.news-list__a { display: grid; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--line-1); text-decoration: none; }
+/* ---------- «Más del día»: avisos y prensa + resumen ---------- */
+.more { margin-top: var(--sp-6); }
+.more__h { margin: 0 0 10px; color: var(--text-2); }
+.more__grid { display: grid; gap: 14px; }
+.news-list { list-style: none; margin: 0; padding: 0; }
+.news-list__a { display: grid; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
 .news-list li:last-child .news-list__a { border-bottom: 0; }
 .news-list__a span { font-size: 14px; line-height: 1.4; }
-a.news-list__a:hover span { text-decoration: underline; text-decoration-color: var(--ok); }
-.news-list small { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; }
+a.news-list__a:hover span { text-decoration: underline; text-decoration-color: var(--acc); }
+.news-list small { font-size: 11.5px; color: var(--text-3); }
+.sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }
+.edmeta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--line); }
+.edmeta div { display: grid; gap: 2px; }
+.edmeta dt { font-size: 11.5px; color: var(--text-3); }
+.edmeta dd { margin: 0; font-size: 13px; color: var(--text-1); font-variant-numeric: tabular-nums; }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 1179px) {
-  .brief { grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "kpis kpis" "top top" "map radar"; }
-  .more { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "sum sum" "geo ports" "news news"; }
+/* ---------- Escritorio ---------- */
+@media (min-width: 1000px) {
+  .brief__head { position: relative; grid-template-columns: minmax(0, 1fr) 640px minmax(0, 1fr); margin-top: 0; }
+  .brief__head .kpis { grid-column: 2; }
+  .lead { position: absolute; left: 0; top: 0; width: min(360px, calc(50% - 340px)); flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 14px; }
+  .brief { grid-template-columns: 440px minmax(0, 1fr) 330px; gap: 20px; margin-top: 24px; align-items: start; }
+  .stage { order: 0; }
+  .top10 { padding: 10px 14px 8px; }
+  .side { gap: 12px; }
+  .more__grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
 }
-@media (max-width: 760px) {
-  .brief { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kpis" "top" "map" "radar"; }
-  .more { grid-template-columns: minmax(0, 1fr); grid-template-areas: "sum" "geo" "ports" "news"; }
-  .map-body { min-height: 300px; }
-  .radarp .radar { max-width: 340px; }
+/* Intermedios (decisión de desarrollo, órdenes §3): 1000–1279 px, columnas laterales más
+   estrechas; por debajo de 1000, una columna en el orden del móvil */
+@media (min-width: 1000px) and (max-width: 1279px) {
+  .brief { grid-template-columns: 380px minmax(0, 1fr) 280px; gap: 16px; }
+  .lead { position: static; width: auto; grid-column: 1 / -1; flex-direction: row; }
+  .brief__head .kpis { grid-column: 1 / -1; width: 100%; }
+}
+@media (min-width: 700px) and (max-width: 999px) {
+  .brief { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .stage { grid-column: 1 / -1; }
+  .top10 { grid-column: 1 / -1; }
+  .side { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .more__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }

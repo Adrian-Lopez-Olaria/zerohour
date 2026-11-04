@@ -174,3 +174,91 @@ a.row:hover .row__id { text-decoration: underline; text-decoration-color: var(--
   .rows__more { display: flex; padding: 10px 12px; border-top: 1px solid var(--line-1); }
   .rows__more .btn { width: 100%; }
 }
+
+/* =============================================================================
+   FILA DE CVE «ÓRBITA» (.orow) · top 10, listado y ficha (guía Órbita §5.3–5.5)
+   Accionable (actuar hoy · esta semana · planificar): posición, forma e ID / fabricante ·
+   producto / chips y CVSS / plazo CISA / desglose; a la derecha, el score grande.
+   Compacta (vigilar): una línea, chips sin icono y score pequeño en --text-2.
+   Sin borde de color a la izquierda (prohibido en la guía §0).
+   ============================================================================= */
+.orows { margin: 0; padding: 0; list-style: none; }
+.ogrp { display: flex; align-items: center; gap: 8px; padding: 12px 0 5px; border-bottom: 1px solid var(--line); font-size: 12.5px; font-weight: 700; font-stretch: 87.5%; letter-spacing: .08em; text-transform: uppercase; color: var(--vc); }
+.ogrp .vshape { width: 12px; height: 12px; }
+.ogrp__n { margin-left: auto; font-family: var(--f-mono); font-weight: 400; color: var(--text-2); letter-spacing: 0; }
+.ogrp.v-vigilar { color: var(--text-2); }
+.orow { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; padding: 11px 6px 11px 0; border-bottom: 1px solid var(--line); border-radius: 6px; transition: background-color var(--t-fast); }
+.orow:hover, .orow.is-hot, .orow:focus-within { background: var(--bg-2); }
+.orow__pos { padding-top: 2px; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.orow__main { min-width: 0; display: grid; align-content: start; }
+.orow__l1 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.orow__l1 .vshape { width: 11px; height: 11px; }
+/* El ID es el enlace a la ficha y cubre toda la fila (zona táctil grande, un solo tabulador) */
+.oid { font-family: var(--f-mono); font-size: 13px; color: var(--text-1); text-decoration: none; }
+.oid::after { content: ""; position: absolute; inset: 0; border-radius: 6px; }
+.oid:focus-visible { outline: none; }
+.oid:focus-visible::after { outline: 2px solid var(--acc); outline-offset: -2px; }
+.orow:hover .oid { text-decoration: underline; }
+.orow__who { margin: 3px 0 0; font-size: 17px; font-weight: 600; line-height: 1.2; min-width: 0; }
+.who__p { font-weight: 400; color: var(--text-2); }
+.pend { font-style: italic; font-weight: 400; font-size: 13.5px; color: var(--text-2); }
+.orow__l3 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
+.orow__cv { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.orow__desc { margin: 4px 0 0; font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.orow.v-vigilar .orow__who { color: var(--text-2); font-weight: 500; }
+.orow--min { padding: 7px 6px 7px 0; }
+.orow--min .orow__l1 { flex-wrap: wrap; gap: 2px 10px; }
+.orow--min .oid { font-size: 12.5px; }
+.orow--min .orow__who { margin: 0; font-size: 12.5px; }
+.orow--min .orow__l3 { margin-top: 3px; }
+
+/* Score: cifra en el color del veredicto (peso 600 en hoy y semana; 300 y --text-2 en vigilar) */
+.oscore { display: grid; justify-items: end; align-content: start; min-width: 40px; }
+.oscore__n { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.v-hoy .oscore__n, .v-semana .oscore__n { font-weight: 600; color: var(--vc); }
+.v-planificar .oscore__n { color: var(--vc); }
+.orow--min .oscore__n { font-size: 20px; color: var(--text-2); }
+.oscore__x { font-size: 11px; color: var(--text-3); }
+
+/* Plazo de CISA */
+.odue { display: inline-flex; align-items: baseline; gap: 6px; margin-top: 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.odue__k { font-size: 11px; font-weight: 700; font-stretch: 87.5%; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.odue.is-near, .odue.is-near .odue__k { color: var(--v-hoy); }
+
+/* Desglose del score */
+.obd { margin-top: 8px; }
+.obd__bar { display: block; width: 100%; max-width: 460px; height: 6px; border-radius: 3px; overflow: hidden; }
+.obd__t { fill: var(--bg-2); }
+.obd__cvss { fill: var(--bd-cvss); } .obd__epss { fill: var(--bd-epss); } .obd__explotada { fill: var(--bd-explotada); }
+.obd__ransomware { fill: var(--bd-ransomware); } .obd__exploit { fill: var(--bd-exploit); } .obd__stack { fill: var(--bd-stack); }
+.obd__floor { fill: none; stroke: var(--text-3); stroke-width: .6; stroke-dasharray: 1 1; }
+.obd__l { margin: 4px 0 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.ofoot { margin: 8px 0 0; font-size: 11px; line-height: 1.4; color: var(--text-3); }
+.more10 summary { display: flex; justify-content: center; align-items: center; min-height: 46px; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); font-weight: 600; cursor: pointer; list-style: none; }
+.more10 summary::-webkit-details-marker { display: none; }
+.more10 summary:hover { border-color: var(--line-hi); }
+.more10[open] summary { display: none; }
+
+@media (min-width: 1000px) {
+  .orow { padding: 7px 6px 7px 0; }
+  .orow__who { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pend { font-size: 12.5px; }
+  .orow__l3 { margin-top: 3px; }
+  .oscore__n { font-size: 26px; }
+  .chip { height: 21px; font-size: 12px; }
+  .orow--min { padding: 2px 6px 2px 0; align-items: center; }
+  .orow--min .orow__pos { padding: 0; }
+  .orow--min .orow__main { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .orow--min .orow__l1 { display: grid; gap: 0; }
+  .orow--min .oid { font-size: 12px; }
+  .orow--min .orow__who { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .orow--min .orow__l3 { margin: 0; flex-wrap: nowrap; }
+  .orow--min .orow__cv { display: none; }
+  .orow--min .oscore__n { font-size: 18px; }
+  .orow--min .chip { height: 19px; font-size: 11px; }
+  .ogrp { padding: 6px 0 2px; }
+  .odue, .obd { margin-top: 6px; }
+  .obd__l { margin-top: 2px; font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .orow { transition: none; } }

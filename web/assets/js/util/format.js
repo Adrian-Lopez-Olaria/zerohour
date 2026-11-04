@@ -59,6 +59,20 @@ const fmtDMY = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short'
 export const dDayMonYear = (iso) => { const t = parseIso(iso); return t == null ? '—' : fmtDMY.format(t).replace('.', ''); };
 export const dDay = (iso) => { const t = parseIso(iso); return t == null ? '' : pad(Number(fmtYMD.format(t).slice(8, 10))); };
 
+const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+const utcOf = (ymd) => { const m = YMD_RE.exec(String(ymd || '')); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; };
+/**
+ * Días naturales entre dos fechas de calendario AAAA-MM-DD (b − a). Se convierten las dos a
+ * medianoche UTC y se divide: sin horas de por medio, el cambio de hora no descuadra el día.
+ */
+export function daysBetween(a, b) {
+  const ta = utcOf(a), tb = utcOf(b);
+  return ta == null || tb == null ? null : Math.round((tb - ta) / 86400000);
+}
+/** «6 nov» a partir de AAAA-MM-DD, sin pasar por zonas horarias. */
+export const dDayMonYmd = (ymd) => { const m = YMD_RE.exec(String(ymd || '')); return m ? `${+m[3]} ${MESES[+m[2] - 1]}` : '—'; };
+
 /** Días naturales desde hoy (hora de Madrid) hasta una fecha AAAA-MM-DD. Negativo si ya pasó; null si no es válida. */
 export function daysFromToday(ymd, now = Date.now()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;

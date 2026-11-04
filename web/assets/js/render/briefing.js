@@ -1,12 +1,13 @@
 /* =============================================================================
-   render/briefing.js · BRIEFING (v2)
-   Primer pantallazo (1440 × 900 sin scroll): 6 contadores en una franja y debajo
-   top 10 · mapa · radar. Debajo: resumen del día, países, puertos y prensa.
+   render/briefing.js · BRIEFING «Órbita» (design/orbita/zerohour-estilo-orbita.md §4)
+   Escritorio (1440 × 900 sin scroll): «Lo primero hoy» + tira de cifras y, 24 px debajo,
+   tres columnas que empiezan a la misma altura: top 10 (440) · globo (1fr) · radar y
+   puertos (330). Debajo del primer pantallazo, «Más del día»: avisos y prensa y el resumen.
+   Móvil: lead → cifras → globo → países → top 10 (5 + «Ver las 10») → radar → puertos.
    ============================================================================= */
 import { el, clear } from '../util/dom.js';
-import {
-  SEV, SEV_ORDER, icon, panelHead, emptyBlock, extLink, langOf, groupedRows,
-} from './comunes.js';
+import { panelHead, emptyBlock, extLink, langOf, icon, verdictOf, vshape, cveHref, who } from './comunes.js';
+import { orbRows, rowsFoot } from './filas.js';
 import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt } from '../globe.js';
 import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
@@ -68,22 +69,48 @@ function kpiStrip(latest, index) {
   ]);
 }
 
-/* ───────── resumen del día (debajo del primer pantallazo) ───────── */
+/* ───────── «Lo primero hoy» (§5.1): la CVE más urgente en una frase ───────── */
+
+function leadLine(top) {
+  const c = top[0];
+  if (!c) return null;                                   // con el top vacío no se pinta
+  const v = verdictOf(c.score), w = who(c), href = cveHref(c.id);
+  const name = w.pending ? c.id : [w.main, w.sub].filter(Boolean).join(' ');
+  const rest = ` · ${c.score} · ${c.tags.includes('kev') ? 'explotada (KEV)' : v.label.toLowerCase()}${c.tags.includes('stack') ? ' · en mi stack' : ''}`;
+  const body = [el('b', { text: name }), rest];
+  return el('p', { class: `lead v-${v.key}` }, [
+    el('span', { class: 'lead__k kicker' }, [vshape(v, 'lead__shape'), 'Lo primero hoy']),
+    href ? el('a', { class: 'lead__a', href }, body) : el('span', { class: 'lead__a' }, body),
+  ]);
+}
+
+/* ───────── «Más del día» (D2): avisos y prensa + resumen, debajo del primer pantallazo ───────── */
 
 function sumPanel(latest, map, empty) {
   const st = latest.stats;
   return el('section', { class: 'panel sum', 'aria-labelledby': 'h-sum' }, [
-    panelHead('', 'Resumen del día', null, 'h-sum'),
+    panelHead('', 'Resumen', null, 'h-sum'),
     el('div', { class: 'panel__body' }, [
       el('p', { class: 'sum__p', text: empty || !latest.summary ? 'Sin datos de NVD para hoy todavía. El listado y el top se rellenarán solos en la próxima lectura; mientras tanto, el histórico sigue disponible.' : latest.summary }),
       el('dl', { class: 'edmeta' }, [
         el('div', [el('dt', { text: 'Edición' }), el('dd', { text: latest.date ? dLong(latest.date) : '—' })]),
         el('div', [el('dt', { text: 'Generada' }), el('dd', { text: latest.generated_at ? `${tLocal(latest.generated_at)} (${tUTC(latest.generated_at)} UTC)` : '—' })]),
         el('div', [el('dt', { text: 'Desde la actualización' }), el('dd', ['T+', el('span', { class: 'js-tplus', text: '--:--:--' })])]),
-        el('div', [el('dt', { text: 'Mapa' }), el('dd', { id: 'sum-map', text: map && map.updated_at ? `${tUTC(map.updated_at)} UTC` : 'sin lectura' })]),
+        el('div', [el('dt', { text: 'Mapa' }), el('dd', { id: 'sum-map', text: map && map.updated_at ? `lectura de las ${tUTC(map.updated_at)} UTC` : 'sin lectura' })]),
       ]),
     ]),
-    el('div', { class: 'panel__foot' }, [el('a', { class: 'btn btn--primary', href: '#listado', text: `Ver las ${nf(st.new_cves)} CVE` })]),
+    el('div', { class: 'panel__foot' }, [el('a', { class: 'btn', href: '#listado' }, [`Ver las ${nf(st.new_cves)} CVE `, icon('arrow')])]),
+  ]);
+}
+
+function newsPanel(news) {
+  const shown = news.slice(0, MAX_NEWS);
+  return el('section', { class: 'panel newsp', 'aria-labelledby': 'h-news' }, [
+    panelHead('', 'Avisos y prensa', news.length ? (shown.length < news.length ? `${shown.length} de ${news.length}` : String(news.length)) : null, 'h-news'),
+    news.length
+      ? el('ul', { class: 'news-list' }, shown.map((n) => el('li',
+        extLink(n.url, { class: 'news-list__a' }, [el('span', { lang: langOf(n.lang), text: n.title }), el('small', { text: n.source })]))))
+      : el('p', { class: 'muted-line', text: 'Sin avisos ni noticias en esta edición.' }),
   ]);
 }
 
@@ -128,39 +155,32 @@ function mapPanel(map) {
   ]);
 }
 
-/* ───────── top 10 ───────── */
+/* ───────── top 10 (§5.3) ───────── */
 
-const TOP_MOBILE = 5;                                   // en móvil: 5 visibles y «Ver las 10»
-const MOBILE = matchMedia('(max-width: 760px)');
-let topOpen = false;
+const TOP_SPLIT = 5;                                    // por debajo de 1000 px: 5 y «Ver las 10»
+const WIDE = matchMedia('(min-width: 1000px)');
 
-/** Top agrupado por veredicto, filas de dos líneas. En móvil, 2 chips + «+N» y solo 5 filas. */
-function topPanel(top, empty, st) {
+function topPanel(top, empty, st, edicion) {
   const head = el('div', { class: 'panel__head' }, [
-    el('h2', { class: 'panel__title', id: 'h-top', text: 'Las que importan hoy' }),
-    el('span', { class: 'panel__meta' }, [`${top.length} DE ${nf(st.new_cves)} · `, el('a', { href: '#listado' }, ['Listado ', icon('arrow')])]),
+    el('h2', { class: 'panel__title', id: 'h-top', text: 'Las 10 que importan' }),
+    el('a', { class: 'panel__more link', href: '#listado' }, [`de ${nf(st.new_cves)} `, icon('arrow')]),
   ]);
+  const sec = el('section', { class: 'panel top10', id: 'panel-top', 'aria-labelledby': 'h-top' }, head);
   if (empty || !top.length) {
-    return el('section', { class: 'panel top10', id: 'panel-top', 'aria-labelledby': 'h-top' }, [head,
-      emptyBlock('Nada que priorizar todavía', 'Cuando entre el primer lote de NVD aparecerán aquí las diez CVE con más score. Si una fuente falla, el top se calcula con las que respondan.')]);
+    sec.append(emptyBlock('Nada que priorizar todavía', 'Cuando entre el primer lote de NVD aparecerán aquí las diez CVE con más score. Si una fuente falla, el top se calcula con las que respondan.', true));
+    return sec;
   }
-  const sec = el('section', { class: 'panel top10' + (topOpen ? ' is-open' : ''), id: 'panel-top', 'aria-labelledby': 'h-top' });
-  const rows = el('div', { class: 'rows', id: 'top-rows' }, groupedRows(top, { limit: TOP_MOBILE, chipsMax: MOBILE.matches ? 2 : 3 }));
-  const more = top.length > TOP_MOBILE ? el('button', {
-    type: 'button', class: 'btn', 'aria-expanded': String(topOpen), 'aria-controls': 'top-rows',
-    text: topOpen ? 'Ver solo las 5 primeras' : `Ver las ${top.length}`,
-    on: {
-      click: (e) => {
-        topOpen = !topOpen;
-        sec.classList.toggle('is-open', topOpen);
-        e.currentTarget.setAttribute('aria-expanded', String(topOpen));
-        e.currentTarget.textContent = topOpen ? 'Ver solo las 5 primeras' : `Ver las ${top.length}`;
-        // Al abrir, el foco pasa a la primera fila nueva (la 6.ª)
-        if (topOpen) { const a = sec.querySelector('li.is-extra a'); if (a) a.focus(); }
-      },
-    },
-  }) : null;
-  sec.append(head, rows, ...(more ? [el('div', { class: 'rows__more' }, more)] : []));
+  const totals = {};
+  for (const c of top) { const k = verdictOf(c.score).key; totals[k] = (totals[k] || 0) + 1; }
+  const split = WIDE.matches ? top.length : TOP_SPLIT;
+  sec.append(orbRows(top.slice(0, split), { totals, edicion }));
+  if (top.length > split) {
+    sec.append(el('details', { class: 'more10' }, [
+      el('summary', { text: `Ver las ${top.length}` }),
+      orbRows(top.slice(split), { totals, edicion, start: split }),
+    ]));
+  }
+  sec.append(rowsFoot(top));
   return sec;
 }
 
@@ -199,16 +219,6 @@ function portsPanel(map) {
   ]);
 }
 
-function newsPanel(news) {
-  if (!news.length) return null;
-  const shown = news.slice(0, MAX_NEWS);
-  return el('section', { class: 'panel newsp', 'aria-labelledby': 'h-news' }, [
-    panelHead('', 'Avisos y prensa', shown.length < news.length ? `${shown.length} DE ${news.length}` : String(news.length), 'h-news'),
-    el('ul', { class: 'news-list' }, shown.map((n) => el('li',
-      extLink(n.url, { class: 'news-list__a' }, [el('span', { lang: langOf(n.lang), text: n.title }), el('small', { text: n.source })])))),
-  ]);
-}
-
 /* ───────── vista ───────── */
 
 export function renderBriefing(root, state) {
@@ -220,20 +230,26 @@ export function renderBriefing(root, state) {
   clear(root);
   root.append(
     el('h1', { class: 'sr-only', id: 'h-brief', text: latest.date ? `Briefing del ${dLong(latest.date)}` : 'Briefing del día' }),
+    el('div', { class: 'brief__head' }, [leadLine(top), kpiStrip(latest, index)]),
     el('div', { class: 'brief' }, [
-      kpiStrip(latest, index),
-      topPanel(top, empty, latest.stats),
-      mapPanel(map),
-      el('section', { class: 'panel radarp', 'aria-labelledby': 'h-radar' }, [
-        panelHead('', 'Radar de urgencia', top.length ? `TOP ${top.length}` : null, 'h-radar'),
-        el('div', { class: 'panel__body' }, empty || !top.length ? el('p', { class: 'muted-line', text: 'Sin contactos.' }) : renderRadar(top)),
+      topPanel(top, empty, latest.stats, latest.date),
+      el('div', { class: 'stage' }, [mapPanel(map), countriesPanel(map)]),
+      el('div', { class: 'side' }, [
+        el('section', { class: 'panel radarp', 'aria-labelledby': 'h-radar' }, [
+          panelHead('', 'Radar', 'centro = más urgente', 'h-radar'),
+          el('div', { class: 'panel__body' }, empty || !top.length ? el('p', { class: 'muted-line', text: 'Sin contactos.' }) : renderRadar(top)),
+        ]),
+        portsPanel(map),
       ]),
     ]),
-    el('div', { class: 'more' }, [sumPanel(latest, map, empty), countriesPanel(map), portsPanel(map), newsPanel(latest.news)].filter(Boolean)),
+    el('section', { class: 'more', 'aria-labelledby': 'h-more' }, [
+      el('h2', { class: 'more__h kicker', id: 'h-more', text: 'Más del día' }),
+      el('div', { class: 'more__grid' }, [newsPanel(latest.news), sumPanel(latest, map, empty)]),
+    ]),
   );
 
-  // Al cruzar el ancho de móvil cambia el número de chips por fila: se rehace solo el top
-  if (!MOBILE.onchange) MOBILE.onchange = () => { const old = document.getElementById('panel-top'); if (old) old.replaceWith(topPanel(top, empty, latest.stats)); };
+  // Al cruzar los 1000 px cambia cuántas filas se ven sin «Ver las 10»: se rehace solo el top
+  if (!WIDE.onchange) WIDE.onchange = () => { const old = document.getElementById('panel-top'); if (old) old.replaceWith(topPanel(top, empty, latest.stats, latest.date)); };
   scheduleGlobe(document.getElementById('globe-zone'), map);
 }
 
