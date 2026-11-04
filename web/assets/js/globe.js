@@ -174,7 +174,6 @@ function zoomBy(dir) {                     // dir: +1 acercar, −1 alejar
     const d = distOf(altOf()) / (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
     S.globe.pointOfView({ altitude: Math.max(ALT_MIN, Math.min(S.altHome, d - 1)) }, S.reduced ? 0 : 400);
     S.globe.resumeAnimation();
-    setTimeout(syncZoomButtons, S.reduced ? 0 : 420);
     release();
   } else if (S.mode === 'flat' && S.flat) {
     S.flat.zoomBy(dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
@@ -186,7 +185,6 @@ export function resetView() {
     hold();
     S.globe.pointOfView({ ...HOME, altitude: S.altHome }, S.reduced ? 0 : 600);
     S.globe.resumeAnimation();
-    setTimeout(syncZoomButtons, S.reduced ? 0 : 620);
     release();
   } else if (S.mode === 'flat' && S.flat) S.flat.reset();
 }
@@ -197,7 +195,6 @@ export function flyTo(lat, lng) {
     hold();
     S.globe.pointOfView({ lat, lng, altitude: Math.min(altOf(), S.altHome * 0.62) }, S.reduced ? 0 : 900);
     S.globe.resumeAnimation();
-    setTimeout(syncZoomButtons, S.reduced ? 0 : 920);
     release();
   } else if (S.mode === 'flat' && S.flat) S.flat.flyTo(lat, lng);
 }
@@ -328,7 +325,10 @@ function createGlobe() {
   ctr.enableZoom = true; ctr.minDistance = 100 * distOf(ALT_MIN); ctr.maxDistance = 100 * distOf(S.altHome);
   // Arrastrar, pellizcar o Ctrl + rueda: se para el giro y, 3 s después de soltar, vuelve
   ctr.addEventListener('start', hold);
-  ctr.addEventListener('end', () => { release(); syncZoomButtons(); });
+  ctr.addEventListener('end', release);
+  // Los botones + y − siguen a la cámara: 'change' salta en cada fotograma en que se mueve (botones,
+  // teclado, flyTo, inercia). Con un temporizador fijo, un fotograma tardío dejaba el estado mal.
+  ctr.addEventListener('change', syncZoomButtons);
   // D1: la rueda sin Ctrl hace scroll de la página (el globo no la «atrapa»); con Ctrl, zoom
   host.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
 
