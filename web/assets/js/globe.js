@@ -29,7 +29,7 @@ const ZOOM_STEP = 1.25;                     // cada pulsación o rueda acerca/al
 const MAX_LABELS = 6, MAX_RINGS = 5, LABEL_MIN_DEG = 9;
 // = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
 const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF' };
-const MAX_ARCS = 20;
+const MAX_ARCS = 30;
 
 /* Centroides aproximados de país [lat, lon], para las rayas de Cloudflare Radar cuando el país
    no está entre los puntos de DShield. Si un extremo no tiene centroide, esa raya no se pinta. */

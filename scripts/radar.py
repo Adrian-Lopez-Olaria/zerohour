@@ -73,7 +73,9 @@ ISC_PORTS_URL = "https://isc.sans.edu/api/topports/records/10/{date}?json"
 # Rayas de ataques web (capa 7) mitigados por Cloudflare, origen→destino, últimas 24 h.
 # El token (CLOUDFLARE_RADAR_TOKEN) solo se usa en recolectar: nunca en desplegar ni en el frontend.
 RADAR_URL = ("https://api.cloudflare.com/client/v4/radar/attacks/layer7/top/attacks"
-             "?dateRange=1d&limit=20&limitDirection=ORIGIN&limitPerLocation=3&format=json")
+             "?dateRange=1d&limit=30&limitPerLocation=3&format=json")
+# Además de la global, una llamada por país para traer rayas de países que la global no cubre.
+RADAR_LOCATIONS = ["ES", "RU", "UA", "VN", "KR", "TR"]
 DBIP_URL = "https://download.db-ip.com/free/dbip-city-lite-{month}.mmdb.gz"
 DBIP_PAGE = "https://db-ip.com/db/download/ip-to-city-lite"   # publica el SHA-1 de cada fichero
 GEO_CACHE = ROOT / CONFIG["mapa"].get("geo_cache", ".cache/geo")
@@ -1238,21 +1240,18 @@ def fetch_isc_attackers(n: int) -> tuple[list[tuple[str, int]], str]:
     return [], str(today)
 
 
-def fetch_radar_pairs() -> dict:
-    """Rayas de ataques REALES de Cloudflare Radar (CC BY-NC 4.0): origen→destino, % del total,
-    últimas 24 h. Solo códigos alpha-2 (los nombres los pone el frontend con Intl.DisplayNames);
-    `value` llega como string y se valida como número 0-100. US→US y demás pares consigo mismo se
-    conservan: el frontend los pinta como pulso, no como raya. Como mucho 20 pares."""
-    token = os.getenv("CLOUDFLARE_RADAR_TOKEN")
-    if not token:
-        raise RuntimeError("falta CLOUDFLARE_RADAR_TOKEN")
-    r = HTTP.get(RADAR_URL, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+def _radar_call(url: str, token: str) -> dict:
+    r = HTTP.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=60)
     r.raise_for_status()
-    body = r.json()
+    return r.json()
+
+
+def _radar_rows(body: dict):
+    """Pares (from, to, share) válidos de una respuesta, y su meta. Solo alpha-2; value string→0-100.
+    El rank trae huecos (limitPerLocation): no se usa como índice."""
     result = body.get("result") or {}
-    rows = result.get("top_0") or []
-    pairs = []
-    for row in rows:  # el rank trae huecos (limitPerLocation): no se usa como índice
+    out = []
+    for row in result.get("top_0") or []:
         if not isinstance(row, dict):
             continue
         frm = str(row.get("originCountryAlpha2") or "").upper()
@@ -1260,10 +1259,32 @@ def fetch_radar_pairs() -> dict:
         share = num(row.get("value"), 0, 100)
         if share is None or not re.fullmatch(r"[A-Z]{2}", frm) or not re.fullmatch(r"[A-Z]{2}", to):
             continue
-        pairs.append({"from_cc": frm, "to_cc": to, "share": round(share, 2)})
-        if len(pairs) >= 20:
-            break
-    meta = result.get("meta") or body.get("meta") or {}
+        out.append((frm, to, round(share, 2)))
+    return out, (result.get("meta") or body.get("meta") or {})
+
+
+def fetch_radar_pairs() -> dict:
+    """Rayas de ataques REALES de Cloudflare Radar (CC BY-NC 4.0): origen→destino, % del total,
+    últimas 24 h. Una llamada global más una por país (RADAR_LOCATIONS: España y 5 que la global no
+    cubre), fusionadas sin duplicados por (origen, destino), quedándonos con el mayor share. US→US y
+    demás pares consigo mismo se conservan: el frontend los pinta como pulso, no como raya. Máx. 30."""
+    token = os.getenv("CLOUDFLARE_RADAR_TOKEN")
+    if not token:
+        raise RuntimeError("falta CLOUDFLARE_RADAR_TOKEN")
+    merged: dict[tuple, float] = {}
+    rows, meta = _radar_rows(_radar_call(RADAR_URL, token))   # la global manda y da la meta
+    for frm, to, share in rows:
+        merged[(frm, to)] = max(share, merged.get((frm, to), -1))
+    for loc in RADAR_LOCATIONS:
+        try:
+            rows2, _ = _radar_rows(_radar_call(RADAR_URL + f"&location={loc}", token))
+        except Exception as e:                               # un país que falle no tira el resto
+            log(f"⚠ radar {loc}: {type(e).__name__}")
+            continue
+        for frm, to, share in rows2:
+            merged[(frm, to)] = max(share, merged.get((frm, to), -1))
+    top = sorted(merged.items(), key=lambda kv: kv[1], reverse=True)[:30]   # priorizar más share
+    pairs = [{"from_cc": k[0], "to_cc": k[1], "share": v} for k, v in top]
     rng = (meta.get("dateRange") or [None])[0]
     rng = ({"start": str(rng.get("startTime") or "")[:40], "end": str(rng.get("endTime") or "")[:40]}
            if isinstance(rng, dict) else None)

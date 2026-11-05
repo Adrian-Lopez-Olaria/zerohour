@@ -231,7 +231,7 @@ export function normalizeMap(raw) {
     attack_pairs: arr(raw.attack_pairs)
       .map((p) => ({ from_cc: str(p.from_cc).toUpperCase(), to_cc: str(p.to_cc).toUpperCase(), share: num(p.share) }))
       .filter((p) => /^[A-Z]{2}$/.test(p.from_cc) && /^[A-Z]{2}$/.test(p.to_cc) && p.share != null && p.share >= 0 && p.share <= 100)
-      .slice(0, 20),
+      .slice(0, 30),
     attack_pairs_source: str(raw.attack_pairs_source).slice(0, 120),
     attack_pairs_range: raw.attack_pairs_range && typeof raw.attack_pairs_range === 'object'
       ? { start: str(raw.attack_pairs_range.start).slice(0, 40), end: str(raw.attack_pairs_range.end).slice(0, 40) } : null,

@@ -187,7 +187,7 @@ modelo = "openai/gpt-4o-mini"
 # Ojo: sources/attacks/{n}/{fecha} NO es un top del día: es el ranking acumulado de DShield
 # (IPs vistas desde hace años) filtrado a las que siguen activas desde esa fecha. Con 200 salían
 # casi solo escáneres de larga vida (4-5 países); con 2000, unos 60 países y ~200 zonas (~20 KB).
-ips = 2000
+ips = 3000
 # Si salen menos países que esto, el job lo avisa (anotación de GitHub Actions)
 min_paises = 10
 # Geolocalización offline con DB-IP Lite (CC BY 4.0): la base mensual se descarga por
