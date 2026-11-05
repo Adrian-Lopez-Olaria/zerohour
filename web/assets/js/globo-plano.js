@@ -8,7 +8,7 @@
 import { svg, clear } from './util/dom.js';
 
 const RAD = Math.PI / 180;
-const SIZE = 560, PAD = 30, SPEED = 5, RESUME_MS = 1000;   // sin zoom: zoom fijo en 1, giro a 1 s
+const SIZE = 560, PAD = 30, SPEED = 6.8, RESUME_MS = 1000, ZMIN = 1, ZMAX = 1.6;   // giro ~35% más rápido; zoom corto
 
 function ortho(lat0, lon0, R, c) {
   const s0 = Math.sin(lat0 * RAD), c0 = Math.cos(lat0 * RAD);
@@ -37,12 +37,13 @@ function stars(R, c) {
  * onHover(m|null) }. Devuelve { rotate, flyTo, update(markers, scale, labels), stop }.
  */
 export function mountFlatGlobe(host, o) {
-  const st = { lat0: o.home.lat, lon0: o.home.lng };     // sin zoom: altitud (radio) fija
+  const st = { lat0: o.home.lat, lon0: o.home.lng, zoom: 1 };     // zoom corto ×1–×1,6
   let markers = o.markers, scale = o.scale, labels = o.labels, pairs = o.pairs || [];
   let auto = !o.reduced, idle = 0, last = 0, dirty = true, lastDraw = 0, raf = 0, fly = 0;
+  let onZoomChange = () => {};
 
   function draw() {
-    const R = SIZE / 2 - PAD, c = SIZE / 2, P = ortho(st.lat0, st.lon0, R, c);
+    const R = (SIZE / 2 - PAD) * st.zoom, c = SIZE / 2, P = ortho(st.lat0, st.lon0, R, c);
     const inView = (q) => q.x > -4 && q.x < SIZE + 4 && q.y > -4 && q.y < SIZE + 4;
     let d = '', dFar = '';
     for (const p of o.land || []) {
@@ -86,8 +87,8 @@ export function mountFlatGlobe(host, o) {
     markers.forEach((m, i) => {
       const q = P(m.lat, m.lon);
       if (!q.vis || !inView(q)) return;
-      const r = 4 + scale.t(m.attacks) * 16;
-      if (i < 5 && !o.reduced) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-pulse gp-pulse--${i} gp--${scale.tier(m.attacks)}` }));
+      const r = Math.max(3, 3 + scale.t(m.attacks) * 11);   // ≈0,7× (marcadores más pequeños)
+      if (i < 5 && !o.reduced && st.zoom < 1.05) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-pulse gp-pulse--${i} gp--${scale.tier(m.attacks)}` }));
       const dot = svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-m gp--${scale.tier(m.attacks)}` });
       dot.addEventListener('pointerenter', () => o.onHover(m));
       dot.addEventListener('pointerleave', () => o.onHover(null));
@@ -108,9 +109,10 @@ export function mountFlatGlobe(host, o) {
         break;
       }
     }
-    const el = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'gp', 'aria-hidden': 'true', focusable: 'false' }, kids);
+    const el = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'gp' + (st.zoom > 1.01 ? ' is-zoomed' : ''), 'aria-hidden': 'true', focusable: 'false' }, kids);
     clear(host).appendChild(el);
     dirty = false;
+    onZoomChange(st.zoom);
   }
 
   function pulse(ts) {
@@ -135,24 +137,32 @@ export function mountFlatGlobe(host, o) {
   const spin = (on) => { auto = on; if (o.onSpin) o.onSpin(on); };
   const hold = () => { spin(false); clearTimeout(idle); };
   const release = () => { clearTimeout(idle); if (!o.reduced) idle = setTimeout(() => spin(true), RESUME_MS); };
+  const setZoom = (z) => { st.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); dirty = true; };
 
-  // Arrastre para girar con Pointer Events. Sin zoom ni pellizco; touch-action: pan-y deja que el
-  // arrastre vertical haga scroll de la página (solo el movimiento horizontal gira el globo).
+  // Arrastre para girar y pellizco para el zoom corto (Pointer Events)
   const pts = new Map();
+  let pinch0 = 0, zoom0 = 1;
   host.addEventListener('pointerdown', (e) => {
     host.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); hold();
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); zoom0 = st.zoom; }
   });
   host.addEventListener('pointermove', (e) => {
     if (!pts.has(e.pointerId)) return;
     const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
-    const k = 0.35 * (SIZE / Math.max(1, host.clientWidth));
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; if (pinch0) setZoom(zoom0 * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0); return; }
+    const k = 0.35 / st.zoom * (SIZE / Math.max(1, host.clientWidth));
     st.lon0 = ((st.lon0 - (e.clientX - prev[0]) * k + 540) % 360) - 180;
     st.lat0 = Math.max(-60, Math.min(70, st.lat0 + (e.clientY - prev[1]) * k));
     dirty = true;
   });
-  const up = (e) => { pts.delete(e.pointerId); if (!pts.size) release(); };
+  const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; if (!pts.size) release(); };
   host.addEventListener('pointerup', up);
   host.addEventListener('pointercancel', up);
+  // La rueda sin Ctrl hace scroll de la página; con Ctrl, zoom corto
+  host.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault(); hold(); setZoom(st.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); release();
+  }, { passive: false });
 
   function flyTo(lat, lon) {
     hold(); cancelAnimationFrame(fly);
@@ -170,9 +180,12 @@ export function mountFlatGlobe(host, o) {
   draw();
   if (o.onSpin) o.onSpin(auto);
   return {
+    zoomBy(f) { hold(); setZoom(st.zoom * f); release(); },
     rotate(dLat, dLon) { hold(); st.lat0 = Math.max(-60, Math.min(70, st.lat0 + dLat)); st.lon0 = ((st.lon0 + dLon + 540) % 360) - 180; dirty = true; release(); },
     flyTo,
     update(ms, sc, lb, pr) { markers = ms; scale = sc; labels = lb; if (pr) pairs = pr; dirty = true; },
+    onZoom(fn) { onZoomChange = fn; fn(st.zoom); },
+    zoomLimits: { min: ZMIN, max: ZMAX },
     stop() { cancelAnimationFrame(raf); },
   };
 }

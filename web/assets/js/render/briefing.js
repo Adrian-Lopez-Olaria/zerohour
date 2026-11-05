@@ -5,11 +5,11 @@
    puertos (330). Debajo del primer pantallazo, «Más del día»: avisos y prensa y el resumen.
    Móvil: lead → cifras → globo → países → top 10 (5 + «Ver las 10») → radar → puertos.
    ============================================================================= */
-import { el, clear } from '../util/dom.js';
+import { el, clear, svg } from '../util/dom.js';
 import { panelHead, emptyBlock, extLink, langOf, icon, verdictOf, vshape, cveHref, who } from './comunes.js';
 import { orbRows, rowsFoot } from './filas.js';
 import { renderRadar } from '../radar.js';
-import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, kfmt, flyTo, markerText, starField } from '../globe.js';
+import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField } from '../globe.js';
 import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
 
 /* Nombre del servicio por número de puerto: una etiqueta de la interfaz, no un dato del JSON
@@ -121,6 +121,7 @@ function newsPanel(news) {
    ranking de DShield de IPs activas hoy) y el tooltip, los botones y el ranking usan la misma
    unidad que map.json y su nota: «ataques acumulados» e «IPs activas». */
 const MAP_TITLE = 'Ranking DShield · IPs activas hoy';
+const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
 const ARCS_LABEL = 'Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h';
 
@@ -135,10 +136,18 @@ function mapSummary(map) {
 
 const mapSub = (map) => `${nf(countryMarkers(map).length)} países · lectura de las ${tUTC(map.updated_at)} UTC`;
 
-/** Rótulo honesto de las rayas, separado del de DShield. Solo si hay rayas de Cloudflare Radar. */
-function arcsCaption(map) {
+/** Rótulo honesto de las rayas + leyenda (trazo = raya de Radar, punto = marcador de DShield),
+ *  arriba, justo debajo del rótulo de DShield. Solo si hay rayas de Cloudflare Radar. */
+function arcsHeader(map) {
   if (!(map.attack_pairs || []).length) return null;
-  return el('p', { class: 'mapfoot mapfoot--arcs', id: 'map-arcs', text: ARCS_LABEL });
+  return el('p', { class: 'mapp__arcs', id: 'map-arcs' }, [
+    ARCS_LABEL,
+    el('span', { class: 'mapp__leg', 'aria-hidden': 'true' }, [
+      svg('svg', { class: 'leg leg--arc', viewBox: '0 0 26 8', focusable: 'false' }, svg('path', { d: 'M1 7 Q13 0 25 7' })), ' raya',
+      el('span', { class: 'mapp__legsep', text: ' · ' }),
+      svg('svg', { class: 'leg leg--dot', viewBox: '0 0 8 8', focusable: 'false' }, svg('circle', { cx: '4', cy: '4', r: '3' })), ' marcador',
+    ]),
+  ]);
 }
 
 function mapFoot(map) {
@@ -170,24 +179,25 @@ function mapPanel(map) {
     el('header', { class: 'mapp__h' }, [
       el('h2', { class: 'mapp__t kicker', id: 'h-map', text: MAP_TITLE }),
       el('p', { class: 'mapp__x', id: 'map-sub', text: ok ? mapSub(map) : 'Sin lectura del mapa' }),
+      ok ? arcsHeader(map) : null,
     ]),
     ok ? el('div', { class: 'globe-box', id: 'globe-zone' }, [
       starField(),
       el('p', { class: 'sr-only', id: 'map-sum', text: mapSummary(map) }),
       el('div', {
         class: 'globe-view', id: 'globe-view', tabindex: '0', role: 'group',
-        'aria-label': 'Globo interactivo. Arrástralo o usa las flechas para girarlo.',
+        'aria-label': 'Globo interactivo. Flechas para girar; más y menos para el zoom.',
       }, [
         el('div', { class: 'globe', id: 'globe', 'aria-hidden': 'true' }),
         el('div', { class: 'globe-flat', id: 'globe-flat', 'aria-hidden': 'true' }),
       ]),
-      el('p', { class: 'globe-hint', text: 'Arrastra para girar' }),
+      zoomControls(),
+      el('p', { class: 'globe-hint', text: COARSE ? 'Arrastra para girar · pellizca para acercar' : 'Arrastra para girar · Ctrl + rueda para acercar' }),
       el('p', { class: 'globe-tip', id: 'globe-tip', 'aria-live': 'polite' }),
       el('p', { class: 'globe-note', id: 'globe-note' }),
     ]) : el('div', { class: 'globe-box globe-box--off' }, emptyBlock('Mapa no disponible',
       map ? 'Sin orígenes de ataque en esta lectura de SANS ISC. El resto del briefing funciona con normalidad.'
         : 'El mapa de ataques no se pudo leer en esta edición (map.json). El resto del briefing funciona con normalidad.', true)),
-    ok ? arcsCaption(map) : null,
     ok ? countryButtons(map) : null,
     ok ? mapFoot(map) : null,
   ]);
@@ -302,6 +312,8 @@ export function refreshMapPanels(state) {
   const swap = (id, node) => { const old = document.getElementById(id); if (old) old.replaceWith(node); };
   swap('map-cc', countryButtons(map));
   swap('map-foot', mapFoot(map));
+  const arcsEl = document.getElementById('map-arcs');   // rótulo de rayas: actualizar o quitar
+  if (arcsEl) { const n = arcsHeader(map); n ? arcsEl.replaceWith(n) : arcsEl.remove(); }
   swap('panel-ports', portsPanel(map));
   const sub = document.getElementById('map-sub'), sum = document.getElementById('map-sum'), sm = document.getElementById('sum-map');
   if (sub) sub.textContent = mapSub(map);

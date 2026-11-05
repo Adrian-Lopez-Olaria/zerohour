@@ -53,6 +53,13 @@
 .globe-flat { position: absolute; inset: 0; display: none; touch-action: pan-y; cursor: grab; }
 .globe-box.is-flat .globe { display: none; }
 .globe-box.is-flat .globe-flat { display: block; }
+/* Botones +/− del zoom corto: en la esquina inferior derecha de la caja (cuadrada), fuera del
+   círculo del globo, para que no tapen su borde ni a 1024 px. */
+.zoom { position: absolute; right: 2px; bottom: 2px; z-index: 4; display: grid; gap: 6px; }
+.zb { width: var(--tap); height: var(--tap); display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--bg-1); color: var(--text-1); cursor: pointer; }
+.zb .ico { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; }
+.zb:hover { border-color: var(--line-hi); background: var(--bg-2); }
+.zb:disabled { color: var(--text-3); cursor: default; opacity: .55; }
 .globe-hint { position: absolute; right: 0; top: 4px; z-index: 3; width: 130px; margin: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-3); text-align: right; pointer-events: none; }
 .globe-tip { position: absolute; left: 0; right: 0; top: 4px; z-index: 3; min-height: 1.4em; margin: 0; font-size: 13px; font-weight: 600; color: var(--acc); text-align: center; pointer-events: none; }
 .globe-note { position: absolute; left: 0; bottom: 4px; z-index: 3; margin: 0; font-size: 11.5px; color: var(--acc); pointer-events: none; }
@@ -103,11 +110,17 @@
 .cc__n { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .cc__s { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .mapfoot { width: 100%; max-width: 560px; margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-3); }
-.mapfoot--arcs { margin-top: 6px; color: var(--map-hi); font-weight: 500; }
+/* Rótulo de las rayas de Radar, arriba (debajo del de DShield), con leyenda: trazo = raya, punto = marcador */
+.mapp__arcs { width: 100%; margin: 3px 0 0; font-size: 11px; line-height: 1.3; color: var(--map-hi); font-weight: 500; text-align: center; }
+.mapp__leg { margin-left: 6px; color: var(--text-3); font-weight: 400; white-space: nowrap; }
+.mapp__legsep { color: var(--line-hi); }
+.leg { display: inline-block; vertical-align: middle; height: 8px; }
+.leg--arc { width: 26px; } .leg--arc path { fill: none; stroke: var(--map-hi); stroke-width: 1.6; stroke-linecap: round; }
+.leg--dot { width: 8px; } .leg--dot circle { fill: var(--map-mid); }
 
 @media (max-width: 999px) {
   /* Móvil: el globo no pasa del ~40 % de la primera pantalla */
-  .globe-box { max-width: min(100%, 42vh); }
+  .globe-box { max-width: min(100%, 48vh); }
   .globe-box { margin-bottom: 22px; }
   .globe-hint { left: 0; right: 0; top: auto; bottom: -22px; width: auto; text-align: center; }
   .globe-tip { top: 0; }
@@ -116,7 +129,7 @@
   .mapp__h { flex-direction: column; align-items: center; }
   /* El escenario cabe en la primera pantalla a cualquier alto: el globo encoge (≈520 px a 900 de alto)
      y deja holgura para el rótulo de las rayas y el pie (otra plataforma, otro redondeo) sin empujar */
-  .globe-box:not(.globe-box--off) { max-width: min(560px, calc(100vh - 384px)); }
+  .globe-box:not(.globe-box--off) { max-width: min(620px, calc(100vh - 392px)); }
   .cc { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 560px; }
   .cc li:nth-child(n+4) { display: block; }
   .mapfoot { text-align: center; }

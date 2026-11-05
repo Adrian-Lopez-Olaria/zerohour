@@ -53,24 +53,27 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y vuelve a girar a ~1 s
   });
 
-  test('sin zoom: no hay botones + / − / ⟲ y la rueda hace scroll de la página', async ({ page }) => {
+  test('zoom corto: botones +/− (sin ⟲), Ctrl+rueda acerca y la rueda sola hace scroll', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
-    await expect(page.getByRole('button', { name: 'Acercar' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Alejar' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Volver a la vista inicial' })).toHaveCount(0);
-    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar');
+    await expect(page.getByRole('button', { name: 'Acercar' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Alejar' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Volver a la vista inicial' })).toHaveCount(0);  // sin ⟲
+    await expect(page.getByRole('button', { name: 'Alejar' })).toBeDisabled();   // empieza en ×1
+    await page.getByRole('button', { name: 'Acercar' }).click();
+    await expect(page.getByRole('button', { name: 'Alejar' })).toBeEnabled();     // se ha acercado
+    // La rueda sin Ctrl hace scroll de la página (no zoom)
     const box = await page.locator('#globe').boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     const y0 = await page.evaluate(() => scrollY);
-    await page.mouse.wheel(0, 400); await page.waitForTimeout(400);           // rueda sobre el globo
-    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0);           // hace scroll, no zoom
+    await page.mouse.wheel(0, 400); await page.waitForTimeout(400);
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0);
   });
 
   test('rayas de Cloudflare Radar: rótulo honesto, atribución con enlace y 0 violaciones de CSP', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
-    await expect(page.locator('#map-arcs')).toHaveText('Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h');
+    await expect(page.locator('#map-arcs')).toContainText('Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h');
     const link = page.locator('#map-foot a', { hasText: 'Cloudflare Radar' });
     await expect(link).toHaveAttribute('href', /^https:\/\/radar\.cloudflare\.com/);
     await expect(link).toHaveAttribute('rel', /noopener noreferrer/);
@@ -152,7 +155,8 @@ test.describe('sin WebGL: globo SVG de respaldo', () => {
       await expect(zone).toHaveAttribute('data-spin', 'off');
       await page.mouse.up();
       await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 });
-      await expect(page.getByRole('button', { name: 'Acercar' })).toHaveCount(0);  // sin zoom
+      await page.getByRole('button', { name: 'Acercar' }).click();                 // zoom corto en el SVG
+      await expect(page.locator('#globe-flat svg.is-zoomed')).toHaveCount(1);
       expect(await page.locator('#globe-flat path.gp-arc').count()).toBeGreaterThan(0);  // mismas rayas en SVG
       expect(await csp(page)).toEqual([]);
       // El único error es la petición bloqueada a propósito
@@ -172,7 +176,7 @@ test.describe('§9 · móvil 390 × 844', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     const g = await rect(page, '.globe-box');
     expect(g.bottom - g.top).toBeLessThanOrEqual(844 * 0.45);               // ≈ 40 % de la pantalla
-    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar');
+    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar · pellizca para acercar');
   });
 
   test('top: 5 filas y «Ver las 10» con <details>, también con teclado', async ({ page }) => {
@@ -187,7 +191,7 @@ test.describe('§9 · móvil 390 × 844', () => {
   test('zonas táctiles de 44 px o más', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
-    const small = await page.evaluate(() => [...document.querySelectorAll('.nav__a, .cc__b, .more10 summary')]
+    const small = await page.evaluate(() => [...document.querySelectorAll('.nav__a, .zb, .cc__b, .more10 summary')]
       .filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect()).filter((r) => r.height < 44 || r.width < 44).length);
     expect(small).toBe(0);
   });

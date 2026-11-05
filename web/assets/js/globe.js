@@ -21,9 +21,11 @@ const LIB_CSS = new URL('../vendor/globe.gl-2.46.2.zh.css', import.meta.url).hre
 const LAND_URL = new URL('../geo/tierra.json', import.meta.url).href;     // puntos: globo SVG
 const LAND_TEX = new URL('../geo/tierra.png', import.meta.url).href;      // textura: globo 3D
 const TIMEOUT_MS = 9000;
-const ROTATE_SPEED = 0.8;                 // OrbitControls: ≈ 5°/s a 60 fps
+const ROTATE_SPEED = 1.1;                  // OrbitControls: ≈ 7°/s a 60 fps (un 35 % más que antes)
 const RESUME_MS = 1000;                    // vuelve a girar 1 s después de soltar
 const HOME = { lat: 32, lng: -36 };
+const ZOOM_MAG = 1.6;                       // zoom corto: de ×1 (vista inicial) a ×1,6 como máximo
+const ZOOM_STEP = 1.25;                     // cada pulsación o rueda acerca/aleja ×1,25
 const MAX_LABELS = 6, MAX_RINGS = 5, LABEL_MIN_DEG = 9;
 // = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
 const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF' };
@@ -49,7 +51,7 @@ const CENTROIDS = {
 };
 
 const narrow = () => innerWidth < 760;
-const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0 };
+const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null };
 
 /* ───────── escala: por país, logarítmica, por tercios (guía Órbita §1) ───────── */
 
@@ -75,7 +77,8 @@ export function makeScale(markers) {
   return {
     t,
     tier: (a) => { const x = t(a); return x > 0.66 ? 'hi' : x > 0.33 ? 'mid' : 'lo'; },
-    size: (a) => Math.round((8 + t(a) * 24) * (narrow() ? 0.75 : 1)),
+    // ≈0,7× del tamaño anterior (marcadores más pequeños, menos solape en Europa), con mínimo legible
+    size: (a) => Math.max(5, Math.round((6 + t(a) * 16) * (narrow() ? 0.8 : 1))),
   };
 }
 let SCALE = makeScale([]);
@@ -169,7 +172,48 @@ function release() {
   if (!S.reduced) S.idle = setTimeout(() => setAuto(true), RESUME_MS);
 }
 
-/* ───────── controles (teclado para girar y flyTo) para el globo 3D y el SVG ───────── */
+/* ───────── controles (zoom corto, teclado y flyTo) para el globo 3D y el SVG ───────── */
+
+const altOf = () => S.globe.pointOfView().altitude;
+const distOf = (alt) => 1 + alt;          // distancia al centro, en radios
+const altMin = () => S.altHome / ZOOM_MAG;  // zoom corto: ×1,6 como máximo
+
+function syncZoomButtons() {
+  if (!S.ui) return;
+  let canIn = true, canOut = true;
+  if (S.mode === 'globe' && S.globe) {
+    const a = altOf();
+    canIn = a > altMin() + 0.001; canOut = a < S.altHome - 0.001;
+  } else if (S.mode === 'flat' && S.flat) {
+    canIn = S.flatZoom < S.flat.zoomLimits.max - 0.001; canOut = S.flatZoom > S.flat.zoomLimits.min + 0.001;
+  }
+  S.ui.zin.disabled = !canIn;
+  S.ui.zout.disabled = !canOut;
+}
+
+function zoomBy(dir) {                     // dir: +1 acercar, −1 alejar
+  if (S.mode === 'globe' && S.globe) {
+    hold();
+    const d = distOf(altOf()) / (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+    S.globe.pointOfView({ altitude: Math.max(altMin(), Math.min(S.altHome, d - 1)) }, S.reduced ? 0 : 300);
+    S.globe.resumeAnimation();
+    release();
+  } else if (S.mode === 'flat' && S.flat) {
+    S.flat.zoomBy(dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+  }
+}
+
+/** Botones discretos +/− de 44 px (sin ⟲). El zoom se mantiene; al soltar vuelve a girar a 1 s. */
+export function zoomControls() {
+  const ICON = { plus: 'M8 3v10M3 8h10', minus: 'M3 8h10' };
+  const btn = (label, ic, fn) => el('button', { type: 'button', class: 'zb', 'aria-label': label, title: label, on: { click: fn } },
+    svg('svg', { viewBox: '0 0 16 16', class: 'ico', 'aria-hidden': 'true', focusable: 'false' }, svg('path', { d: ICON[ic] })));
+  const zin = btn('Acercar', 'plus', () => zoomBy(1));
+  const zout = btn('Alejar', 'minus', () => zoomBy(-1));
+  zout.disabled = true;
+  S.ui = { zin, zout };
+  return el('div', { class: 'zoom', role: 'group', 'aria-label': 'Zoom del globo' }, [zin, zout]);
+}
 
 /** Lleva el globo hasta un punto en 0,9 s SIN cambiar la altitud; luego, la regla de 1 s. */
 export function flyTo(lat, lng) {
@@ -191,13 +235,15 @@ function rotate(dLat, dLng) {
   } else if (S.mode === 'flat' && S.flat) S.flat.rotate(dLat, dLng);
 }
 
-/** Teclado con el globo enfocado: solo las flechas giran (12°). Sin zoom. */
+/** Teclado con el globo enfocado: flechas giran (12°); + y − hacen el zoom corto. */
 function onKey(e) {
   const k = e.key;
   if (k === 'ArrowLeft') rotate(0, -12);
   else if (k === 'ArrowRight') rotate(0, 12);
   else if (k === 'ArrowUp') rotate(12, 0);
   else if (k === 'ArrowDown') rotate(-12, 0);
+  else if (k === '+' || k === '=') zoomBy(1);
+  else if (k === '-') zoomBy(-1);
   else return;
   e.preventDefault();
 }
@@ -211,7 +257,9 @@ function showTip(m) {
 /* ───────── globo 3D ───────── */
 
 function markerEl(m, i) {
-  const node = el('div', { class: `gm gm--${SCALE.tier(m.attacks)}`, style: { '--s': `${SCALE.size(m.attacks)}px` } }, [
+  // Si dos marcadores se pisan, el pequeño va por debajo: i es el orden por ataques (0 = el mayor),
+  // así que el mayor recibe el z-index más alto. (style por CSSOM, que la CSP permite.)
+  const node = el('div', { class: `gm gm--${SCALE.tier(m.attacks)}`, style: { '--s': `${SCALE.size(m.attacks)}px`, 'z-index': String(400 - i) } }, [
     i < MAX_RINGS ? el('span', { class: 'gm__ring' }) : null,
     el('span', { class: 'gm__dot', on: { pointerenter: () => showTip(m), pointerleave: () => showTip(null) } }),
     S.labels.has(m) ? el('span', { class: 'gm__lbl', dataset: { cc: m.cc } }, [m.cc, el('em', { text: ` ${kfmt(m.attacks)}` })]) : null,
@@ -258,6 +306,7 @@ function setGlobeData() {
     .arcsData(arcs)
     .htmlElementsData(ms)
     .htmlElement((m) => markerEl(m, ms.indexOf(m)));
+  syncZoomButtons();
 }
 
 /**
@@ -313,7 +362,7 @@ function createGlobe() {
     .ringMaxRadius((m) => 1.2 + (m.t != null ? m.t : SCALE.t(m.attacks)) * 3.4)
     // Rayas de Cloudflare Radar: trazo animado origen→destino (el guion que viaja es el «destello
     // al llegar», solo en el destino). Con reducir movimiento: trazo continuo y quieto.
-    .arcColor((a) => a.color).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.45)
+    .arcColor((a) => a.color).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.22)
     .arcDashLength(S.reduced ? 1 : 0.45).arcDashGap(S.reduced ? 0 : 0.7)
     .arcDashInitialGap(() => Math.random()).arcDashAnimateTime((a) => a.anim).arcsTransitionDuration(0)
     .htmlLat('lat').htmlLng('lon').htmlAltitude(0.01)
@@ -326,12 +375,16 @@ function createGlobe() {
   const ctr = g.controls();
   ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enablePan = false;
   S.zone.dataset.spin = S.reduced ? 'off' : 'on';
-  // Sin zoom: altitud fija. Con enableZoom = false, OrbitControls ignora la rueda y el pellizco y
-  // NO hace preventDefault, así que la rueda siempre hace scroll de la página.
-  ctr.enableZoom = false;
-  // Arrastrar: se para el giro y, 1 s después de soltar, vuelve desde donde estaba
+  // Zoom corto ×1–×1,6: pellizco (táctil) y botones siempre; rueda solo con Ctrl.
+  ctr.enableZoom = true; ctr.minDistance = 100 * distOf(altMin()); ctr.maxDistance = 100 * distOf(S.altHome);
+  // Arrastrar, pellizcar o Ctrl + rueda: se para el giro y, 1 s después de soltar, vuelve. El zoom se mantiene.
   ctr.addEventListener('start', hold);
   ctr.addEventListener('end', release);
+  // Los botones +/− siguen a la cámara: 'change' salta en cada fotograma en que se mueve
+  ctr.addEventListener('change', syncZoomButtons);
+  // La rueda sin Ctrl hace scroll de la página: el canvas es hijo del host; parar la propagación
+  // en captura sobre el host impide que el listener de rueda de OrbitControls (en el canvas) la vea.
+  host.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
 
   // Solo se dibuja cuando se ve: vista oculta, fuera de pantalla o pestaña en segundo plano → pausa
   let onScreen = true;
@@ -352,6 +405,7 @@ function createGlobe() {
   S.mode = 'globe';
   S.zone.classList.add('is-globe');
   S.zone.classList.remove('is-flat');
+  syncZoomButtons();
   // Los marcadores (nodos HTML de CSS2D) en otra tarea: la creación del globo ya es larga
   setTimeout(() => { if (S.globe) setGlobeData(); }, 0);
 }
@@ -360,11 +414,13 @@ function createGlobe() {
 
 function mountFlat(note) {
   const box = S.zone.querySelector('#globe-flat');
+  S.flatZoom = 1;
   S.flat = mountFlatGlobe(box, {
     land: S.land, markers: S.markers, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
     pairs: (S.map && S.map.attack_pairs) || [], centroid: centroidOf,
     onHover: showTip, onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
   });
+  S.flat.onZoom((z) => { S.flatZoom = z; syncZoomButtons(); });
   const n = S.zone.querySelector('#globe-note');
   if (n) n.textContent = note;
   S.mode = 'flat';
