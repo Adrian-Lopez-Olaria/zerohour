@@ -67,6 +67,9 @@ def test_build_map_con_2000_filas(radar, fake_get, monkeypatch, tmp_path, capsys
                 "country": f"País {i % 60}"} for i, ip in enumerate(ips)}
     monkeypatch.setattr(radar, "geolocate", lambda xs: {x: geo[x] for x in xs})
     monkeypatch.setattr(radar, "fetch_isc_ports", lambda d: [])
+    monkeypatch.setattr(radar, "fetch_radar_pairs", lambda: {
+        "pairs": [{"from_cc": "US", "to_cc": "US", "share": 7.6}, {"from_cc": "CN", "to_cc": "US", "share": 5.6}],
+        "range": {"start": "2026-11-04T08:00:00Z", "end": "2026-11-05T08:00:00Z"}, "updated_at": "2026-11-05T07:30:00Z"})
     monkeypatch.setattr(radar, "DATA", tmp_path)
     radar.build_map()
     import json
@@ -75,7 +78,33 @@ def test_build_map_con_2000_filas(radar, fake_get, monkeypatch, tmp_path, capsys
     assert sum(p["attacks"] for p in m["points"]) == sum(2000 - i for i in range(2000))
     assert "No es un recuento de 24 horas" in m["note"] and "2000 IPs" in m["note"]
     assert "45.0.0.1" not in json.dumps(m)                                  # nunca se publican IPs
+    # Rayas de Cloudflare Radar junto al mapa de DShield
+    assert m["attack_pairs"] == [{"from_cc": "US", "to_cc": "US", "share": 7.6}, {"from_cc": "CN", "to_cc": "US", "share": 5.6}]
+    assert m["attack_pairs_source"].startswith("Cloudflare Radar") and m["sources_status"]["radar"] == "ok"
     assert "⚠" not in capsys.readouterr().out                               # 60 países: sin aviso
+
+
+def test_fetch_radar_pairs_parsea_la_respuesta_real(radar, fake_get, monkeypatch):
+    """Contrato real de Cloudflare Radar: result.top_0 con value string, cc alpha-2 y meta."""
+    monkeypatch.setenv("CLOUDFLARE_RADAR_TOKEN", "x")
+    fake_get({"radar/attacks": {"result": {"top_0": [
+        {"originCountryAlpha2": "US", "targetCountryAlpha2": "US", "value": "7.643121", "rank": 1},
+        {"originCountryAlpha2": "cn", "targetCountryAlpha2": "US", "value": "5.615913", "rank": 2},
+        {"originCountryAlpha2": "ZZ9", "targetCountryAlpha2": "US", "value": "1", "rank": 3},   # cc inválido
+        {"originCountryAlpha2": "NL", "targetCountryAlpha2": "US", "value": "nope", "rank": 4}, # share no numérico
+        {"originCountryAlpha2": "DE", "targetCountryAlpha2": "US", "value": "999", "rank": 5},  # share fuera de 0-100
+    ], "meta": {"dateRange": [{"startTime": "s", "endTime": "e"}], "confidenceInfo": None, "lastUpdated": "u"}}}})
+    out = radar.fetch_radar_pairs()
+    assert [p["from_cc"] for p in out["pairs"]] == ["US", "CN"]             # inválidos descartados, cn→CN
+    assert out["pairs"][0] == {"from_cc": "US", "to_cc": "US", "share": 7.64}
+    assert out["range"] == {"start": "s", "end": "e"} and out["updated_at"] == "u"
+
+
+def test_fetch_radar_pairs_sin_token_falla(radar, monkeypatch):
+    monkeypatch.delenv("CLOUDFLARE_RADAR_TOKEN", raising=False)
+    import pytest
+    with pytest.raises(RuntimeError):
+        radar.fetch_radar_pairs()
 
 
 def test_mapa_avisa_con_menos_de_10_paises(radar, monkeypatch, capsys):

@@ -38,7 +38,7 @@ function stars(R, c) {
  */
 export function mountFlatGlobe(host, o) {
   const st = { lat0: o.home.lat, lon0: o.home.lng };     // sin zoom: altitud (radio) fija
-  let markers = o.markers, scale = o.scale, labels = o.labels;
+  let markers = o.markers, scale = o.scale, labels = o.labels, pairs = o.pairs || [];
   let auto = !o.reduced, idle = 0, last = 0, dirty = true, lastDraw = 0, raf = 0, fly = 0;
 
   function draw() {
@@ -60,6 +60,28 @@ export function mountFlatGlobe(host, o) {
       svg('path', { d: g, class: 'gp-grat' }),
       dFar ? svg('path', { d: dFar, class: 'gp-land gp-land--far' }) : null,
       svg('path', { d, class: 'gp-land' })];
+    // Rayas de Cloudflare Radar (las mismas que el globo 3D), estáticas en SVG. Solo si los dos
+    // extremos se ven. Par consigo mismo (US→US) → pulso en el país, no raya.
+    const maxShare = Math.max(1e-6, ...pairs.map((p) => p.share));
+    for (const pr of pairs) {
+      const ca = o.centroid(pr.from_cc), cb = o.centroid(pr.to_cc);
+      if (!ca || !cb) continue;
+      if (pr.from_cc === pr.to_cc) {
+        const q = P(ca[0], ca[1]);
+        if (q.vis && inView(q) && !o.reduced) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: '9', class: 'gp-apulse gp--hi' }));
+        continue;
+      }
+      const qa = P(ca[0], ca[1]), qb = P(cb[0], cb[1]);
+      if (!qa.vis || !qb.vis || !inView(qa) || !inView(qb)) continue;
+      const rr = pr.share / maxShare;
+      const mx = (qa.x + qb.x) / 2, my = (qa.y + qb.y) / 2, dx = qb.x - qa.x, dy = qb.y - qa.y;
+      const nl = Math.hypot(dx, dy) || 1, bend = Math.min(60, nl * 0.25);
+      const cxp = mx - dy / nl * bend, cyp = my + dx / nl * bend;    // curva hacia fuera
+      kids.push(svg('path', {
+        d: `M${qa.x.toFixed(1)} ${qa.y.toFixed(1)}Q${cxp.toFixed(1)} ${cyp.toFixed(1)} ${qb.x.toFixed(1)} ${qb.y.toFixed(1)}`,
+        class: 'gp-arc ' + (rr >= 0.5 ? 'gp-arc--hi' : 'gp-arc--mid'), 'stroke-width': (0.8 + rr * 2).toFixed(1),
+      }));
+    }
     const boxes = [], lab = [];
     markers.forEach((m, i) => {
       const q = P(m.lat, m.lon);
@@ -150,7 +172,7 @@ export function mountFlatGlobe(host, o) {
   return {
     rotate(dLat, dLon) { hold(); st.lat0 = Math.max(-60, Math.min(70, st.lat0 + dLat)); st.lon0 = ((st.lon0 + dLon + 540) % 360) - 180; dirty = true; release(); },
     flyTo,
-    update(ms, sc, lb) { markers = ms; scale = sc; labels = lb; dirty = true; },
+    update(ms, sc, lb, pr) { markers = ms; scale = sc; labels = lb; if (pr) pairs = pr; dirty = true; },
     stop() { cancelAnimationFrame(raf); },
   };
 }

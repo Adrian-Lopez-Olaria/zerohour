@@ -70,6 +70,10 @@ GHSA_URL = "https://api.github.com/advisories"
 POC_URL = "https://raw.githubusercontent.com/nomi-sec/PoC-in-GitHub/master/{year}/{cve}.json"
 ISC_ATTACKS_URL = "https://isc.sans.edu/api/sources/attacks/{n}/{date}?json"
 ISC_PORTS_URL = "https://isc.sans.edu/api/topports/records/10/{date}?json"
+# Rayas de ataques web (capa 7) mitigados por Cloudflare, origen→destino, últimas 24 h.
+# El token (CLOUDFLARE_RADAR_TOKEN) solo se usa en recolectar: nunca en desplegar ni en el frontend.
+RADAR_URL = ("https://api.cloudflare.com/client/v4/radar/attacks/layer7/top/attacks"
+             "?dateRange=1d&limit=20&limitDirection=ORIGIN&limitPerLocation=3&format=json")
 DBIP_URL = "https://download.db-ip.com/free/dbip-city-lite-{month}.mmdb.gz"
 DBIP_PAGE = "https://db-ip.com/db/download/ip-to-city-lite"   # publica el SHA-1 de cada fichero
 GEO_CACHE = ROOT / CONFIG["mapa"].get("geo_cache", ".cache/geo")
@@ -1234,6 +1238,38 @@ def fetch_isc_attackers(n: int) -> tuple[list[tuple[str, int]], str]:
     return [], str(today)
 
 
+def fetch_radar_pairs() -> dict:
+    """Rayas de ataques REALES de Cloudflare Radar (CC BY-NC 4.0): origen→destino, % del total,
+    últimas 24 h. Solo códigos alpha-2 (los nombres los pone el frontend con Intl.DisplayNames);
+    `value` llega como string y se valida como número 0-100. US→US y demás pares consigo mismo se
+    conservan: el frontend los pinta como pulso, no como raya. Como mucho 20 pares."""
+    token = os.getenv("CLOUDFLARE_RADAR_TOKEN")
+    if not token:
+        raise RuntimeError("falta CLOUDFLARE_RADAR_TOKEN")
+    r = HTTP.get(RADAR_URL, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    r.raise_for_status()
+    body = r.json()
+    result = body.get("result") or {}
+    rows = result.get("top_0") or []
+    pairs = []
+    for row in rows:  # el rank trae huecos (limitPerLocation): no se usa como índice
+        if not isinstance(row, dict):
+            continue
+        frm = str(row.get("originCountryAlpha2") or "").upper()
+        to = str(row.get("targetCountryAlpha2") or "").upper()
+        share = num(row.get("value"), 0, 100)
+        if share is None or not re.fullmatch(r"[A-Z]{2}", frm) or not re.fullmatch(r"[A-Z]{2}", to):
+            continue
+        pairs.append({"from_cc": frm, "to_cc": to, "share": round(share, 2)})
+        if len(pairs) >= 20:
+            break
+    meta = result.get("meta") or body.get("meta") or {}
+    rng = (meta.get("dateRange") or [None])[0]
+    rng = ({"start": str(rng.get("startTime") or "")[:40], "end": str(rng.get("endTime") or "")[:40]}
+           if isinstance(rng, dict) else None)
+    return {"pairs": pairs, "range": rng, "updated_at": str(meta.get("lastUpdated") or "")[:40] or None}
+
+
 def fetch_isc_ports(date: str) -> list[dict]:
     r = HTTP.get(ISC_PORTS_URL.format(date=date), timeout=60)
     r.raise_for_status()
@@ -1379,6 +1415,12 @@ def build_map() -> None:
         c["sources"] += 1
 
     ports = _safe(fetch_isc_ports, day, default=[], name="isc puertos")
+    # Rayas de Cloudflare Radar: si falla, attack_pairs queda vacío y se anota en sources_status,
+    # sin romper el resto del mapa (DShield y puertos siguen publicándose).
+    status: dict[str, str] = {}
+    radar = _safe(fetch_radar_pairs, default={"pairs": [], "range": None, "updated_at": None},
+                  status=status, name="radar")
+    log(f"Cloudflare Radar: {len(radar['pairs'])} pares de ataque")
     write_json(DATA / "map.json", {
         "updated_at": now.isoformat(),
         "data_day": day,
@@ -1389,6 +1431,11 @@ def build_map() -> None:
         "points": sorted(points.values(), key=lambda p: p["attacks"], reverse=True),
         "by_country": sorted(countries.values(), key=lambda c: c["attacks"], reverse=True),
         "top_ports": ports,
+        "attack_pairs": radar["pairs"],
+        "attack_pairs_source": "Cloudflare Radar (CC BY-NC 4.0)",
+        "attack_pairs_range": radar["range"],
+        "attack_pairs_updated_at": radar["updated_at"],
+        "sources_status": status,
     })
     log(f"✔ Mapa: {len(points)} puntos en {len(countries)} países")
     map_coverage_warning(len(countries), len(attackers))

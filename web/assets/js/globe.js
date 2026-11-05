@@ -27,6 +27,26 @@ const HOME = { lat: 32, lng: -36 };
 const MAX_LABELS = 6, MAX_RINGS = 5, LABEL_MIN_DEG = 9;
 // = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
 const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF' };
+const MAX_ARCS = 20;
+
+/* Centroides aproximados de país [lat, lon], para las rayas de Cloudflare Radar cuando el país
+   no está entre los puntos de DShield. Si un extremo no tiene centroide, esa raya no se pinta. */
+const CENTROIDS = {
+  US: [39.8, -98.6], CA: [56.1, -106.3], MX: [23.6, -102.6], BR: [-10.8, -52.9], AR: [-38.4, -63.6],
+  CL: [-35.7, -71.5], CO: [4.6, -74.3], PE: [-9.2, -75.0], VE: [6.4, -66.6], CW: [12.2, -69.0],
+  GB: [54.0, -2.4], IE: [53.4, -8.2], FR: [46.6, 2.5], DE: [51.2, 10.4], NL: [52.2, 5.3],
+  BE: [50.6, 4.6], LU: [49.8, 6.1], ES: [40.2, -3.7], PT: [39.6, -8.0], IT: [42.8, 12.6],
+  CH: [46.8, 8.2], AT: [47.6, 14.1], SE: [62.2, 15.6], NO: [64.6, 12.0], FI: [64.5, 26.3],
+  DK: [56.0, 9.5], PL: [52.1, 19.4], CZ: [49.8, 15.5], SK: [48.7, 19.5], HU: [47.2, 19.4],
+  RO: [45.9, 25.0], BG: [42.7, 25.5], GR: [39.1, 22.5], UA: [48.4, 31.2], RU: [61.5, 105.3],
+  TR: [39.1, 35.2], IL: [31.0, 34.9], SA: [23.9, 45.1], AE: [23.9, 54.3], IR: [32.4, 53.7],
+  IN: [22.4, 78.9], PK: [30.4, 69.3], BD: [23.7, 90.4], CN: [35.9, 104.2], HK: [22.3, 114.2],
+  TW: [23.7, 121.0], JP: [36.2, 138.3], KR: [36.4, 127.9], VN: [16.0, 107.9], TH: [15.1, 101.0],
+  MY: [4.2, 109.7], SG: [1.35, 103.8], ID: [-2.5, 118.0], PH: [12.9, 121.8], AU: [-25.7, 134.5],
+  NZ: [-41.8, 172.0], ZA: [-30.6, 24.0], NG: [9.1, 8.7], EG: [26.8, 30.8], MA: [31.8, -7.1],
+  KE: [-0.0, 37.9], DZ: [28.0, 2.6], KZ: [48.0, 66.9], EE: [58.6, 25.0], LV: [56.9, 24.6],
+  LT: [55.2, 23.9], RS: [44.0, 21.0], HR: [45.1, 15.2], SI: [46.1, 14.8],
+};
 
 const narrow = () => innerWidth < 760;
 const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0 };
@@ -199,10 +219,43 @@ function markerEl(m, i) {
   return node;
 }
 
+/** Centroide de un país: su zona de DShield si la hay (coordenada real), si no la tabla CENTROIDS. */
+function centroidOf(cc) {
+  const m = S.markers.find((x) => x.cc === cc);
+  if (m) return [m.lat, m.lon];
+  return CENTROIDS[cc] || null;
+}
+
+/**
+ * Rayas de ataques reales (Cloudflare Radar). Pares consigo mismo (US→US) → pulso en el país,
+ * no raya. Grosor y frecuencia según el % del total. Como mucho 20 rayas. Colores --map-hi/--map-mid.
+ */
+function buildArcs() {
+  const pairs = (S.map && S.map.attack_pairs) || [];
+  const maxShare = Math.max(1e-6, ...pairs.map((p) => p.share));
+  const arcs = [], pulses = [];
+  for (const p of pairs) {
+    const a = centroidOf(p.from_cc), b = centroidOf(p.to_cc);
+    if (!a || !b) continue;
+    if (p.from_cc === p.to_cc) { pulses.push({ lat: a[0], lon: a[1], tier: 'hi', t: 1 }); continue; }
+    if (arcs.length >= MAX_ARCS) continue;
+    const r = p.share / maxShare;
+    arcs.push({
+      startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1],
+      color: r >= 0.5 ? TIER_HEX.hi : TIER_HEX.mid,
+      stroke: 0.3 + r * 0.9,
+      anim: S.reduced ? 0 : Math.round(2600 - r * 1400),   // más share, el trazo viaja más rápido
+    });
+  }
+  return { arcs, pulses };
+}
+
 function setGlobeData() {
   const ms = S.markers;
+  const { arcs, pulses } = buildArcs();
   S.globe
-    .ringsData(S.reduced ? [] : ms.slice(0, MAX_RINGS))
+    .ringsData(S.reduced ? [] : [...ms.slice(0, MAX_RINGS), ...pulses])
+    .arcsData(arcs)
     .htmlElementsData(ms)
     .htmlElement((m) => markerEl(m, ms.indexOf(m)));
 }
@@ -256,8 +309,13 @@ function createGlobe() {
     .showGraticules(true)
     .globeImageUrl(LAND_TEX)
     .ringLat('lat').ringLng('lon').ringAltitude(0.003).ringPropagationSpeed(1.2).ringRepeatPeriod(2800)
-    .ringColor((m) => { const c = TIER_HEX[SCALE.tier(m.attacks)]; return (t) => c + Math.round((1 - t) * 200).toString(16).padStart(2, '0'); })
-    .ringMaxRadius((m) => 1.2 + SCALE.t(m.attacks) * 3.4)
+    .ringColor((m) => { const c = TIER_HEX[m.tier || SCALE.tier(m.attacks)]; return (t) => c + Math.round((1 - t) * 200).toString(16).padStart(2, '0'); })
+    .ringMaxRadius((m) => 1.2 + (m.t != null ? m.t : SCALE.t(m.attacks)) * 3.4)
+    // Rayas de Cloudflare Radar: trazo animado origen→destino (el guion que viaja es el «destello
+    // al llegar», solo en el destino). Con reducir movimiento: trazo continuo y quieto.
+    .arcColor((a) => a.color).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.45)
+    .arcDashLength(S.reduced ? 1 : 0.45).arcDashGap(S.reduced ? 0 : 0.7)
+    .arcDashInitialGap(() => Math.random()).arcDashAnimateTime((a) => a.anim).arcsTransitionDuration(0)
     .htmlLat('lat').htmlLng('lon').htmlAltitude(0.01)
     .pointOfView({ ...HOME, altitude: S.altHome }, 0);
   S.globe = g;
@@ -304,6 +362,7 @@ function mountFlat(note) {
   const box = S.zone.querySelector('#globe-flat');
   S.flat = mountFlatGlobe(box, {
     land: S.land, markers: S.markers, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
+    pairs: (S.map && S.map.attack_pairs) || [], centroid: centroidOf,
     onHover: showTip, onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
   });
   const n = S.zone.querySelector('#globe-note');
@@ -377,6 +436,6 @@ export function scheduleGlobe(zone, map) {
 export function updateGlobe(map) {
   setData(map);
   if (S.mode === 'globe' && S.globe) setGlobeData();
-  else if (S.mode === 'flat' && S.flat) S.flat.update(S.markers, SCALE, S.labels);
+  else if (S.mode === 'flat' && S.flat) S.flat.update(S.markers, SCALE, S.labels, (S.map && S.map.attack_pairs) || []);
 }
 

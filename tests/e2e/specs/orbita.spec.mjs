@@ -67,6 +67,17 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0);           // hace scroll, no zoom
   });
 
+  test('rayas de Cloudflare Radar: rótulo honesto, atribución con enlace y 0 violaciones de CSP', async ({ page }) => {
+    await open(page, FIXTURE.real);
+    await globeReady(page);
+    await expect(page.locator('#map-arcs')).toHaveText('Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h');
+    const link = page.locator('#map-foot a', { hasText: 'Cloudflare Radar' });
+    await expect(link).toHaveAttribute('href', /^https:\/\/radar\.cloudflare\.com/);
+    await expect(link).toHaveAttribute('rel', /noopener noreferrer/);
+    await expect(page.locator('#map-foot')).toContainText('CC BY-NC 4.0');
+    expect(await csp(page)).toEqual([]);                                 // los arcos no violan la CSP
+  });
+
   test('5. pasar por una fila del top resalta su punto del radar, y al revés', async ({ page }) => {
     await open(page, FIXTURE.real);
     const row = page.locator('#panel-top .orow').first();
@@ -142,6 +153,7 @@ test.describe('sin WebGL: globo SVG de respaldo', () => {
       await page.mouse.up();
       await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 });
       await expect(page.getByRole('button', { name: 'Acercar' })).toHaveCount(0);  // sin zoom
+      expect(await page.locator('#globe-flat path.gp-arc').count()).toBeGreaterThan(0);  // mismas rayas en SVG
       expect(await csp(page)).toEqual([]);
       // El único error es la petición bloqueada a propósito
       expect(errors.filter((e) => !/globo no disponible|Failed to load resource/.test(e))).toEqual([]);

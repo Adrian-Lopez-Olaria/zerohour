@@ -84,6 +84,10 @@
 .gp--hi { fill: var(--map-hi); stroke: var(--map-hi); } .gp--mid { fill: var(--map-mid); stroke: var(--map-mid); } .gp--lo { fill: var(--map-lo); stroke: var(--map-lo); }
 .gp-m.gp--hi, .gp-m.gp--mid, .gp-m.gp--lo { stroke: #030914; }
 .gp-pulse { fill: none; stroke-width: 2.2; }
+/* Rayas de Cloudflare Radar en el respaldo SVG (estáticas) y pulso de los pares consigo mismo */
+.gp-arc { fill: none; stroke-linecap: round; opacity: .85; }
+.gp-arc--hi { stroke: var(--map-hi); } .gp-arc--mid { stroke: var(--map-mid); }
+.gp-apulse { fill: var(--map-hi); fill-opacity: .25; stroke: var(--map-hi); stroke-width: 1.6; }
 .gp-lbl { font-size: 15px; font-weight: 700; fill: var(--text-1); paint-order: stroke; stroke: #030914; stroke-width: 4px; stroke-linejoin: round; }
 .gp-lbl__n { font-weight: 400; fill: var(--text-2); }
 
@@ -99,6 +103,7 @@
 .cc__n { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .cc__s { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .mapfoot { width: 100%; max-width: 560px; margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-3); }
+.mapfoot--arcs { margin-top: 6px; color: var(--map-hi); font-weight: 500; }
 
 @media (max-width: 999px) {
   /* Móvil: el globo no pasa del ~40 % de la primera pantalla */
@@ -109,9 +114,9 @@
 }
 @media (min-width: 1000px) {
   .mapp__h { flex-direction: column; align-items: center; }
-  /* El escenario cabe en la primera pantalla a cualquier alto: el globo encoge (540 px a 900 de alto)
-     y deja holgura para que una línea más del pie (otra plataforma, otro redondeo) no lo empuje */
-  .globe-box:not(.globe-box--off) { max-width: min(560px, calc(100vh - 360px)); }
+  /* El escenario cabe en la primera pantalla a cualquier alto: el globo encoge (≈520 px a 900 de alto)
+     y deja holgura para el rótulo de las rayas y el pie (otra plataforma, otro redondeo) sin empujar */
+  .globe-box:not(.globe-box--off) { max-width: min(560px, calc(100vh - 384px)); }
   .cc { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 560px; }
   .cc li:nth-child(n+4) { display: block; }
   .mapfoot { text-align: center; }

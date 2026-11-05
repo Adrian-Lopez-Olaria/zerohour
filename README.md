@@ -29,7 +29,7 @@ Anchos intermedios: [1024 px](docs/capturas/orbita-briefing-1024.png) · [768 px
 
 ## Fuentes
 
-Doce fuentes de datos, más prensa especializada y geolocalización offline:
+Trece fuentes de datos, más prensa especializada y geolocalización offline:
 
 | Fuente | Qué aporta |
 |---|---|
@@ -42,9 +42,12 @@ Doce fuentes de datos, más prensa especializada y geolocalización offline:
 | [PoC-in-GitHub](https://github.com/nomi-sec/PoC-in-GitHub) | PoC públicas **sin verificar** (algunas son falsas o maliciosas) |
 | [INCIBE-CERT](https://www.incibe.es/incibe-cert/alerta-temprana/avisos) · [CERT-EU](https://cert.europa.eu/publications/security-advisories) + noticias (RSS) | Avisos oficiales (CERT-EU solo publica los que considera graves) y contexto de prensa especializada |
 | [SANS ISC / DShield](https://isc.sans.edu/) | IPs que más atacan y puertos más atacados (mapa) |
+| [Cloudflare Radar](https://radar.cloudflare.com) | Rayas de ataques web (capa 7) mitigados por Cloudflare, origen → destino, últimas 24 h (globo). El token solo se usa en el job `recolectar` |
 | [DB-IP Lite](https://db-ip.com/db/lite.php) | Geolocalización **offline** de esas IPs: la base mensual se descarga por HTTPS, se verifica con el SHA-1 que publica DB-IP y se consulta en local (en el mapa solo se publican zonas, nunca IPs) |
 
 > Geolocalización: <a href="https://db-ip.com">IP Geolocation by DB-IP</a>, con licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+>
+> Datos de ataques (rayas origen → destino): [Cloudflare Radar](https://radar.cloudflare.com), con licencia [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
 >
 > This product uses the NVD API but is not endorsed or certified by the NVD.
 
@@ -211,7 +214,11 @@ El pipeline escribe en `data/` (ignorada por git). Al publicar, `scripts/montar_
   "note": "Ranking de DShield: las 2000 IPs con más ataques acumulados entre las que siguen activas el 2026-11-03…",
   "points": [ { "lat": 39.9, "lon": 116.4, "country": "China", "cc": "CN", "attacks": 15230, "sources": 12 } ],
   "by_country": [ { "cc": "CN", "country": "China", "attacks": 80000, "sources": 40 } ],
-  "top_ports": [ { "port": 23, "records": 500000, "sources": 9000, "targets": 30000 } ]
+  "top_ports": [ { "port": 23, "records": 500000, "sources": 9000, "targets": 30000 } ],
+  "attack_pairs": [ { "from_cc": "CN", "to_cc": "US", "share": 5.62 } ],   // Cloudflare Radar: % del total; from==to → pulso
+  "attack_pairs_source": "Cloudflare Radar (CC BY-NC 4.0)",
+  "attack_pairs_range": { "start": "…", "end": "…" }, "attack_pairs_updated_at": "…",
+  "sources_status": { "radar": "ok" }
 }
 ```
 

@@ -122,16 +122,32 @@ function newsPanel(news) {
    unidad que map.json y su nota: «ataques acumulados» e «IPs activas». */
 const MAP_TITLE = 'Ranking DShield · IPs activas hoy';
 
+const ARCS_LABEL = 'Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h';
+
 function mapSummary(map) {
   if (!map || !map.points.length) return 'Mapa de origen de ataques no disponible en esta lectura.';
   const ms = countryMarkers(map);
-  return `Globo: ${MAP_TITLE}. ${ms.length} países; más ataques acumulados: ${ms.slice(0, 3).map((m) => `${countryName(m.cc, m.country)} ${nf(m.attacks)}`).join(', ')}.`;
+  let s = `Globo: ${MAP_TITLE}. ${ms.length} países; más ataques acumulados: ${ms.slice(0, 3).map((m) => `${countryName(m.cc, m.country)} ${nf(m.attacks)}`).join(', ')}.`;
+  const arcs = (map.attack_pairs || []).filter((p) => p.from_cc !== p.to_cc).slice(0, 5);
+  if (arcs.length) s += ` ${ARCS_LABEL}: ${arcs.map((p) => `${countryName(p.from_cc)} a ${countryName(p.to_cc)}, ${nf(p.share)} por ciento del total`).join('; ')}.`;
+  return s;
 }
 
 const mapSub = (map) => `${nf(countryMarkers(map).length)} países · lectura de las ${tUTC(map.updated_at)} UTC`;
 
+/** Rótulo honesto de las rayas, separado del de DShield. Solo si hay rayas de Cloudflare Radar. */
+function arcsCaption(map) {
+  if (!(map.attack_pairs || []).length) return null;
+  return el('p', { class: 'mapfoot mapfoot--arcs', id: 'map-arcs', text: ARCS_LABEL });
+}
+
 function mapFoot(map) {
-  return el('p', { class: 'mapfoot', id: 'map-foot', text: [map.note, map.source ? `Fuente: ${map.source}.` : ''].filter(Boolean).join(' ') });
+  const parts = [map.note, map.source ? `Fuente: ${map.source}.` : ''].filter(Boolean);
+  const kids = [parts.join(' ')];
+  if ((map.attack_pairs || []).length) {
+    kids.push(' Datos de ataques: ', extLink('https://radar.cloudflare.com', { class: 'link' }, 'Cloudflare Radar'), ' (CC BY-NC 4.0).');
+  }
+  return el('p', { class: 'mapfoot', id: 'map-foot' }, kids);
 }
 
 /** Los 5 países con más ataques (3 en el móvil): cada uno es un botón que lleva el globo hasta él. */
@@ -171,6 +187,7 @@ function mapPanel(map) {
     ]) : el('div', { class: 'globe-box globe-box--off' }, emptyBlock('Mapa no disponible',
       map ? 'Sin orígenes de ataque en esta lectura de SANS ISC. El resto del briefing funciona con normalidad.'
         : 'El mapa de ataques no se pudo leer en esta edición (map.json). El resto del briefing funciona con normalidad.', true)),
+    ok ? arcsCaption(map) : null,
     ok ? countryButtons(map) : null,
     ok ? mapFoot(map) : null,
   ]);
