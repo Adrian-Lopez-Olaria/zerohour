@@ -53,6 +53,9 @@ jobs:
     name: recolectar
     runs-on: ubuntu-24.04            # fijo: ubuntu-latest migra a 26
     timeout-minutes: 25
+    # Entorno restringido a main: aquí viven NVD_API_KEY y CLOUDFLARE_RADAR_TOKEN. El token de
+    # Radar solo lo ve este job (recolectar), nunca publicar, desplegar ni el frontend.
+    environment: recolectar
     permissions:
       contents: read
     outputs:
@@ -164,6 +167,7 @@ jobs:
         if: contains(fromJSON('["daily","map","all"]'), steps.gate.outputs.mode)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          CLOUDFLARE_RADAR_TOKEN: ${{ secrets.CLOUDFLARE_RADAR_TOKEN }}   # solo en recolectar, por env
           GITHUB_TOKEN: ${{ github.token }}   # solo lectura (contents: read): consulta de GHSA
           MODE: ${{ steps.gate.outputs.mode }}
         run: python scripts/radar.py "$MODE"
