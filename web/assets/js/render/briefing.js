@@ -9,7 +9,7 @@ import { el, clear } from '../util/dom.js';
 import { panelHead, emptyBlock, extLink, langOf, icon, verdictOf, vshape, cveHref, who } from './comunes.js';
 import { orbRows, rowsFoot } from './filas.js';
 import { renderRadar } from '../radar.js';
-import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField } from '../globe.js';
+import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, kfmt, flyTo, markerText, starField } from '../globe.js';
 import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
 
 /* Nombre del servicio por número de puerto: una etiqueta de la interfaz, no un dato del JSON
@@ -121,7 +121,6 @@ function newsPanel(news) {
    ranking de DShield de IPs activas hoy) y el tooltip, los botones y el ranking usan la misma
    unidad que map.json y su nota: «ataques acumulados» e «IPs activas». */
 const MAP_TITLE = 'Ranking DShield · IPs activas hoy';
-const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
 function mapSummary(map) {
   if (!map || !map.points.length) return 'Mapa de origen de ataques no disponible en esta lectura.';
@@ -161,13 +160,12 @@ function mapPanel(map) {
       el('p', { class: 'sr-only', id: 'map-sum', text: mapSummary(map) }),
       el('div', {
         class: 'globe-view', id: 'globe-view', tabindex: '0', role: 'group',
-        'aria-label': 'Globo interactivo. Flechas para girar, más y menos para acercar o alejar, cero para volver a la vista inicial.',
+        'aria-label': 'Globo interactivo. Arrástralo o usa las flechas para girarlo.',
       }, [
         el('div', { class: 'globe', id: 'globe', 'aria-hidden': 'true' }),
         el('div', { class: 'globe-flat', id: 'globe-flat', 'aria-hidden': 'true' }),
       ]),
-      zoomControls(),
-      el('p', { class: 'globe-hint', text: COARSE ? 'Arrastra para girar · pellizca para acercar' : 'Arrastra para girar · Ctrl + rueda para acercar' }),
+      el('p', { class: 'globe-hint', text: 'Arrastra para girar' }),
       el('p', { class: 'globe-tip', id: 'globe-tip', 'aria-live': 'polite' }),
       el('p', { class: 'globe-note', id: 'globe-note' }),
     ]) : el('div', { class: 'globe-box globe-box--off' }, emptyBlock('Mapa no disponible',

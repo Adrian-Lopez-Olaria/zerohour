@@ -25,7 +25,7 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     expect(await page.locator('#panel-top .orow').count()).toBe(10);
   });
 
-  test('3. el globo gira solo, se para al arrastrarlo y vuelve a girar a los 3 s', async ({ page }) => {
+  test('3. el globo gira solo, se para al arrastrarlo y vuelve a girar a 1 s', async ({ page }) => {
     await open(page, FIXTURE.real);
     expect(await globeReady(page)).toContain('is-globe');
     const zone = page.locator('#globe-zone');
@@ -33,44 +33,38 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     const clip = await south(page);
     const a = await shot(page, clip); await page.waitForTimeout(700);
     expect(same(a, await shot(page, clip))).toBe(false);                     // gira de verdad
-    const box = await page.locator('#globe').boundingBox();
+    const box = await page.locator('#globe-view').boundingBox();             // visible en 3D y en SVG
     await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 + 60);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 60, { steps: 8 });
     await expect(zone).toHaveAttribute('data-spin', 'off');                  // al arrastrar se para
     await page.mouse.up();
-    const t0 = Date.now();
-    await page.waitForTimeout(2200);
-    await expect(zone).toHaveAttribute('data-spin', 'off');                  // sigue parado antes de los 3 s
-    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 2500 }); // y vuelve a girar
-    expect(Date.now() - t0).toBeGreaterThanOrEqual(2900);
+    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y, ~1 s después, vuelve a girar
   });
 
-  test('3. un país del ranking lleva el globo hasta él; la tecla 0 vuelve a la vista inicial', async ({ page }) => {
+  test('3. un país del ranking lleva el globo hasta él (flyTo) y vuelve a girar a 1 s', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
-    const out = page.getByRole('button', { name: 'Alejar' });
-    await expect(out).toBeDisabled();
-    await page.locator('.cc__b').first().click();
-    await expect(out).toBeEnabled({ timeout: 3000 });                          // se ha acercado
-    await page.locator('#globe-view').focus();
-    await page.keyboard.press('0');
-    await expect(out).toBeDisabled({ timeout: 3000 });
-    await page.keyboard.press('+');
-    await expect(out).toBeEnabled({ timeout: 3000 });
+    const zone = page.locator('#globe-zone');
+    // El click se dispara en la página: flyTo() llama a hold() de forma síncrona, así que leer
+    // data-spin justo después es determinista (la ventana de reanudación es de ~1 s)
+    await page.locator('.cc__b').first().evaluate((b) => b.click());
+    expect(await page.evaluate(() => document.querySelector('#globe-zone').dataset.spin)).toBe('off');
+    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y vuelve a girar a ~1 s
   });
 
-  test('D1. la rueda sola hace scroll de la página; Ctrl + rueda hace zoom', async ({ page }) => {
+  test('sin zoom: no hay botones + / − / ⟲ y la rueda hace scroll de la página', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
+    await expect(page.getByRole('button', { name: 'Acercar' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Alejar' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Volver a la vista inicial' })).toHaveCount(0);
+    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar');
     const box = await page.locator('#globe').boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.keyboard.down('Control'); await page.mouse.wheel(0, -500); await page.keyboard.up('Control');
-    await expect(page.getByRole('button', { name: 'Alejar' })).toBeEnabled({ timeout: 3000 });
     const y0 = await page.evaluate(() => scrollY);
-    await page.mouse.wheel(0, 400); await page.waitForTimeout(400);
-    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0);
-    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar · Ctrl + rueda para acercar');
+    await page.mouse.wheel(0, 400); await page.waitForTimeout(400);           // rueda sobre el globo
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0);           // hace scroll, no zoom
   });
 
   test('5. pasar por una fila del top resalta su punto del radar, y al revés', async ({ page }) => {
@@ -137,10 +131,17 @@ test.describe('sin WebGL: globo SVG de respaldo', () => {
       const errors = await open(page, FIXTURE.real);
       expect(await globeReady(page)).toContain('is-flat');
       await expect(page.locator('#globe-flat svg.gp')).toBeVisible();
-      await page.getByRole('button', { name: 'Acercar' }).click();
-      await expect(page.locator('#globe-flat svg.is-zoomed')).toHaveCount(1);
-      await page.getByRole('button', { name: 'Volver a la vista inicial' }).click();
-      await expect(page.getByRole('button', { name: 'Alejar' })).toBeDisabled();
+      const zone = page.locator('#globe-zone');
+      await expect(zone).toHaveAttribute('data-spin', 'on');                     // gira solo
+      // Arrastrar lo para y, a 1 s de soltar, vuelve a girar (mismo comportamiento que el 3D)
+      const box = await page.locator('#globe-flat').boundingBox();
+      await page.mouse.move(box.x + box.width / 2 - 50, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2 + 50, box.y + box.height / 2, { steps: 8 });
+      await expect(zone).toHaveAttribute('data-spin', 'off');
+      await page.mouse.up();
+      await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 });
+      await expect(page.getByRole('button', { name: 'Acercar' })).toHaveCount(0);  // sin zoom
       expect(await csp(page)).toEqual([]);
       // El único error es la petición bloqueada a propósito
       expect(errors.filter((e) => !/globo no disponible|Failed to load resource/.test(e))).toEqual([]);
@@ -159,7 +160,7 @@ test.describe('§9 · móvil 390 × 844', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     const g = await rect(page, '.globe-box');
     expect(g.bottom - g.top).toBeLessThanOrEqual(844 * 0.45);               // ≈ 40 % de la pantalla
-    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar · pellizca para acercar');
+    await expect(page.locator('.globe-hint')).toHaveText('Arrastra para girar');
   });
 
   test('top: 5 filas y «Ver las 10» con <details>, también con teclado', async ({ page }) => {
@@ -174,7 +175,7 @@ test.describe('§9 · móvil 390 × 844', () => {
   test('zonas táctiles de 44 px o más', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
-    const small = await page.evaluate(() => [...document.querySelectorAll('.nav__a, .zb, .cc__b, .more10 summary')]
+    const small = await page.evaluate(() => [...document.querySelectorAll('.nav__a, .cc__b, .more10 summary')]
       .filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect()).filter((r) => r.height < 44 || r.width < 44).length);
     expect(small).toBe(0);
   });

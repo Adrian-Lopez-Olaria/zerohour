@@ -2,13 +2,13 @@
    globo-plano.js · respaldo SVG del globo (sin WebGL o si globe.gl tarda más de 9 s)
    Es el globo ortográfico del prototipo «Órbita», escrito para la CSP: todo con svg() y
    textContent, sin atributos style ni innerHTML; los colores van por clase CSS.
-   Mismo comportamiento que el globo 3D: gira solo, arrastrar/pellizcar, zoom ×1–×3 con
-   botones y Ctrl + rueda, teclado (flechas, + −, 0), flyTo() y vuelta al giro a los 3 s.
+   Mismo comportamiento que el globo 3D: gira solo, se arrastra para girar (las flechas del teclado
+   también giran) y flyTo(); sin zoom (altitud fija) y vuelta al giro a 1 s de soltar.
    ============================================================================= */
 import { svg, clear } from './util/dom.js';
 
 const RAD = Math.PI / 180;
-const SIZE = 560, PAD = 30, SPEED = 5, RESUME_MS = 3000, ZMIN = 1, ZMAX = 3;
+const SIZE = 560, PAD = 30, SPEED = 5, RESUME_MS = 1000;   // sin zoom: zoom fijo en 1, giro a 1 s
 
 function ortho(lat0, lon0, R, c) {
   const s0 = Math.sin(lat0 * RAD), c0 = Math.cos(lat0 * RAD);
@@ -34,16 +34,15 @@ function stars(R, c) {
 
 /**
  * Monta el globo SVG en `host`. o: { land, markers, scale, labels:Set, tierOf, fmt, reduced, home,
- * onHover(m|null) }. Devuelve { zoomBy, reset, flyTo, update(markers, scale, labels), setZoomButtons }.
+ * onHover(m|null) }. Devuelve { rotate, flyTo, update(markers, scale, labels), stop }.
  */
 export function mountFlatGlobe(host, o) {
-  const st = { lat0: o.home.lat, lon0: o.home.lng, zoom: 1 };
+  const st = { lat0: o.home.lat, lon0: o.home.lng };     // sin zoom: altitud (radio) fija
   let markers = o.markers, scale = o.scale, labels = o.labels;
   let auto = !o.reduced, idle = 0, last = 0, dirty = true, lastDraw = 0, raf = 0, fly = 0;
-  let onZoomChange = () => {};
 
   function draw() {
-    const R = (SIZE / 2 - PAD) * st.zoom, c = SIZE / 2, P = ortho(st.lat0, st.lon0, R, c);
+    const R = SIZE / 2 - PAD, c = SIZE / 2, P = ortho(st.lat0, st.lon0, R, c);
     const inView = (q) => q.x > -4 && q.x < SIZE + 4 && q.y > -4 && q.y < SIZE + 4;
     let d = '', dFar = '';
     for (const p of o.land || []) {
@@ -66,7 +65,7 @@ export function mountFlatGlobe(host, o) {
       const q = P(m.lat, m.lon);
       if (!q.vis || !inView(q)) return;
       const r = 4 + scale.t(m.attacks) * 16;
-      if (i < 5 && !o.reduced && st.zoom < 1.05) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-pulse gp-pulse--${i} gp--${scale.tier(m.attacks)}` }));
+      if (i < 5 && !o.reduced) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-pulse gp-pulse--${i} gp--${scale.tier(m.attacks)}` }));
       const dot = svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-m gp--${scale.tier(m.attacks)}` });
       dot.addEventListener('pointerenter', () => o.onHover(m));
       dot.addEventListener('pointerleave', () => o.onHover(null));
@@ -87,10 +86,9 @@ export function mountFlatGlobe(host, o) {
         break;
       }
     }
-    const el = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'gp' + (st.zoom > 1.01 ? ' is-zoomed' : ''), 'aria-hidden': 'true', focusable: 'false' }, kids);
+    const el = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'gp', 'aria-hidden': 'true', focusable: 'false' }, kids);
     clear(host).appendChild(el);
     dirty = false;
-    onZoomChange(st.zoom);
   }
 
   function pulse(ts) {
@@ -115,40 +113,32 @@ export function mountFlatGlobe(host, o) {
   const spin = (on) => { auto = on; if (o.onSpin) o.onSpin(on); };
   const hold = () => { spin(false); clearTimeout(idle); };
   const release = () => { clearTimeout(idle); if (!o.reduced) idle = setTimeout(() => spin(true), RESUME_MS); };
-  const setZoom = (z) => { st.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); dirty = true; };
 
-  // Arrastre y pellizco con Pointer Events (touch-action: none solo en el globo plano)
+  // Arrastre para girar con Pointer Events. Sin zoom ni pellizco; touch-action: pan-y deja que el
+  // arrastre vertical haga scroll de la página (solo el movimiento horizontal gira el globo).
   const pts = new Map();
-  let pinch0 = 0, zoom0 = 1;
   host.addEventListener('pointerdown', (e) => {
     host.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); hold();
-    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); zoom0 = st.zoom; }
   });
   host.addEventListener('pointermove', (e) => {
     if (!pts.has(e.pointerId)) return;
     const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
-    if (pts.size === 2) { const [a, b] = [...pts.values()]; if (pinch0) setZoom(zoom0 * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0); return; }
-    const k = 0.35 / st.zoom * (SIZE / Math.max(1, host.clientWidth));
+    const k = 0.35 * (SIZE / Math.max(1, host.clientWidth));
     st.lon0 = ((st.lon0 - (e.clientX - prev[0]) * k + 540) % 360) - 180;
     st.lat0 = Math.max(-60, Math.min(70, st.lat0 + (e.clientY - prev[1]) * k));
     dirty = true;
   });
-  const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; if (!pts.size) release(); };
+  const up = (e) => { pts.delete(e.pointerId); if (!pts.size) release(); };
   host.addEventListener('pointerup', up);
   host.addEventListener('pointercancel', up);
-  // D1: Ctrl + rueda hace zoom; la rueda sola sigue haciendo scroll de la página
-  host.addEventListener('wheel', (e) => {
-    if (!e.ctrlKey) return;
-    e.preventDefault(); hold(); setZoom(st.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); release();
-  }, { passive: false });
 
   function flyTo(lat, lon) {
     hold(); cancelAnimationFrame(fly);
-    const a0 = { lon: st.lon0, lat: st.lat0, z: st.zoom }, t0 = performance.now(), T = o.reduced ? 1 : 900;
-    const dl = ((lon - a0.lon + 540) % 360) - 180, lat1 = Math.max(-60, Math.min(70, lat)), z1 = Math.max(st.zoom, 1.6);
+    const a0 = { lon: st.lon0, lat: st.lat0 }, t0 = performance.now(), T = o.reduced ? 1 : 900;   // sin zoom
+    const dl = ((lon - a0.lon + 540) % 360) - 180, lat1 = Math.max(-60, Math.min(70, lat));
     const step = (ts) => {
       const k = Math.min(1, (ts - t0) / T), e2 = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-      st.lon0 = ((a0.lon + dl * e2 + 540) % 360) - 180; st.lat0 = a0.lat + (lat1 - a0.lat) * e2; st.zoom = a0.z + (z1 - a0.z) * e2; dirty = true;
+      st.lon0 = ((a0.lon + dl * e2 + 540) % 360) - 180; st.lat0 = a0.lat + (lat1 - a0.lat) * e2; dirty = true;
       if (k < 1) fly = requestAnimationFrame(step); else release();
     };
     fly = requestAnimationFrame(step);
@@ -158,13 +148,9 @@ export function mountFlatGlobe(host, o) {
   draw();
   if (o.onSpin) o.onSpin(auto);
   return {
-    zoomBy(f) { hold(); setZoom(st.zoom * f); release(); },
     rotate(dLat, dLon) { hold(); st.lat0 = Math.max(-60, Math.min(70, st.lat0 + dLat)); st.lon0 = ((st.lon0 + dLon + 540) % 360) - 180; dirty = true; release(); },
-    reset() { hold(); st.lat0 = o.home.lat; st.lon0 = o.home.lng; st.zoom = 1; dirty = true; release(); },
     flyTo,
     update(ms, sc, lb) { markers = ms; scale = sc; labels = lb; dirty = true; },
-    onZoom(fn) { onZoomChange = fn; fn(st.zoom); },
-    zoomLimits: { min: ZMIN, max: ZMAX },
     stop() { cancelAnimationFrame(raf); },
   };
 }

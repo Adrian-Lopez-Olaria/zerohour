@@ -50,14 +50,9 @@
 .globe { position: absolute; inset: 0; cursor: grab; }
 .globe:active { cursor: grabbing; }
 .globe canvas { outline: none; }
-.globe-flat { position: absolute; inset: 0; display: none; touch-action: none; cursor: grab; }
+.globe-flat { position: absolute; inset: 0; display: none; touch-action: pan-y; cursor: grab; }
 .globe-box.is-flat .globe { display: none; }
 .globe-box.is-flat .globe-flat { display: block; }
-.zoom { position: absolute; right: 0; bottom: 8%; z-index: 3; display: grid; gap: 6px; }
-.zb { width: var(--tap); height: var(--tap); display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--bg-1); color: var(--text-1); cursor: pointer; }
-.zb .ico { width: 16px; height: 16px; stroke-width: 1.8; }
-.zb:hover { border-color: var(--line-hi); background: var(--bg-2); }
-.zb:disabled { color: var(--text-3); cursor: default; opacity: .6; }
 .globe-hint { position: absolute; right: 0; top: 4px; z-index: 3; width: 130px; margin: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-3); text-align: right; pointer-events: none; }
 .globe-tip { position: absolute; left: 0; right: 0; top: 4px; z-index: 3; min-height: 1.4em; margin: 0; font-size: 13px; font-weight: 600; color: var(--acc); text-align: center; pointer-events: none; }
 .globe-note { position: absolute; left: 0; bottom: 4px; z-index: 3; margin: 0; font-size: 11.5px; color: var(--acc); pointer-events: none; }
@@ -80,7 +75,6 @@
 
 /* Globo SVG de respaldo (mismo aspecto: esfera iluminada, atmósfera, tierra en puntos) */
 .gp { width: 100%; height: 100%; overflow: visible; }
-.gp.is-zoomed { overflow: hidden; border-radius: 50%; }
 .gp-atm { fill: none; stroke: #3B7BFF; stroke-opacity: .14; stroke-width: 36; }
 .gp-sphere { fill: #071634; stroke: var(--globe-rim); stroke-width: 1.2; stroke-opacity: .8; }
 .gp-grat { fill: none; stroke: #16305E; stroke-width: .9; stroke-opacity: .8; }
@@ -109,14 +103,12 @@
 @media (max-width: 999px) {
   /* Móvil: el globo no pasa del ~40 % de la primera pantalla */
   .globe-box { max-width: min(100%, 42vh); }
-  .zoom { right: -2px; }
   .globe-box { margin-bottom: 22px; }
   .globe-hint { left: 0; right: 0; top: auto; bottom: -22px; width: auto; text-align: center; }
   .globe-tip { top: 0; }
 }
 @media (min-width: 1000px) {
   .mapp__h { flex-direction: column; align-items: center; }
-  .zoom { right: 2%; bottom: 14%; }
   /* El escenario cabe en la primera pantalla a cualquier alto: el globo encoge (540 px a 900 de alto)
      y deja holgura para que una línea más del pie (otra plataforma, otro redondeo) no lo empuje */
   .globe-box:not(.globe-box--off) { max-width: min(560px, calc(100vh - 360px)); }

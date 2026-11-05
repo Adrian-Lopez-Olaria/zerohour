@@ -6,8 +6,9 @@
      mismo comportamiento.
    - Un marcador por país (suma de ataques, en su zona con más ataques), tamaño y tramo en
      escala logarítmica por tercios; anillos en los 5 primeros; etiquetas «CC 1179,5 k» para 6.
-   - Gira solo (~5°/s). Arrastrar, Ctrl + rueda, pellizco, botones, teclado o flyTo() lo paran
-     y a los 3 s de soltarlo vuelve a girar desde donde estaba y con el mismo zoom.
+   - Gira solo (~5°/s). Arrastrar, las flechas del teclado o flyTo() lo paran y a 1 s de soltarlo
+     vuelve a girar desde donde estaba. Sin zoom: altitud fija; la rueda siempre hace scroll de la
+     página y el arrastre vertical en el móvil no bloquea el scroll (touch-action: pan-y).
    - prefers-reduced-motion: sin giro, sin pulsos y vuelo instantáneo.
    Las etiquetas y el tooltip se crean con createElement y textContent.
    ============================================================================= */
@@ -21,16 +22,14 @@ const LAND_URL = new URL('../geo/tierra.json', import.meta.url).href;     // pun
 const LAND_TEX = new URL('../geo/tierra.png', import.meta.url).href;      // textura: globo 3D
 const TIMEOUT_MS = 9000;
 const ROTATE_SPEED = 0.8;                 // OrbitControls: ≈ 5°/s a 60 fps
-const RESUME_MS = 3000;
+const RESUME_MS = 1000;                    // vuelve a girar 1 s después de soltar
 const HOME = { lat: 32, lng: -36 };
-const ALT_MIN = 0.2;                       // ≈ ×3 de tamaño aparente frente a la vista inicial
-const ZOOM_STEP = 1.4;                     // cada pulsación acerca o aleja la cámara ×1,4
 const MAX_LABELS = 6, MAX_RINGS = 5, LABEL_MIN_DEG = 9;
 // = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
 const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF' };
 
 const narrow = () => innerWidth < 760;
-const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null };
+const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0 };
 
 /* ───────── escala: por país, logarítmica, por tercios (guía Órbita §1) ───────── */
 
@@ -150,50 +149,13 @@ function release() {
   if (!S.reduced) S.idle = setTimeout(() => setAuto(true), RESUME_MS);
 }
 
-/* ───────── controles (botones, teclado, flyTo) para el globo 3D y el SVG ───────── */
+/* ───────── controles (teclado para girar y flyTo) para el globo 3D y el SVG ───────── */
 
-const altOf = () => S.globe.pointOfView().altitude;
-const distOf = (alt) => 1 + alt;          // distancia al centro, en radios
-
-function syncZoomButtons() {
-  if (!S.ui) return;
-  let canIn = true, canOut = true;
-  if (S.mode === 'globe' && S.globe) {
-    const a = altOf();
-    canIn = a > ALT_MIN + 0.01; canOut = a < S.altHome - 0.01;
-  } else if (S.mode === 'flat' && S.flat) {
-    canIn = S.flatZoom < S.flat.zoomLimits.max - 0.01; canOut = S.flatZoom > S.flat.zoomLimits.min + 0.01;
-  }
-  S.ui.zin.disabled = !canIn;
-  S.ui.zout.disabled = !canOut;
-}
-
-function zoomBy(dir) {                     // dir: +1 acercar, −1 alejar
-  if (S.mode === 'globe' && S.globe) {
-    hold();
-    const d = distOf(altOf()) / (dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
-    S.globe.pointOfView({ altitude: Math.max(ALT_MIN, Math.min(S.altHome, d - 1)) }, S.reduced ? 0 : 400);
-    S.globe.resumeAnimation();
-    release();
-  } else if (S.mode === 'flat' && S.flat) {
-    S.flat.zoomBy(dir > 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
-  }
-}
-
-export function resetView() {
-  if (S.mode === 'globe' && S.globe) {
-    hold();
-    S.globe.pointOfView({ ...HOME, altitude: S.altHome }, S.reduced ? 0 : 600);
-    S.globe.resumeAnimation();
-    release();
-  } else if (S.mode === 'flat' && S.flat) S.flat.reset();
-}
-
-/** Lleva el globo hasta un punto en 0,9 s y se acerca a ×1,6 como mínimo; luego, la regla de los 3 s. */
+/** Lleva el globo hasta un punto en 0,9 s SIN cambiar la altitud; luego, la regla de 1 s. */
 export function flyTo(lat, lng) {
   if (S.mode === 'globe' && S.globe) {
     hold();
-    S.globe.pointOfView({ lat, lng, altitude: Math.min(altOf(), S.altHome * 0.62) }, S.reduced ? 0 : 900);
+    S.globe.pointOfView({ lat, lng }, S.reduced ? 0 : 900);   // sin altitude: la altitud no cambia
     S.globe.resumeAnimation();
     release();
   } else if (S.mode === 'flat' && S.flat) S.flat.flyTo(lat, lng);
@@ -209,31 +171,15 @@ function rotate(dLat, dLng) {
   } else if (S.mode === 'flat' && S.flat) S.flat.rotate(dLat, dLng);
 }
 
-/** Teclado con el globo enfocado: flechas = girar 12°, + y − = zoom, 0 = vista inicial. */
+/** Teclado con el globo enfocado: solo las flechas giran (12°). Sin zoom. */
 function onKey(e) {
   const k = e.key;
   if (k === 'ArrowLeft') rotate(0, -12);
   else if (k === 'ArrowRight') rotate(0, 12);
   else if (k === 'ArrowUp') rotate(12, 0);
   else if (k === 'ArrowDown') rotate(-12, 0);
-  else if (k === '+' || k === '=') zoomBy(1);
-  else if (k === '-') zoomBy(-1);
-  else if (k === '0') resetView();
   else return;
   e.preventDefault();
-}
-
-/** Botones de 44 × 44 px con iconos SVG propios (el ⟲ no está en el subconjunto latin). */
-export function zoomControls() {
-  const ICON = { plus: 'M8 3v10M3 8h10', minus: 'M3 8h10', reset: 'M3.2 6.2A5.2 5.2 0 1 1 3 9.6M2.6 2.8v3.6h3.6' };
-  const btn = (label, ic, fn) => el('button', { type: 'button', class: 'zb', 'aria-label': label, title: label, on: { click: fn } },
-    svg('svg', { viewBox: '0 0 16 16', class: 'ico', 'aria-hidden': 'true', focusable: 'false' }, svg('path', { d: ICON[ic] })));
-  const zin = btn('Acercar', 'plus', () => zoomBy(1));
-  const zout = btn('Alejar', 'minus', () => zoomBy(-1));
-  const zrst = btn('Volver a la vista inicial', 'reset', () => resetView());
-  zout.disabled = true;
-  S.ui = { zin, zout };
-  return el('div', { class: 'zoom', role: 'group', 'aria-label': 'Controles del globo' }, [zin, zout, zrst]);
 }
 
 /** Tooltip «País: N ataques acumulados · N IPs activas (DShield)» encima del globo. */
@@ -322,15 +268,12 @@ function createGlobe() {
   const ctr = g.controls();
   ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enablePan = false;
   S.zone.dataset.spin = S.reduced ? 'off' : 'on';
-  ctr.enableZoom = true; ctr.minDistance = 100 * distOf(ALT_MIN); ctr.maxDistance = 100 * distOf(S.altHome);
-  // Arrastrar, pellizcar o Ctrl + rueda: se para el giro y, 3 s después de soltar, vuelve
+  // Sin zoom: altitud fija. Con enableZoom = false, OrbitControls ignora la rueda y el pellizco y
+  // NO hace preventDefault, así que la rueda siempre hace scroll de la página.
+  ctr.enableZoom = false;
+  // Arrastrar: se para el giro y, 1 s después de soltar, vuelve desde donde estaba
   ctr.addEventListener('start', hold);
   ctr.addEventListener('end', release);
-  // Los botones + y − siguen a la cámara: 'change' salta en cada fotograma en que se mueve (botones,
-  // teclado, flyTo, inercia). Con un temporizador fijo, un fotograma tardío dejaba el estado mal.
-  ctr.addEventListener('change', syncZoomButtons);
-  // D1: la rueda sin Ctrl hace scroll de la página (el globo no la «atrapa»); con Ctrl, zoom
-  host.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
 
   // Solo se dibuja cuando se ve: vista oculta, fuera de pantalla o pestaña en segundo plano → pausa
   let onScreen = true;
@@ -351,7 +294,6 @@ function createGlobe() {
   S.mode = 'globe';
   S.zone.classList.add('is-globe');
   S.zone.classList.remove('is-flat');
-  syncZoomButtons();
   // Los marcadores (nodos HTML de CSS2D) en otra tarea: la creación del globo ya es larga
   setTimeout(() => { if (S.globe) setGlobeData(); }, 0);
 }
@@ -360,12 +302,10 @@ function createGlobe() {
 
 function mountFlat(note) {
   const box = S.zone.querySelector('#globe-flat');
-  S.flatZoom = 1;
   S.flat = mountFlatGlobe(box, {
     land: S.land, markers: S.markers, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
     onHover: showTip, onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
   });
-  S.flat.onZoom((z) => { S.flatZoom = z; syncZoomButtons(); });
   const n = S.zone.querySelector('#globe-note');
   if (n) n.textContent = note;
   S.mode = 'flat';

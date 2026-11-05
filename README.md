@@ -24,7 +24,7 @@ Anchos intermedios: [1024 px](docs/capturas/orbita-briefing-1024.png) · [768 px
 - **Qué se está explotando ya.** Nuevas en el catálogo KEV de CISA y CVE que CISA marca como explotadas (SSVC) antes de que entren en KEV.
 - **Qué tiene código de ataque.** Exploits verificados (Metasploit, Exploit-DB), plantillas de detección (Nuclei) y PoC públicas sin verificar, cada uno con su peso.
 - **Qué me toca a mí.** Las que afectan a tu stack (`config.toml`).
-- **Desde dónde atacan.** Un globo interactivo con el ranking de DShield de las IPs activas hoy, por país (se arrastra, se acerca y vuelve a girar solo a los 3 s), y los puertos más atacados. Sin WebGL hay un globo SVG de respaldo con el mismo comportamiento.
+- **Desde dónde atacan.** Un globo interactivo con el ranking de DShield de las IPs activas hoy, por país (se arrastra para girarlo y vuelve a girar solo 1 s después de soltarlo), y los puertos más atacados. Sin WebGL hay un globo SVG de respaldo con el mismo comportamiento.
 - **Cuánto tiempo hay.** El plazo que da CISA para parchear cada CVE del catálogo KEV y el desglose del score, para saber de qué está hecho el número.
 
 ## Fuentes
