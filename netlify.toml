@@ -1,0 +1,99 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# netlify.toml · cabeceras de seguridad y caché de ZEROHOUR (ÚNICA fuente de verdad)
+#
+# El sitio se sirve desde Cloudflare Workers (ficheros estáticos). scripts/montar_deploy.py
+# traduce las reglas [[headers]] de este fichero a web/_headers, el formato de Cloudflare,
+# con la misma semántica; tests/pipeline/test_netlify.py comprueba ruta a ruta que salen
+# idénticas. scripts/dev_server.py lee también ESTE fichero y manda las mismas cabeceras en local.
+#
+# Regla de mantenimiento: cada cabecera se define en UNA sola regla por ruta. Cloudflare (y
+# Netlify) aplican todas las reglas que casan con una ruta y, si dos fijan la misma cabecera,
+# juntan los valores ("no-cache, public, max-age=…"). Por eso Cache-Control no va en "/*",
+# sino en rutas que no se solapan. Los tests lo comprueban fichero a fichero.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+  publish = "web"
+  # Sin "command": el sitio ya viene montado en la rama deploy
+
+# ── Seguridad: todas las respuestas ──────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Solo recursos propios, sin excepciones. worker-src 'none': el bundle de globe.gl/three.js
+    # no crea workers ni blobs (comprobado en el fichero), así que no hace falta blob:.
+    # Trusted Types obligatorio para los sinks de script.
+    Content-Security-Policy = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Todo desactivado: la web no usa ninguna de estas APIs (sin interest-cohort: FLoC ya no existe)
+    Permissions-Policy = "accelerometer=(), autoplay=(), bluetooth=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Resource-Policy = "same-origin"
+    X-Frame-Options = "DENY"
+
+# ── Caché ────────────────────────────────────────────────────────────────────
+# Inmutable (1 año) SOLO lo que no cambia nunca bajo el mismo nombre:
+#   vendor/ lleva la versión en el nombre (globe.gl-2.46.2…) y fonts/ son fuentes fijas.
+#   Si alguna vez cambia una fuente, se cambia también el nombre del fichero.
+[[headers]]
+  for = "/assets/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Nuestro código, la página y los datos: se guardan, pero se revalidan SIEMPRE (ETag → 304).
+# Sin paso de build no hay hashes en los nombres, así que un cambio se ve en la siguiente visita.
+# HTML con no-transform: defensa en profundidad para que ningún intermediario (ni funciones de
+# la zona de Cloudflare que inyectan scripts) reescriba la página; romperían la CSP.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-transform"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-transform"
+
+[[headers]]
+  for = "/404.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-transform"
+
+[[headers]]
+  for = "/assets/css/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/js/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/geo/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# RFC 9116: texto plano en UTF-8
+[[headers]]
+  for = "/.well-known/security.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Cache-Control = "no-cache"

@@ -1,0 +1,71 @@
+/* =============================================================================
+   CABECERA · marca, navegación (Briefing · Listado · Histórico) y línea de edición:
+   fecha · hora de edición · T+ · estado de las fuentes (órdenes de dirección §1.4: visible
+   también en escritorio, discreta). Opaca y sin desenfoque. · y PIE
+   ============================================================================= */
+.hdr { background: var(--bg-0); }
+.hdr__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; padding: 6px var(--gutter); }
+
+.brand { display: inline-flex; align-items: center; gap: 9px; min-height: var(--tap); text-decoration: none; flex: none; }
+.brand__mark { width: 28px; height: 28px; flex: none; }
+.brand__name { font-size: 19px; font-weight: 700; font-stretch: 112%; letter-spacing: .12em; }
+
+.nav { display: flex; margin-left: auto; }
+.nav__a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 9px; font-size: 13.5px; font-weight: 500; font-stretch: 87.5%; color: var(--text-2); text-decoration: none; }
+.nav__a:hover { color: var(--text-1); }
+.nav__a[aria-current="page"] { color: var(--acc); font-weight: 700; }
+
+/* Línea de edición y fuentes */
+/* min-height: la línea se rellena al llegar los datos; reservar su alto evita que empuje el contenido (CLS) */
+.status { min-height: 32px; flex: 1 1 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding-bottom: 6px; font-size: 12.5px; font-stretch: 87.5%; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.status__dot { width: 7px; height: 7px; border-radius: var(--radius-dot); background: var(--ok); flex: none; }
+.status.has-err .status__dot { background: var(--fail); }
+.status.has-warn:not(.has-err) .status__dot { background: var(--acc); }
+.tplus b { font-weight: 600; color: var(--text-1); }
+
+/* Estado de las fuentes: un <details> (sin JS) con la lista completa */
+.srcs { position: relative; }
+.srcs summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px; border-radius: 6px; }
+.srcs summary::-webkit-details-marker { display: none; }
+.srcs summary:hover { color: var(--text-1); }
+.srcs summary .ico { width: 12px; height: 12px; transition: transform var(--t-fast); }
+.srcs[open] summary .ico { transform: rotate(180deg); }
+.srcs.has-err summary { color: var(--fail); font-weight: 600; }
+.srcs__list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; width: max-content; min-width: 260px; max-width: calc(100vw - 2 * var(--gutter)); margin: 0; padding: 8px 12px; list-style: none; background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--r-btn); box-shadow: 0 16px 40px rgba(0, 0, 0, .55); }
+.srcs__list li { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--text-2); }
+.srcs__list li:last-child { border-bottom: 0; }
+.srcs__list b { color: var(--text-1); font-weight: 600; }
+.srcs__list small { grid-column: 2 / -1; color: var(--fail); font-size: 11.5px; overflow-wrap: anywhere; }
+.srcs__list .srcs__upd { grid-column: 1 / -1; color: var(--text-3); font-size: 12px; }
+.dot { width: 7px; height: 7px; border-radius: var(--radius-dot); background: var(--ok); }
+.dot--fail { background: var(--fail); } .dot--warn { background: var(--acc); }
+.src--fail { color: var(--fail); }
+
+@media (min-width: 1000px) {
+  .hdr__row { flex-wrap: nowrap; }
+  .nav__a { padding: 0 14px; font-size: 14.5px; }
+  .status { order: 0; flex: 0 1 auto; padding: 0; margin-left: 20px; }
+  .srcs__list { right: 0; }
+}
+@media (max-width: 999px) {
+  .srcs__list { left: 0; right: auto; }
+  /* La navegación va siempre en su propia fila: si no, el cambio de fuente (swap) podía hacerla
+     saltar de la fila de la marca a la siguiente y mover toda la página (CLS) */
+  .nav { flex: 1 1 100%; justify-content: flex-end; }
+}
+
+/* =============================================================================
+   PIE
+   ============================================================================= */
+.foot { border-top: 1px solid var(--line); margin-top: var(--sp-6); }
+.foot__grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: var(--sp-6); padding: var(--sp-6) 0; }
+.foot p { margin: 0 0 8px; font-size: var(--fs-small); color: var(--text-2); }
+.foot h3 { margin: 0 0 8px; font-size: 15px; color: var(--text-1); }
+.foot__by { color: var(--text-3) !important; }
+.foot__sign b { color: var(--text-1); font-weight: 600; }
+.lockup { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.lockup .brand__mark { width: 32px; height: 32px; }
+.formula { font-variant-numeric: tabular-nums; line-height: 1.8; color: var(--text-1) !important; }
+.foot__bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; padding: 12px 0 20px; border-top: 1px solid var(--line); font-size: var(--fs-note); color: var(--text-3); }
+.foot__disc { max-width: 60ch; }
+@media (max-width: 860px) { .foot__grid { grid-template-columns: 1fr; } }

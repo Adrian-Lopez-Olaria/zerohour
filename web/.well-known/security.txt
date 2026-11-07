@@ -1,0 +1,10 @@
+# ZEROHOUR · política de divulgación responsable (RFC 9116)
+# Reporta de forma privada; no abras issues públicos para fallos de seguridad.
+# Pruebas permitidas: solo no destructivas y de baja intensidad (nada de DoS ni escaneo agresivo).
+
+Contact: mailto:zerohour.sec@gmail.com
+Expires: 2027-10-31T23:00:00.000Z
+Preferred-Languages: es, en
+Canonical: https://zerohour-cve.dev/.well-known/security.txt
+# Política completa en GitHub, con el canal privado de reporte (Report a vulnerability)
+Policy: https://github.com/Adrian-Lopez-Olaria/zerohour/security/policy

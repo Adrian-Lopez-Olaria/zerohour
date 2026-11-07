@@ -1,0 +1,217 @@
+/* =============================================================================
+   BRIEFING «Órbita» (guía §4). Móvil primero; desde 1000 px, la composición de escritorio:
+   lead + tira de cifras y, 24 px debajo, top 10 (440) · globo (1fr) · radar y puertos (330),
+   que empiezan a la misma altura. «Más del día» va debajo del primer pantallazo.
+   ============================================================================= */
+.brief__head { display: grid; gap: 10px; margin-top: 4px; }
+.brief { display: grid; gap: var(--gap); margin-top: 20px; }
+.stage { order: -1; display: grid; gap: 10px; min-width: 0; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.muted-line { margin: 0; font-size: var(--fs-small); color: var(--text-3); padding: 6px 0; }
+
+/* «Lo primero hoy» */
+.lead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-strip); background: var(--bg-1); font-size: 14px; }
+.lead__k { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--vc); }
+.lead__shape { width: 12px; height: 12px; }
+.lead__a { color: var(--text-2); text-decoration: none; }
+.lead__a b { color: var(--text-1); font-weight: 600; }
+.lead__a:hover { text-decoration: underline; }
+
+/* ---------- Tira de cifras (Órbita §5.2): 6 celdas, filete de 1 px, radio 12 ---------- */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-strip); overflow: hidden; }
+.kpi { display: grid; align-content: start; gap: 0; min-width: 0; padding: 8px 10px; background: var(--bg-1); }
+.kpi__v { font-size: var(--fs-kpi); font-weight: 300; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi__l { font-size: 12px; font-stretch: 87.5%; line-height: 1.25; color: var(--text-2); }
+.kpi__d { font-size: 11px; font-stretch: 87.5%; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.kpi--kev .kpi__v { color: var(--v-hoy); font-weight: 500; }
+.kpi--zero .kpi__v { color: var(--text-3); }
+@media (min-width: 1000px) {
+  .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); width: 640px; justify-self: center; }
+  .kpi { padding: 6px 12px; text-align: center; }
+  .kpi__l { font-size: 11.5px; }
+}
+
+/* Top 10 */
+.top10 { min-width: 0; }
+.panel__more { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+
+/* ---------- Escenario del globo (guía Órbita §5.7–5.8) ---------- */
+.mapp { display: grid; justify-items: center; min-width: 0; }
+.mapp__h { width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 10px; }
+.mapp__t { margin: 0; color: var(--acc); }
+.mapp__x { margin: 0; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.globe-box { position: relative; width: 100%; max-width: 560px; aspect-ratio: 1; margin-top: 4px; }
+.globe-box--off { aspect-ratio: auto; max-width: none; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--bg-1); }
+.globe-stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gp-star { fill: none; stroke: var(--star); stroke-width: 1; stroke-linecap: round; stroke-opacity: .3; }
+.gp-star--b { stroke-width: 1.6; stroke-opacity: .5; }
+.globe-view { position: absolute; inset: 0; border-radius: 50%; touch-action: pan-y; }
+.globe-view:focus-visible { outline: 2px solid var(--acc); outline-offset: -6px; }
+.globe { position: absolute; inset: 0; cursor: grab; }
+.globe:active { cursor: grabbing; }
+.globe canvas { outline: none; }
+.globe-flat { position: absolute; inset: 0; display: none; touch-action: pan-y; cursor: grab; }
+.globe-box.is-flat .globe { display: none; }
+.globe-box.is-flat .globe-flat { display: block; }
+/* Botones +/− del zoom corto: en la esquina inferior derecha de la caja (cuadrada), fuera del
+   círculo del globo, para que no tapen su borde ni a 1024 px. */
+.zoom { position: absolute; right: 2px; bottom: 2px; z-index: 4; display: grid; gap: 6px; }
+.zb { width: var(--tap); height: var(--tap); display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--bg-1); color: var(--text-1); cursor: pointer; }
+.zb .ico { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; }
+.zb:hover { border-color: var(--line-hi); background: var(--bg-2); }
+.zb:disabled { color: var(--text-3); cursor: default; opacity: .55; }
+.globe-hint { position: absolute; right: 0; top: 4px; z-index: 3; width: 130px; margin: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-3); text-align: right; pointer-events: none; }
+.globe-tip { position: absolute; left: 0; right: 0; top: 4px; z-index: 3; min-height: 1.4em; margin: 0; font-size: 13px; font-weight: 600; color: var(--acc); text-align: center; pointer-events: none; }
+.globe-note { position: absolute; left: 0; bottom: 4px; z-index: 3; margin: 0; font-size: 11.5px; color: var(--acc); pointer-events: none; }
+
+/* Marcador de país (capa htmlElementsData de globe.gl). Solo el punto recibe el ratón (tooltip). */
+.gm { position: relative; width: 0; height: 0; pointer-events: none; }
+.gm--hi { --c: var(--map-hi); } .gm--mid { --c: var(--map-mid); } .gm--lo { --c: var(--map-lo); }
+.gm__dot, .gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; }
+.gm__dot { background: var(--c); box-shadow: 0 0 0 1.5px #030914; pointer-events: auto; cursor: pointer; }
+.gm__ring { display: none; border: 2px solid var(--c); opacity: .5; transform: scale(1.6); }
+.gm__lbl { position: absolute; top: 0; white-space: nowrap; font-size: 15px; font-weight: 700; color: var(--text-1); paint-order: stroke; -webkit-text-stroke: 3px #030914; text-shadow: 0 0 3px #030914; }
+.gm__lbl em { font-style: normal; font-weight: 400; color: var(--text-2); }
+.gm__lbl.is-r { left: calc(var(--s) / 2 + 5px); transform: translateY(-50%); }
+.gm__lbl.is-l { right: calc(var(--s) / 2 + 5px); transform: translateY(-50%); }
+.gm__lbl.is-t { left: 0; bottom: calc(var(--s) / 2 + 4px); top: auto; transform: translateX(-50%); }
+.gm__lbl.is-b { left: 0; top: calc(var(--s) / 2 + 4px); transform: translateX(-50%); }
+.gm__lbl.is-off { visibility: hidden; }
+/* Con reducir movimiento no hay anillos animados de globe.gl: anillo fijo al 50 % en los 5 primeros */
+@media (prefers-reduced-motion: reduce) { .gm__ring { display: block; } }
+
+/* Globo SVG de respaldo (mismo aspecto: esfera iluminada, atmósfera, tierra en puntos) */
+.gp { width: 100%; height: 100%; overflow: visible; }
+.gp-atm { fill: none; stroke: #3B7BFF; stroke-opacity: .14; stroke-width: 36; }
+.gp-sphere { fill: #071634; stroke: var(--globe-rim); stroke-width: 1.2; stroke-opacity: .8; }
+.gp-grat { fill: none; stroke: #16305E; stroke-width: .9; stroke-opacity: .8; }
+.gp-land { fill: none; stroke: var(--globe-land); stroke-linecap: round; stroke-width: 2.6; }
+.gp-land--far { stroke: var(--globe-land-far); stroke-width: 2; }
+.gp-m { stroke: #030914; stroke-width: 1.5; cursor: pointer; }
+.gp--hi { fill: var(--map-hi); stroke: var(--map-hi); } .gp--mid { fill: var(--map-mid); stroke: var(--map-mid); } .gp--lo { fill: var(--map-lo); stroke: var(--map-lo); }
+.gp-m.gp--hi, .gp-m.gp--mid, .gp-m.gp--lo { stroke: #030914; }
+.gp-pulse { fill: none; stroke-width: 2.2; }
+/* Rayas de Cloudflare Radar en el respaldo SVG (estáticas) y pulso de los pares consigo mismo */
+.gp-arc { fill: none; stroke-linecap: round; opacity: .85; }
+.gp-arc--hi { stroke: var(--map-hi); } .gp-arc--mid { stroke: var(--map-mid); }
+.gp-apulse { fill: var(--map-hi); fill-opacity: .25; stroke: var(--map-hi); stroke-width: 1.6; }
+.gp-lbl { font-size: 15px; font-weight: 700; fill: var(--text-1); paint-order: stroke; stroke: #030914; stroke-width: 4px; stroke-linejoin: round; }
+.gp-lbl__n { font-weight: 400; fill: var(--text-2); }
+
+/* Ranking de países: 3 en el móvil, 5 en escritorio; filete del color de su tramo */
+.cc { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+.cc li { border-top: 2px solid var(--map-lo); min-width: 0; }
+.cc li:nth-child(n+4) { display: none; }
+.cc .cc--hi { border-color: var(--map-hi); } .cc .cc--mid { border-color: var(--map-mid); }
+.cc__b { width: 100%; min-height: var(--tap); display: grid; padding: 6px 0 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cc__b:hover .cc__c { color: var(--text-1); text-decoration: underline; }
+.cc__b:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 4px; }
+.cc__c { font-size: 11.5px; font-stretch: 87.5%; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc__n { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cc__s { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.mapfoot { width: 100%; max-width: 560px; margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-3); }
+/* Rótulo de las rayas de Radar, arriba (debajo del de DShield), con leyenda: trazo = raya, punto = marcador */
+.mapp__arcs { width: 100%; margin: 3px 0 0; font-size: 11px; line-height: 1.3; color: var(--map-hi); font-weight: 500; text-align: center; }
+.mapp__leg { margin-left: 6px; color: var(--text-3); font-weight: 400; white-space: nowrap; }
+.mapp__legsep { color: var(--line-hi); }
+.leg { display: inline-block; vertical-align: middle; height: 8px; }
+.leg--arc { width: 26px; } .leg--arc path { fill: none; stroke: var(--map-hi); stroke-width: 1.6; stroke-linecap: round; }
+.leg--dot { width: 8px; } .leg--dot circle { fill: var(--map-mid); }
+
+@media (max-width: 999px) {
+  /* Móvil: el globo no pasa del ~40 % de la primera pantalla */
+  .globe-box { max-width: min(100%, 48vh); }
+  .globe-box { margin-bottom: 22px; }
+  .globe-hint { left: 0; right: 0; top: auto; bottom: -22px; width: auto; text-align: center; }
+  .globe-tip { top: 0; }
+}
+@media (min-width: 1000px) {
+  .mapp__h { flex-direction: column; align-items: center; }
+  /* El escenario cabe en la primera pantalla a cualquier alto: el globo encoge (≈520 px a 900 de alto)
+     y deja holgura para el rótulo de las rayas y el pie (otra plataforma, otro redondeo) sin empujar */
+  .globe-box:not(.globe-box--off) { max-width: min(620px, calc(100vh - 392px)); }
+  .cc { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 560px; }
+  .cc li:nth-child(n+4) { display: block; }
+  .mapfoot { text-align: center; }
+}
+
+/* ---------- Radar (guía Órbita §5.9) ---------- */
+.radarp .panel__body { display: grid; gap: 8px; justify-items: center; align-content: start; }
+.radar { display: block; width: 100%; max-width: 300px; height: auto; overflow: visible; }
+.r-ring { fill: none; stroke: var(--line); }
+.r-ring--out { fill: #06122A; stroke: var(--line-hi); }
+.r-ring--hoy { stroke: var(--v-hoy); stroke-opacity: .6; stroke-dasharray: 2 3; }
+.r-spoke { stroke: var(--line); }
+.r-lbl { font-size: 11px; font-weight: 500; font-stretch: 87.5%; fill: var(--text-2); }
+.r-lbl--none { font-style: italic; }
+.r-core { fill: var(--acc); }
+.r-sweep { transform-box: view-box; transform-origin: 150px 150px; animation: r-spin var(--t-radar) linear infinite; }
+.r-sweep__w { fill: var(--map-lo); fill-opacity: .12; }
+.r-sweep__l { stroke: var(--map-lo); stroke-width: 1.4; stroke-opacity: .8; }
+@keyframes r-spin { to { transform: rotate(360deg); } }
+.rb { transform-box: fill-box; transform-origin: center; transition: transform var(--t-fast); }
+.rb.is-hot { transform: scale(1.7); }
+.rb__hit { fill: transparent; }
+.rb__fill { fill: var(--vc); }
+.rb__line { fill: #06122A; stroke: var(--vc); stroke-width: 1.7; }
+.rb.is-hot .rb__line { stroke-width: 2.4; }
+.rb:focus { outline: none; }
+.rb:focus-visible .rb__hit { stroke: var(--acc); stroke-width: 2; }
+.radar-tip { min-height: 18px; margin: 0; font-size: 11.5px; color: var(--text-1); text-align: center; }
+.rdist { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.rdist li { display: grid; justify-items: center; gap: 2px; font-size: 11.5px; font-stretch: 87.5%; color: var(--text-2); text-align: center; }
+.rdist .vshape { width: 12px; height: 12px; }
+.rdist b { font-size: 20px; font-weight: 500; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.rdist .is-zero b { color: var(--text-3); }
+@media (prefers-reduced-motion: reduce) { .r-sweep { animation: none; } .rb { transition: none; } }
+
+/* ---------- Puertos más atacados (§5.10) ---------- */
+.plist { margin: 6px 0 0; padding: 0; list-style: none; }
+.plist li { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; gap: 3px 8px; align-items: baseline; padding: 5px 0; font-size: 13px; }
+.plist__p { font-family: var(--f-mono); font-weight: 500; }
+.plist__s { color: var(--text-2); font-stretch: 87.5%; }
+.plist__n { font-variant-numeric: tabular-nums; }
+.plist__bar { grid-column: 1 / -1; width: calc(var(--w) * 1%); height: 3px; border-radius: 2px; background: var(--map-lo); }
+@media (min-width: 1000px) { .plist li { padding: 3px 0; } .radar { max-width: 290px; } .radarp { padding: 12px 14px 14px; } }
+
+/* ---------- «Más del día»: avisos y prensa + resumen ---------- */
+.more { margin-top: var(--sp-6); }
+.more__h { margin: 0 0 10px; color: var(--text-2); }
+.more__grid { display: grid; gap: 14px; }
+.news-list { list-style: none; margin: 0; padding: 0; }
+.news-list__a { display: grid; gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
+.news-list li:last-child .news-list__a { border-bottom: 0; }
+.news-list__a span { font-size: 14px; line-height: 1.4; }
+a.news-list__a:hover span { text-decoration: underline; text-decoration-color: var(--acc); }
+.news-list small { font-size: 11.5px; color: var(--text-3); }
+.sum__p { margin: 0 0 10px; color: var(--text-2); font-size: 14.5px; line-height: 1.6; max-width: 70ch; }
+.edmeta { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding-top: 10px; border-top: 1px solid var(--line); }
+.edmeta div { display: grid; gap: 2px; }
+.edmeta dt { font-size: 11.5px; color: var(--text-3); }
+.edmeta dd { margin: 0; font-size: 13px; color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+/* ---------- Escritorio ---------- */
+@media (min-width: 1000px) {
+  .brief__head { position: relative; grid-template-columns: minmax(0, 1fr) 640px minmax(0, 1fr); margin-top: 0; }
+  .brief__head .kpis { grid-column: 2; }
+  .lead { position: absolute; left: 0; top: 0; width: min(360px, calc(50% - 340px)); flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 14px; }
+  .brief { grid-template-columns: 440px minmax(0, 1fr) 330px; gap: 20px; margin-top: 24px; align-items: start; }
+  .stage { order: 0; }
+  .top10 { padding: 10px 14px 8px; }
+  .side { gap: 12px; }
+  .more__grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
+}
+/* Intermedios (decisión de desarrollo, órdenes §3): 1000–1279 px, columnas laterales más
+   estrechas; por debajo de 1000, una columna en el orden del móvil */
+@media (min-width: 1000px) and (max-width: 1279px) {
+  .brief { grid-template-columns: 380px minmax(0, 1fr) 280px; gap: 16px; }
+  .lead { position: static; width: auto; grid-column: 1 / -1; flex-direction: row; }
+  .brief__head .kpis { grid-column: 1 / -1; width: 100%; }
+}
+@media (min-width: 700px) and (max-width: 999px) {
+  .brief { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .stage { grid-column: 1 / -1; }
+  .top10 { grid-column: 1 / -1; }
+  .side { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .more__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}

@@ -1,0 +1,87 @@
+/* =============================================================================
+   TOKENS · «Órbita» (design/orbita/zerohour-estilo-orbita.md §1 y §2)
+   Espacio azul profundo, un globo vivo en el centro y el color solo como información.
+   Contrastes medidos sobre --bg-0 / --bg-1 / --bg-2 (guía §1): todo el texto ≥ 5,6:1.
+   ============================================================================= */
+:root {
+  /* Superficies y líneas */
+  --bg-0: #04060C;                         /* fondo de página */
+  --bg-1: #0A0F1C;                         /* paneles, tira de cifras, botones */
+  --bg-2: #111A2E;                         /* hover de fila, pistas de barras, «Ver las 10» */
+  --line: #1C2945;                         /* bordes y filetes (decorativo, sin texto) */
+  --line-hi: #2E5299;                      /* borde al pasar por encima de un control */
+
+  /* Texto (17,9 · 10,0 · 6,6 sobre --bg-0) */
+  --text-1: #EAF1FF;
+  --text-2: #A9B7D3;
+  --text-3: #8393B4;
+
+  /* Acento de marca: navegación activa, enlaces, título del mapa, foco, núcleo del radar.
+     Es el mismo ámbar que «Esta semana»: nunca se pega a un score (órdenes de dirección §3). */
+  --acc: #FFB547;
+  --ok: #5EE3A1;                           /* solo el piloto de fuentes OK */
+  --fail: #FF7D6E;                         /* fuente caída (= coral de «actuar hoy») */
+  --fail-bg: rgba(255, 125, 110, .08);
+
+  /* Veredictos: cortes fijos 85 / 70 / 40, cada uno con forma propia (SVG) */
+  --v-hoy: #FF7D6E;
+  --v-semana: #FFB547;
+  --v-planificar: #E9D56E;
+  --v-vigilar: #8393B4;
+
+  /* Severidad CVSS (listado, histórico): barras de color, texto neutro */
+  --sev-critical: #FF7D6E;
+  --sev-high: #FFB547;
+  --sev-medium: #E9D56E;
+  --sev-low: #7FB8FF;
+  --sev-unscored: #8393B4;
+
+  /* Mapa y globo */
+  --map-hi: #FF8A5C;
+  --map-mid: #FFC46B;
+  --map-lo: #7FB8FF;
+  --globe-land: #4F82D6;
+  --globe-land-far: #284C86;
+  --globe-rim: #3D6CC4;
+  --star: #9DB6E6;
+
+  /* Desglose del score */
+  --bd-cvss: #7FB8FF;
+  --bd-epss: #B7A6FF;
+  --bd-explotada: #FF7D6E;
+  --bd-ransomware: #FF4D6D;
+  --bd-exploit: #FFB547;
+  --bd-stack: #EAF1FF;
+
+  /* Tipografía: Saira para todo (cifras en 300 con tabular-nums); Azeret solo IDs y puertos */
+  --f-text: 'Saira', system-ui, sans-serif;
+  --f-mono: 'Azeret Mono', ui-monospace, monospace;
+  --fs-body: 15px;
+  --fs-small: 13px;
+  --fs-note: 11.5px;                       /* notas y pies; nada baja de 10,5 px */
+  --fs-kpi: 26px;
+  --fs-score: 26px;
+  --fs-id: clamp(30px, 4.2vw, 48px);
+
+  /* Espaciado y forma */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --gutter: 24px;
+  --gap: 20px;                             /* separación entre columnas */
+  --maxw: 1440px;
+  --r-panel: 14px;
+  --r-strip: 12px;
+  --r-btn: 12px;
+  --r-chip: 4px;
+  --radius-dot: 50%;
+  --hdr-h: 56px;
+  --tap: 44px;                             /* zona táctil mínima */
+
+  /* Movimiento (guía §6) */
+  --t-fast: 150ms;
+  --t-pulse: 2.8s;
+  --t-radar: 6s;
+  --t-fly: 900ms;
+}
+@media (max-width: 760px) {
+  :root { --gutter: 14px; --gap: 16px; --fs-kpi: 24px; --fs-score: 30px; }
+}

@@ -1,0 +1,28 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// wrangler.jsonc · ZEROHOUR en Cloudflare Workers, solo ficheros estáticos (sin código de Worker)
+//
+// montar_deploy.py copia este fichero a la raíz del sitio montado (_deploy/) y genera
+// _deploy/web/_headers desde netlify.toml, la única fuente de las cabeceras. El job
+// `desplegar` del workflow ejecuta `wrangler deploy` sobre esa carpeta.
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  "name": "zerohour",
+  "compatibility_date": "2026-10-01",
+
+  // Sin "main": no hay código de Worker, Cloudflare sirve web/ tal cual
+  "assets": {
+    "directory": "./web",
+    // Ruta inexistente → web/404.html con estado 404
+    "not_found_handling": "404-page",
+    // /index.html → 307 a / ; /404.html → 307 a /404
+    "html_handling": "auto-trailing-slash"
+  },
+
+  // Un único origen canónico: el dominio propio (Custom Domain conectado desde el panel, así el
+  // token no necesita permisos de zona). Sin *.workers.dev y sin URLs de vista previa por versión.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // Sin telemetría de wrangler
+  "send_metrics": false
+}
