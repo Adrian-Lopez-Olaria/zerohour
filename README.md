@@ -107,6 +107,7 @@ python scripts/radar.py all                        # ambos
 python scripts/dev_server.py                       # http://127.0.0.1:8000 con las cabeceras de producción
 python scripts/dev_server.py --dev                 # además /?fixtures=normal|vacio|error|xss (solo en local)
 python -m pytest tests/pipeline                    # tests del pipeline, la publicación y las cabeceras
+node --test "tests/unit/*.test.mjs"                # planificador de disparos del mapa
 ```
 
 `dev_server.py` lee `cabeceras.toml` y manda las mismas cabeceras que producción, así que una violación de CSP o de Trusted Types aparece en local antes de publicar. Solo escucha en `127.0.0.1` y, a diferencia de producción, quita `upgrade-insecure-requests`, que en `http://127.0.0.1` haría pedirlo todo por https. Los *fixtures* de prueba, incluido el de XSS, solo se sirven con `--dev` y nunca llegan a `deploy`.

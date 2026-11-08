@@ -9,12 +9,16 @@
    - Gira solo (~5°/s). Arrastrar, las flechas del teclado o flyTo() lo paran y a 1 s de soltarlo
      vuelve a girar desde donde estaba. Sin zoom: altitud fija; la rueda siempre hace scroll de la
      página y el arrastre vertical en el móvil no bloquea el scroll (touch-action: pan-y).
-   - prefers-reduced-motion: sin giro, sin pulsos y vuelo instantáneo.
+   - Rayas de Cloudflare Radar como disparos efímeros, repartidos por planificador.js según el
+     % de cada par (frecuencia proporcional al dato). Pausa total fuera de pantalla o con la
+     pestaña oculta.
+   - prefers-reduced-motion: sin giro, sin pulsos ni disparos (rayas estáticas) y vuelo instantáneo.
    Las etiquetas y el tooltip se crean con createElement y textContent.
    ============================================================================= */
 import { el, svg } from './util/dom.js';
 import { nf, countryName, prefersReducedMotion } from './util/format.js';
 import { mountFlatGlobe } from './globo-plano.js';
+import { crearPlanificador, pesoDe } from './planificador.js';
 
 const LIB_URL = new URL('../vendor/globe.gl-2.46.2.zh.min.js', import.meta.url).href;
 const LIB_CSS = new URL('../vendor/globe.gl-2.46.2.zh.css', import.meta.url).href;
@@ -29,7 +33,13 @@ const ZOOM_STEP = 1.25;                     // cada pulsación o rueda acerca/al
 const MAX_LABELS = 6, MAX_RINGS = 5, LABEL_MIN_DEG = 9;
 // = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
 const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF' };
-const MAX_ARCS = 30;
+const MAX_ARCS = 30;                       // rayas estáticas (reducir movimiento)
+/* Disparos: un par por turno (planificador.js), cada uno es una sola pasada del trazo y un
+   destello en el destino. Ritmo y máximo de rayas a la vez, según el ancho. */
+const SHOTS = { desk: { every: 300, max: 12 }, mob: { every: 500, max: 6 } };
+const DASH = 0.35;                          // largo del trazo, en fracción de la raya
+const FLASH_MS = 700;                       // vida del destello (el anillo dura ~0,55 s)
+const NONE = 'rgba(0,0,0,0)';               // raya del pool sin disparo: invisible
 
 /* Centroides aproximados de país [lat, lon], para las rayas de Cloudflare Radar cuando el país
    no está entre los puntos de DShield. Si un extremo no tiene centroide, esa raya no se pinta. */
@@ -51,7 +61,8 @@ const CENTROIDS = {
 };
 
 const narrow = () => innerWidth < 760;
-const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null };
+const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null,
+  plan: null, maxShare: 1, pool: [], flashes: [], pending: [], timer: 0, fired: 0, visible: false };
 
 /* ───────── escala: por país, logarítmica, por tercios (guía Órbita §1) ───────── */
 
@@ -105,6 +116,11 @@ function setData(map) {
   S.markers = countryMarkers(map);
   SCALE = makeScale(S.markers);
   S.labels = labelSet(S.markers);
+  // Solo planifica pares que se pueden pintar (los dos extremos con centroide)
+  const pares = ((map && map.attack_pairs) || []).filter((p) => centroidOf(p.from_cc) && centroidOf(p.to_cc));
+  const globales = pares.filter((p) => p.scope == null);
+  S.maxShare = Math.max(1e-6, ...(globales.length ? globales : pares).map((p) => p.share));
+  S.plan = crearPlanificador(pares);
 }
 
 /* ───────── tierra ───────── */
@@ -274,38 +290,81 @@ function centroidOf(cc) {
   return CENTROIDS[cc] || null;
 }
 
-/**
- * Rayas de ataques reales (Cloudflare Radar). Pares consigo mismo (US→US) → pulso en el país,
- * no raya. Grosor y frecuencia según el % del total. Como mucho 20 rayas. Colores --map-hi/--map-mid.
- */
-function buildArcs() {
-  const pairs = (S.map && S.map.attack_pairs) || [];
-  const maxShare = Math.max(1e-6, ...pairs.map((p) => p.share));
-  const arcs = [], pulses = [];
-  for (const p of pairs) {
+/** Proporción del par frente al mayor (grosor, color y velocidad del trazo). */
+const ratio = (p) => Math.min(1, pesoDe(p) / S.maxShare);
+
+/** Reducir movimiento: las rayas del top, estáticas y sin destello (sin disparos). */
+function staticArcs() {
+  const arcs = [];
+  for (const p of (S.map && S.map.attack_pairs) || []) {
     const a = centroidOf(p.from_cc), b = centroidOf(p.to_cc);
-    if (!a || !b) continue;
-    if (p.from_cc === p.to_cc) { pulses.push({ lat: a[0], lon: a[1], tier: 'hi', t: 1 }); continue; }
-    if (arcs.length >= MAX_ARCS) continue;
-    const r = p.share / maxShare;
-    arcs.push({
-      startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1],
-      color: r >= 0.5 ? TIER_HEX.hi : TIER_HEX.mid,
-      stroke: 0.3 + r * 0.9,
-      anim: S.reduced ? 0 : Math.round(2600 - r * 1400),   // más share, el trazo viaja más rápido
-    });
+    if (!a || !b || p.from_cc === p.to_cc) continue;
+    if (arcs.length >= MAX_ARCS) break;
+    const r = ratio(p);
+    arcs.push({ startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: r >= 0.5 ? TIER_HEX.hi : TIER_HEX.mid, stroke: 0.3 + r * 0.9, anim: 0 });
   }
-  return { arcs, pulses };
+  return arcs;
+}
+
+/* ───────── disparos (Cloudflare Radar) ─────────
+   Un solo temporizador. En cada turno caducan los disparos que ya han pasado, los destellos
+   que tocan entran en escena y, si hay hueco, dispara el par que diga el planificador. Las
+   rayas son un pool fijo de objetos que se reutilizan: globe.gl conserva su malla y solo la
+   recoloca, sin crear ni destruir nada. Cada turno llama UNA vez a arcsData() y a ringsData(),
+   nunca a htmlElementsData(): los marcadores no se rehacen. */
+
+const shotCfg = () => (narrow() ? SHOTS.mob : SHOTS.desk);
+const newSlot = () => ({ startLat: 0, startLng: 0, endLat: 0, endLng: 0, color: NONE, stroke: 0.1, anim: 0, live: false, born: 0, dur: 0 });
+
+function fire(now, slot) {
+  const p = S.plan.siguiente();
+  if (!p) return;
+  const a = centroidOf(p.from_cc), b = centroidOf(p.to_cc), r = ratio(p), tier = r >= 0.5 ? 'hi' : 'mid';
+  S.fired++;
+  if (p.from_cc === p.to_cc) {                       // consigo mismo: pulso en el país, sin raya
+    S.flashes.push({ lat: a[0], lon: a[1], tier, t: 0.5 + r * 0.5, flash: true, born: now });
+    return;
+  }
+  const dur = Math.round(1800 - r * 600);            // 1,2–1,8 s: más share, más rápido
+  Object.assign(slot, { startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: TIER_HEX[tier], stroke: 0.3 + r * 0.9, anim: dur, born: now, dur, live: true });
+  // El trazo de una raya reutilizada sigue donde lo dejó el disparo anterior: vuelve al origen
+  const line = slot.__threeObjArc && slot.__threeObjArc.children[0];
+  if (line && line.material && line.material.uniforms && line.material.uniforms.dashTranslate) line.material.uniforms.dashTranslate.value = 0;
+  S.pending.push({ lat: b[0], lon: b[1], tier, t: 0.3 + r * 0.4, flash: true, at: now + dur, born: 0 });
+}
+
+function paintShots() {
+  S.globe.arcsData(S.pool.slice()).ringsData([...S.markers.slice(0, MAX_RINGS), ...S.flashes]);
+}
+
+function shotsTick() {
+  if (!S.globe || !S.plan) return;
+  const now = performance.now(), cfg = shotCfg();
+  for (const s of S.pool) if (s.live && now - s.born >= s.dur * (1 + DASH)) { s.live = false; s.color = NONE; s.anim = 0; }
+  S.flashes = S.flashes.filter((f) => now - f.born < FLASH_MS);
+  // Destello al llegar: en el turno más cercano a la llegada del trazo (±medio turno)
+  S.pending = S.pending.filter((f) => { if (now < f.at - cfg.every / 2) return true; f.born = now; S.flashes.push(f); return false; });
+  while (S.pool.length < cfg.max) S.pool.push(newSlot());
+  const free = S.plan.size ? S.pool.slice(0, cfg.max).find((s) => !s.live) : null;
+  if (free) fire(now, free);
+  paintShots();
+  S.zone.dataset.shots = String(S.fired);
+}
+
+/** Arranca o para el temporizador. Solo corre con el globo 3D cargado, visible y sin reducir movimiento. */
+function shotsRun(on) {
+  const run = !!on && !S.reduced && S.mode === 'globe' && !!S.globe && !!S.plan && S.plan.size > 0;
+  if (run === !!S.timer) return;
+  if (run) S.timer = setInterval(shotsTick, shotCfg().every);
+  else { clearInterval(S.timer); S.timer = 0; }
+  S.zone.dataset.disparos = run ? 'on' : 'off';
 }
 
 function setGlobeData() {
   const ms = S.markers;
-  const { arcs, pulses } = buildArcs();
-  S.globe
-    .ringsData(S.reduced ? [] : [...ms.slice(0, MAX_RINGS), ...pulses])
-    .arcsData(arcs)
-    .htmlElementsData(ms)
-    .htmlElement((m) => markerEl(m, ms.indexOf(m)));
+  S.globe.htmlElementsData(ms).htmlElement((m) => markerEl(m, ms.indexOf(m)));
+  if (S.reduced) S.globe.ringsData([]).arcsData(staticArcs());
+  else paintShots();
   syncZoomButtons();
 }
 
@@ -357,14 +416,18 @@ function createGlobe() {
     .showAtmosphere(true).atmosphereColor('#3B7BFF').atmosphereAltitude(0.18)
     .showGraticules(true)
     .globeImageUrl(LAND_TEX)
-    .ringLat('lat').ringLng('lon').ringAltitude(0.003).ringPropagationSpeed(1.2).ringRepeatPeriod(2800)
+    // Anillos: los 5 marcadores con más ataques (cada 2,8 s) y los destellos de los disparos
+    // (un solo anillo corto y rápido: periodo 0 = no se repite)
+    .ringLat('lat').ringLng('lon').ringAltitude(0.003)
+    .ringPropagationSpeed((m) => (m.flash ? 4 : 1.2)).ringRepeatPeriod((m) => (m.flash ? 0 : 2800))
     .ringColor((m) => { const c = TIER_HEX[m.tier || SCALE.tier(m.attacks)]; return (t) => c + Math.round((1 - t) * 200).toString(16).padStart(2, '0'); })
-    .ringMaxRadius((m) => 1.2 + (m.t != null ? m.t : SCALE.t(m.attacks)) * 3.4)
-    // Rayas de Cloudflare Radar: trazo animado origen→destino (el guion que viaja es el «destello
-    // al llegar», solo en el destino). Con reducir movimiento: trazo continuo y quieto.
-    .arcColor((a) => a.color).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.22)
-    .arcDashLength(S.reduced ? 1 : 0.45).arcDashGap(S.reduced ? 0 : 0.7)
-    .arcDashInitialGap(() => Math.random()).arcDashAnimateTime((a) => a.anim).arcsTransitionDuration(0)
+    .ringMaxRadius((m) => (m.flash ? 0.8 + m.t * 1.6 : 1.2 + (m.t != null ? m.t : SCALE.t(m.attacks)) * 3.4))
+    // Rayas de Cloudflare Radar. Disparo: una sola pasada del trazo de origen a destino (el
+    // hueco de 4 impide una segunda pasada; el desfase de 1 lo hace salir del origen).
+    // Con reducir movimiento: trazo continuo y quieto.
+    .arcColor((a) => a.color).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.22).arcCurveResolution(28)
+    .arcDashLength(S.reduced ? 1 : DASH).arcDashGap(S.reduced ? 0 : 4).arcDashInitialGap(S.reduced ? 0 : 1)
+    .arcDashAnimateTime((a) => a.anim).arcsTransitionDuration(0)
     .htmlLat('lat').htmlLng('lon').htmlAltitude(0.01)
     .pointOfView({ ...HOME, altitude: S.altHome }, 0);
   S.globe = g;
@@ -375,6 +438,7 @@ function createGlobe() {
   const ctr = g.controls();
   ctr.autoRotate = !S.reduced; ctr.autoRotateSpeed = ROTATE_SPEED; ctr.enablePan = false;
   S.zone.dataset.spin = S.reduced ? 'off' : 'on';
+  S.zone.dataset.disparos = 'off';
   // Zoom corto ×1–×1,6: pellizco (táctil) y botones siempre; rueda solo con Ctrl.
   ctr.enableZoom = true; ctr.minDistance = 100 * distOf(altMin()); ctr.maxDistance = 100 * distOf(S.altHome);
   // Arrastrar, pellizcar o Ctrl + rueda: se para el giro y, 1 s después de soltar, vuelve. El zoom se mantiene.
@@ -386,9 +450,13 @@ function createGlobe() {
   // en captura sobre el host impide que el listener de rueda de OrbitControls (en el canvas) la vea.
   host.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
 
-  // Solo se dibuja cuando se ve: vista oculta, fuera de pantalla o pestaña en segundo plano → pausa
+  // Solo se dibuja (y solo dispara) cuando se ve: fuera de pantalla o pestaña oculta → pausa total
   let onScreen = true;
-  const sync = () => { (onScreen && document.visibilityState === 'visible') ? g.resumeAnimation() : g.pauseAnimation(); };
+  const sync = () => {
+    S.visible = onScreen && document.visibilityState === 'visible';
+    S.visible ? g.resumeAnimation() : g.pauseAnimation();
+    shotsRun(S.visible);
+  };
   new IntersectionObserver((es) => { onScreen = es.some((e) => e.isIntersecting); sync(); }).observe(S.zone);
   document.addEventListener('visibilitychange', sync);
   setInterval(() => { if (onScreen && document.visibilityState === 'visible') placeLabels(); }, 500);
@@ -397,7 +465,7 @@ function createGlobe() {
   new ResizeObserver(() => {
     if (!host.clientWidth) return;
     g.width(host.clientWidth).height(host.clientHeight);
-    if (narrow() !== wasNarrow) { wasNarrow = narrow(); setGlobeData(); }
+    if (narrow() !== wasNarrow) { wasNarrow = narrow(); setGlobeData(); if (S.timer) { shotsRun(false); shotsRun(true); } }
     g.resumeAnimation();
     requestAnimationFrame(() => requestAnimationFrame(sync));
   }).observe(host);
@@ -415,10 +483,12 @@ function createGlobe() {
 function mountFlat(note) {
   const box = S.zone.querySelector('#globe-flat');
   S.flatZoom = 1;
+  S.zone.dataset.disparos = 'off';
   S.flat = mountFlatGlobe(box, {
     land: S.land, markers: S.markers, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
     pairs: (S.map && S.map.attack_pairs) || [], centroid: centroidOf,
     onHover: showTip, onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
+    onShots: (on, n) => { S.zone.dataset.disparos = on ? 'on' : 'off'; S.zone.dataset.shots = String(n); },
   });
   S.flat.onZoom((z) => { S.flatZoom = z; syncZoomButtons(); });
   const n = S.zone.querySelector('#globe-note');
@@ -491,7 +561,7 @@ export function scheduleGlobe(zone, map) {
 /** Nuevos datos del mapa (refresco cada 10 min). */
 export function updateGlobe(map) {
   setData(map);
-  if (S.mode === 'globe' && S.globe) setGlobeData();
+  if (S.mode === 'globe' && S.globe) { setGlobeData(); shotsRun(S.visible); }
   else if (S.mode === 'flat' && S.flat) S.flat.update(S.markers, SCALE, S.labels, (S.map && S.map.attack_pairs) || []);
 }
 

@@ -6,9 +6,15 @@
    también giran) y flyTo(); sin zoom (altitud fija) y vuelta al giro a 1 s de soltar.
    ============================================================================= */
 import { svg, clear } from './util/dom.js';
+import { crearPlanificador, pesoDe } from './planificador.js';
 
 const RAD = Math.PI / 180;
 const SIZE = 560, PAD = 30, SPEED = 6.8, RESUME_MS = 1000, ZMIN = 1, ZMAX = 1.6;   // giro ~35% más rápido; zoom corto
+// Disparos con el ritmo y el máximo del móvil (la vista plana es el respaldo de equipos modestos)
+const SHOT_EVERY = 500, SHOT_MAX = 6, DASH = 0.35, FLASH_MS = 700;
+
+/** Punto de la curva cuadrática a→c→b en s ∈ [0, 1]. */
+const quad = (a, c, b, s) => ({ x: (1 - s) * (1 - s) * a.x + 2 * (1 - s) * s * c.x + s * s * b.x, y: (1 - s) * (1 - s) * a.y + 2 * (1 - s) * s * c.y + s * s * b.y });
 
 function ortho(lat0, lon0, R, c) {
   const s0 = Math.sin(lat0 * RAD), c0 = Math.cos(lat0 * RAD);
@@ -41,6 +47,18 @@ export function mountFlatGlobe(host, o) {
   let markers = o.markers, scale = o.scale, labels = o.labels, pairs = o.pairs || [];
   let auto = !o.reduced, idle = 0, last = 0, dirty = true, lastDraw = 0, raf = 0, fly = 0;
   let onZoomChange = () => {};
+  // Disparos: pool fijo de SHOT_MAX objetos, un solo temporizador
+  let plan = null, maxShare = 1, timer = 0, onScreen = true, fired = 0;
+  const shots = Array.from({ length: SHOT_MAX }, () => ({ live: false, from: null, to: null, r: 0, born: 0, dur: 0 }));
+  let flashes = [];
+  function setPairs(pr) {
+    pairs = pr || [];
+    const ok = pairs.filter((p) => o.centroid(p.from_cc) && o.centroid(p.to_cc));
+    const glob = ok.filter((p) => p.scope == null);
+    maxShare = Math.max(1e-6, ...(glob.length ? glob : ok).map((p) => p.share));
+    plan = crearPlanificador(ok);
+  }
+  setPairs(pairs);
 
   function draw() {
     const R = (SIZE / 2 - PAD) * st.zoom, c = SIZE / 2, P = ortho(st.lat0, st.lon0, R, c);
@@ -61,27 +79,44 @@ export function mountFlatGlobe(host, o) {
       svg('path', { d: g, class: 'gp-grat' }),
       dFar ? svg('path', { d: dFar, class: 'gp-land gp-land--far' }) : null,
       svg('path', { d, class: 'gp-land' })];
-    // Rayas de Cloudflare Radar (las mismas que el globo 3D), estáticas en SVG. Solo si los dos
-    // extremos se ven. Par consigo mismo (US→US) → pulso en el país, no raya.
-    const maxShare = Math.max(1e-6, ...pairs.map((p) => p.share));
-    for (const pr of pairs) {
-      const ca = o.centroid(pr.from_cc), cb = o.centroid(pr.to_cc);
-      if (!ca || !cb) continue;
-      if (pr.from_cc === pr.to_cc) {
-        const q = P(ca[0], ca[1]);
-        if (q.vis && inView(q) && !o.reduced) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: '9', class: 'gp-apulse gp--hi' }));
-        continue;
-      }
-      const qa = P(ca[0], ca[1]), qb = P(cb[0], cb[1]);
-      if (!qa.vis || !qb.vis || !inView(qa) || !inView(qb)) continue;
-      const rr = pr.share / maxShare;
+    // Rayas de Cloudflare Radar (las mismas que el globo 3D). Solo si los dos extremos se ven.
+    // Con reducir movimiento, las del top estáticas; si no, los disparos en curso.
+    const ctrl = (qa, qb) => {                                          // curva hacia fuera
       const mx = (qa.x + qb.x) / 2, my = (qa.y + qb.y) / 2, dx = qb.x - qa.x, dy = qb.y - qa.y;
       const nl = Math.hypot(dx, dy) || 1, bend = Math.min(60, nl * 0.25);
-      const cxp = mx - dy / nl * bend, cyp = my + dx / nl * bend;    // curva hacia fuera
-      kids.push(svg('path', {
-        d: `M${qa.x.toFixed(1)} ${qa.y.toFixed(1)}Q${cxp.toFixed(1)} ${cyp.toFixed(1)} ${qb.x.toFixed(1)} ${qb.y.toFixed(1)}`,
-        class: 'gp-arc ' + (rr >= 0.5 ? 'gp-arc--hi' : 'gp-arc--mid'), 'stroke-width': (0.8 + rr * 2).toFixed(1),
-      }));
+      return { x: mx - dy / nl * bend, y: my + dx / nl * bend };
+    };
+    const cls = (rr) => 'gp-arc ' + (rr >= 0.5 ? 'gp-arc--hi' : 'gp-arc--mid');
+    if (o.reduced) {
+      for (const pr of pairs) {
+        const ca = o.centroid(pr.from_cc), cb = o.centroid(pr.to_cc);
+        if (!ca || !cb || pr.from_cc === pr.to_cc) continue;
+        const qa = P(ca[0], ca[1]), qb = P(cb[0], cb[1]);
+        if (!qa.vis || !qb.vis || !inView(qa) || !inView(qb)) continue;
+        const rr = Math.min(1, pesoDe(pr) / maxShare), c2 = ctrl(qa, qb);
+        kids.push(svg('path', {
+          d: `M${qa.x.toFixed(1)} ${qa.y.toFixed(1)}Q${c2.x.toFixed(1)} ${c2.y.toFixed(1)} ${qb.x.toFixed(1)} ${qb.y.toFixed(1)}`,
+          class: cls(rr), 'stroke-width': (0.8 + rr * 2).toFixed(1),
+        }));
+      }
+    } else {
+      const now = performance.now();
+      for (const sh of shots) {
+        if (!sh.live) continue;
+        const qa = P(sh.from[0], sh.from[1]), qb = P(sh.to[0], sh.to[1]);
+        if (!qa.vis || !qb.vis || !inView(qa) || !inView(qb)) continue;
+        const p = (now - sh.born) / sh.dur, head = Math.min(1, p), tail = Math.max(0, p - DASH);
+        if (head <= tail) continue;
+        const c2 = ctrl(qa, qb);
+        let d = '';
+        for (let i = 0; i <= 8; i++) { const q = quad(qa, c2, qb, tail + (head - tail) * i / 8); d += (i ? 'L' : 'M') + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }
+        kids.push(svg('path', { d, class: cls(sh.r), 'stroke-width': (0.8 + sh.r * 2).toFixed(1) }));
+      }
+      for (const f of flashes) {                                        // destello: anillo que crece y se apaga
+        const q = P(f.at[0], f.at[1]), k = (now - f.born) / FLASH_MS;
+        if (k < 0 || k >= 1 || !q.vis || !inView(q)) continue;
+        kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (3 + k * f.size).toFixed(1), 'stroke-opacity': (0.9 * (1 - k)).toFixed(2), class: 'gp-apulse gp--' + f.tier }));
+      }
     }
     const boxes = [], lab = [];
     markers.forEach((m, i) => {
@@ -125,11 +160,43 @@ export function mountFlatGlobe(host, o) {
     });
   }
 
+  /* Un turno: caducan los disparos ya pasados, los que llegan sueltan su destello y, si hay
+     hueco en el pool, dispara el par que diga el planificador. */
+  function tick() {
+    const now = performance.now();
+    flashes = flashes.filter((f) => now - f.born < FLASH_MS);
+    for (const sh of shots) {
+      if (!sh.live) continue;
+      if (!sh.flashed && now >= sh.born + sh.dur) { sh.flashed = true; flashes.push({ at: sh.to, born: now, tier: sh.r >= 0.5 ? 'hi' : 'mid', size: 8 + sh.r * 8 }); }
+      if (now - sh.born >= sh.dur * (1 + DASH)) sh.live = false;
+    }
+    const free = plan && plan.size ? shots.find((s) => !s.live) : null;
+    if (free) {
+      const p = plan.siguiente(), r = Math.min(1, pesoDe(p) / maxShare);
+      fired++;
+      if (p.from_cc === p.to_cc) flashes.push({ at: o.centroid(p.from_cc), born: now, tier: r >= 0.5 ? 'hi' : 'mid', size: 12 + r * 10 });
+      else Object.assign(free, { live: true, flashed: false, from: o.centroid(p.from_cc), to: o.centroid(p.to_cc), r, born: now, dur: Math.round(1800 - r * 600) });
+    }
+    dirty = true;
+    if (o.onShots) o.onShots(true, fired);
+  }
+  function shotsRun() {
+    const run = !o.reduced && onScreen && host.isConnected && document.visibilityState === 'visible' && !!plan && plan.size > 0;
+    if (run === !!timer) return;
+    if (run) timer = setInterval(tick, SHOT_EVERY);
+    else { clearInterval(timer); timer = 0; }
+    if (o.onShots) o.onShots(run, fired);
+  }
+  const io = new IntersectionObserver((es) => { onScreen = es.some((e) => e.isIntersecting); shotsRun(); });
+  io.observe(host);
+  document.addEventListener('visibilitychange', shotsRun);
+
   function frame(ts) {
     raf = requestAnimationFrame(frame);
     if (!host.isConnected || document.visibilityState !== 'visible') { last = 0; return; }
     const dt = last ? Math.min(100, ts - last) : 16; last = ts;
     if (auto) { st.lon0 = ((st.lon0 - SPEED * dt / 1000 + 540) % 360) - 180; dirty = true; }
+    if (timer && (flashes.length || shots.some((s) => s.live))) dirty = true;   // trazos en vuelo
     if (dirty && ts - lastDraw > 33) { lastDraw = ts; draw(); }     // ~30 fps
     else pulse(ts);
   }
@@ -183,9 +250,9 @@ export function mountFlatGlobe(host, o) {
     zoomBy(f) { hold(); setZoom(st.zoom * f); release(); },
     rotate(dLat, dLon) { hold(); st.lat0 = Math.max(-60, Math.min(70, st.lat0 + dLat)); st.lon0 = ((st.lon0 + dLon + 540) % 360) - 180; dirty = true; release(); },
     flyTo,
-    update(ms, sc, lb, pr) { markers = ms; scale = sc; labels = lb; if (pr) pairs = pr; dirty = true; },
+    update(ms, sc, lb, pr) { markers = ms; scale = sc; labels = lb; if (pr) setPairs(pr); shotsRun(); dirty = true; },
     onZoom(fn) { onZoomChange = fn; fn(st.zoom); },
     zoomLimits: { min: ZMIN, max: ZMAX },
-    stop() { cancelAnimationFrame(raf); },
+    stop() { cancelAnimationFrame(raf); clearInterval(timer); timer = 0; io.disconnect(); document.removeEventListener('visibilitychange', shotsRun); },
   };
 }

@@ -10,7 +10,7 @@ import { panelHead, emptyBlock, extLink, langOf, icon, verdictOf, vshape, cveHre
 import { orbRows, rowsFoot } from './filas.js';
 import { renderRadar } from '../radar.js';
 import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField } from '../globe.js';
-import { nf, dLong, tLocal, tUTC, countryName } from '../util/format.js';
+import { nf, dLong, tLocal, tUTC, countryName, prefersReducedMotion } from '../util/format.js';
 
 /* Nombre del servicio por número de puerto: una etiqueta de la interfaz, no un dato del JSON
    (guía Órbita §5.10). Si el puerto no está en la tabla, el nombre va vacío. */
@@ -147,6 +147,8 @@ function arcsHeader(map) {
       el('span', { class: 'mapp__legsep', text: ' · ' }),
       svg('svg', { class: 'leg leg--dot', viewBox: '0 0 8 8', focusable: 'false' }, svg('circle', { cx: '4', cy: '4', r: '3' })), ' marcador',
     ]),
+    // Con reducir movimiento no hay disparos (rayas estáticas): la frase no aplicaría
+    prefersReducedMotion() ? null : el('span', { class: 'mapp__freq', text: 'Frecuencia de cada raya proporcional a su % real' }),
   ]);
 }
 

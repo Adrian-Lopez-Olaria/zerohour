@@ -13,12 +13,14 @@ on:
       - "cabeceras.toml"
       - "scripts/dev_server.py"
       - "tests/e2e/**"
+      - "tests/unit/**"
       - "tests/fixtures/**"
       - ".github/workflows/e2e.yml"
   pull_request:
     paths:
       - "web/**"
       - "tests/e2e/**"
+      - "tests/unit/**"
   workflow_dispatch:
 
 permissions: {}
@@ -55,6 +57,9 @@ jobs:
 
       - name: Instalar Chromium de Playwright
         run: npx playwright install --with-deps chromium
+
+      - name: Pruebas unitarias (planificador de disparos)
+        run: node --test "../unit/*.test.mjs"
 
       - name: Pruebas
         env:
