@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Radar CVE · recolecta los datos y publica el sitio en la rama `deploy`
+# ZEROHOUR · recolecta los datos y publica el sitio en la rama `deploy`
 #
 # main  = solo código (sin datos: su historial no crece).
 # deploy = el sitio montado (web/ de main + datos), regenerado entero en cada
@@ -13,7 +13,7 @@
 #                                  deploy, con wrangler (versión exacta y lockfile). Es el único
 #                                  que ve el token de Cloudflare (entorno `cloudflare`, solo main)
 # ─────────────────────────────────────────────────────────────────────────────
-name: Radar CVE
+name: ZEROHOUR
 
 on:
   schedule:

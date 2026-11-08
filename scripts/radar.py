@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Radar CVE · recolector diario de vulnerabilidades
+ZEROHOUR · recolector diario de vulnerabilidades
 ==================================================
 
 Cruza varias fuentes públicas y gratuitas y genera JSON listos para la web:
@@ -960,7 +960,7 @@ def summary_ai(rep: dict) -> str | None:
 
 
 def linkedin_post(rep: dict, date: str) -> str:
-    lines = [f"🛰️ Radar CVE · {date}", "",
+    lines = [f"🛰️ ZEROHOUR · {date}", "",
              f"{rep['stats']['new_cves']} CVE nuevas hoy. Las 3 que yo miraría primero:", ""]
     for i, r in enumerate(rep["top"][:3], 1):
         bits = []
@@ -1478,7 +1478,7 @@ def map_coverage_warning(n_countries: int, n_ips: int) -> bool:
 # ──────────────────────────────── main ────────────────────────────────
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Radar CVE")
+    ap = argparse.ArgumentParser(description="ZEROHOUR")
     ap.add_argument("mode", choices=["daily", "map", "all"])
     mode = ap.parse_args().mode
     ok = True

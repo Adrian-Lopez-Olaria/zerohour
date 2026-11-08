@@ -88,7 +88,7 @@ Trece fuentes de datos, más prensa especializada y geolocalización offline:
 
 1. **Repo público en GitHub** (minutos de Actions ilimitados). En **Settings → Actions → General → Workflow permissions** deja **Read repository contents** (solo lectura): el único job que escribe pide `contents: write` él mismo, y solo puede escribir en `deploy`.
 2. **Clave de NVD:** pide una gratuita en <https://nvd.nist.gov/developers/request-an-api-key> y guárdala en **Settings → Secrets and variables → Actions** como `NVD_API_KEY`. Funciona sin ella, pero mucho más lento.
-3. **Primera ejecución:** **Actions → Radar CVE → Run workflow** con el modo `all`. Crea la rama `deploy`. Desde ahí se ejecuta solo: briefing a las 05:17 UTC y mapa cada 3 horas.
+3. **Primera ejecución:** **Actions → ZEROHOUR → Run workflow** con el modo `all`. Crea la rama `deploy`. Desde ahí se ejecuta solo: briefing a las 05:17 UTC y mapa cada 3 horas.
 4. **Cloudflare:**
    - Crea un API token con un único permiso: **Account → Workers Scripts → Edit**, limitado a tu cuenta. No necesita permisos de zona.
    - En GitHub, **Settings → Environments → New environment** `cloudflare`, restringido a la rama `main`, con los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` y la variable `SITIO_URL` (la URL pública; el workflow comprueba allí que la edición nueva ya se sirve).

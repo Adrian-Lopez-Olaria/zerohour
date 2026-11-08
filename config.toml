@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────
-#  Radar CVE · configuración
+#  ZEROHOUR · configuración
 #  Todo lo que quieras ajustar sin tocar código
 # ─────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ poc_candidatas = 60
 # Días de histórico que se conservan en data/index.json
 dias_historico = 90
 # Identificación educada ante las APIs (pon la URL de tu repo cuando lo tengas)
-user_agent = "RadarCVE/1.0 (+https://github.com/TU_USUARIO/radar-cve)"
+user_agent = "ZEROHOUR/1.0 (+https://zerohour-cve.dev)"
 
 # Tu stack: si una CVE menciona alguna de estas palabras, se marca con ⭐
 # Se busca, sin distinguir mayúsculas, en fabricante, producto, CNA y CPE (fabricante:producto)
