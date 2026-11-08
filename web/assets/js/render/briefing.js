@@ -132,7 +132,8 @@ function infoBody(map) {
   const tier = (cls, txt) => el('li', [el('i', { class: `info__dot info__dot--${cls}`, 'aria-hidden': 'true' }), txt]);
   return el('div', { class: 'info__p', id: 'map-info' }, [
     el('p', [el('b', { text: 'Bolitas: ' }), 'una por país, todas del mismo tamaño. El color dice cuántos ataques acumulan las IPs de DShield (SANS ISC) de ese país que siguen activas hoy:']),
-    el('ul', { class: 'info__tiers' }, [tier('hi', 'alta'), tier('mid', 'media'), tier('lo', 'baja'), tier('none', 'gris: fuera de las IPs más activas de DShield hoy (actividad baja)')]),
+    el('ul', { class: 'info__tiers' }, [tier('hi', 'alta'), tier('mid', 'media'), tier('lo', 'baja'), tier('none', 'zona de baja actividad')]),
+    el('p', { class: 'info__note', text: `Zona de baja actividad: países fuera de las ${map.dshield_ips ? `${nf(map.dshield_ips)} ` : ''}IPs más activas del ranking de DShield de hoy.` }),
     map.note ? el('p', { class: 'info__note', text: map.note }) : null,
     hasArcs ? el('p', [el('b', { text: 'Rayas: ' }), 'pares origen → destino de ataques web mitigados por Cloudflare en las últimas 24 h.',
       prefersReducedMotion() ? ' Se muestran quietas.' : ' Cada raya sale con una frecuencia proporcional a su %.',

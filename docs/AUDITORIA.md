@@ -103,9 +103,9 @@ Los datos de NVD, KEV, GHSA, RSS, PoC y DShield se tratan como hostiles.
 
 | Cambio | Comprobación |
 |---|---|
-| Bolitas de todos los países, mismo tamaño, color por tramo y gris para los que están fuera del ranking de DShield («Actividad baja»; nunca «sin actividad») | E2E: más de 150 bolitas visibles; España, sin datos de DShield en el fixture, sale en gris con «Fuera de las 3000 IPs más activas de DShield hoy» y su panel no muestra ninguna cifra de DShield |
+| Bolitas de todos los países, mismo tamaño, color por tramo y gris para las zonas de baja actividad | E2E: más de 150 bolitas visibles; España, sin datos de DShield en el fixture, sale en gris y su panel dice solo «Zona de baja actividad»; el criterio de clasificación está solo en el panel ⓘ |
 | Bolitas WebGL (`pointsData` con `pointsMerge`) en lugar de nodos DOM | E2E: 0 `.gm__dot` sin foco y como mucho 6 nodos (etiquetas) |
-| Hover, toque y panel de país | Sin `pointLabel` ni tooltips de globe.gl (van por `innerHTML`); `enablePointerInteraction(false)` se mantiene y la detección es propia. El panel usa `el()` y `textContent`. E2E de hover, toque y ranking con 0 violaciones de CSP y de Trusted Types |
+| Hover, toque y panel de país (el giro solo se para sobre una bolita; área de detección de 1,8 radios) | Sin `pointLabel` ni tooltips de globe.gl (van por `innerHTML`); `enablePointerInteraction(false)` se mantiene y la detección es propia. El panel usa `el()` y `textContent`. E2E de hover, toque y ranking con 0 violaciones de CSP y de Trusted Types |
 | Desplegables «N de N fuentes» y ⓘ | Se cierran con un clic fuera y con Esc, llevan `aria-expanded` y devuelven el foco al botón (E2E) |
 | Radar: hasta 100 pares (`limit=100`) | `validar_datos.py` rechaza ahora `attack_pairs` con más de 100 pares, códigos que no sean ISO-2 o % fuera de 0–100; `data.js` corta en 100 por defensa en profundidad |
 | Rendimiento (local, mediana de pasadas alternas) | Escritorio sin cambios (Lighthouse 90 → 90). Móvil: Lighthouse 64,5 → 56 y TBT 439 → 695 ms, una **regresión** que no viene de las bolitas (sin ellas también aparece) ni del JavaScript propio (perfil de CPU igual); pendiente de atribuir y de confirmar en producción |

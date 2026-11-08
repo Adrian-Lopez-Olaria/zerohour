@@ -17,7 +17,8 @@ async function hoverAnyDot(page) {
     for (let k = 0; k < Math.max(1, r); k += 3) {
       const a = (k / Math.max(1, r)) * 2 * Math.PI;
       await page.mouse.move(cx + r * Math.cos(a), cy + r * Math.sin(a));
-      if (await page.evaluate(() => !!document.getElementById('globe-zone').dataset.focus)) return true;
+      // El hover se resuelve en el siguiente fotograma: con carga, comprobar antes es una carrera
+      if (await page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => ok(!!document.getElementById('globe-zone').dataset.focus)))))) return true;
     }
   }
   return false;
@@ -68,20 +69,32 @@ test.describe('bolitas y panel de país · escritorio', () => {
     expect(errors).toEqual([]);
   });
 
-  test('España sin datos de DShield: bolita gris, «Actividad baja», «Fuera de las N IPs más activas» y sus rayas de Radar', async ({ page }) => {
+  test('país gris (España): su panel dice solo «Zona de baja actividad»; el criterio, solo en ⓘ', async ({ page }) => {
     await open(page, FX);
     await globeReady(page);
     await page.evaluate(async () => (await import('/assets/js/globe.js')).focusCountry('ES'));
     const tip = page.locator('#globe-tip');
     await expect(tip).toContainText('España');
-    await expect(tip).toContainText('Actividad baja');
-    await expect(tip).toContainText('Fuera de las 3000 IPs más activas de DShield hoy');
-    await expect(tip).not.toContainText('Sin actividad');
-    await expect(tip).not.toContainText('DShield:');                         // no se inventa nada
-    await expect(tip).toContainText('Destinos (Radar): Estados Unidos 43,6 %');
-    await expect(tip).toContainText('Dentro del país (Radar): 22,0 %');
+    await expect(tip).toHaveText(/^España\s*Zona de baja actividad$/);       // solo eso: sin fuentes ni rankings
+    await expect(page.locator('#map-info')).toContainText('Zona de baja actividad: países fuera de las 3000 IPs más activas del ranking de DShield de hoy.', { useInnerText: false });
     await expect(zone(page)).toHaveAttribute('data-focus', 'ES');
     await expect(page.locator('#globe .gm--hot.gm--none')).toHaveCount(1);  // bolita grande, gris
+    expect(await csp(page)).toEqual([]);
+  });
+
+  test('el giro sigue con el puntero sobre el océano y fuera de las bolitas', async ({ page }) => {
+    await open(page, FX);
+    await globeReady(page);
+    await flyTo(page, -40, -130);                                            // Pacífico sur: ni una bolita a esa latitud
+    await expect(zone(page)).toHaveAttribute('data-spin', 'on', { timeout: 4000 });
+    const box = await page.locator('#globe').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(1200);
+    await expect(zone(page)).toHaveAttribute('data-spin', 'on');
+    expect(await zone(page).getAttribute('data-focus') || '').toBe('');
+    await page.mouse.move(box.x + 4, box.y + 4);                             // esquina de la caja, fuera de la esfera
+    await page.waitForTimeout(1200);
+    await expect(zone(page)).toHaveAttribute('data-spin', 'on');
     expect(await csp(page)).toEqual([]);
   });
 
@@ -118,11 +131,14 @@ test.describe('bolitas y panel de país · móvil', () => {
   test('un toque abre el panel y otro toque fuera lo cierra', async ({ page }) => {
     await open(page, FX);
     await globeReady(page);
-    await flyTo(page, 40.2, -3.7);
-    await page.waitForTimeout(950);
     const box = await page.locator('#globe').boundingBox();
-    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-    await expect(page.locator('#globe-tip')).toContainText('España');
+    // Con carga, el giro puede volver antes del toque y mover España del centro: se reintenta
+    await expect(async () => {
+      await flyTo(page, 40.2, -3.7);
+      await page.waitForTimeout(950);
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page.locator('#globe-tip')).toContainText('España', { timeout: 1000 });
+    }).toPass({ timeout: 20_000 });
     await page.waitForTimeout(1500);
     await expect(zone(page)).toHaveAttribute('data-spin', 'off');             // fijo mientras está abierto
     await page.touchscreen.tap(20, 200);                                      // toque fuera del globo

@@ -9,8 +9,8 @@
      DShield hoy. Son puntos WebGL de globe.gl (pointsData con merge: una sola malla), no nodos
      DOM. Si dos se tocan en pantalla a la altitud actual, se ve la de más actividad y la otra se
      oculta hasta acercar el zoom. Anillos en los 5 primeros; etiquetas «CC 1179,5 k» para 6.
-   - Gira solo. Con el puntero encima, arrastrar, las flechas o flyTo() se para; a 1 s de salir o
-     de soltar vuelve a girar. Zoom corto ×1–×1,6; la rueda sin Ctrl hace scroll de la página.
+   - Gira solo. Se para con el puntero sobre una bolita (no sobre el resto del globo), al arrastrar,
+     con las flechas o con flyTo(); a 1 s de salir de la bolita o de soltar vuelve a girar. Zoom corto ×1–×1,6; la rueda sin Ctrl hace scroll de la página.
    - Hover/toque sobre una bolita: se agranda, se iluminan solo sus rayas y sale un panel propio
      (el() y textContent; enablePointerInteraction sigue en false y la detección es nuestra:
      getScreenCoords + distancia). Clic: flyTo.
@@ -43,8 +43,9 @@ const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF', none: '#A3ADBF'
    diámetros, por debajo de la cual se considera que se tocan. 7 px en escritorio: a la altitud por
    defecto, en Europa solo se ocultan microestados pegados a un vecino con más actividad. */
 const DOT_PX = { desk: 7, mob: 6 }, DOT_GAP = 1.15, HOT_PX = 15, PT_ALT = 0.004;
-// Fuera del top de DShield no significa sin ataques: «Actividad baja» (dirección, 08/11)
-const ESTADO = { hi: 'Actividad alta', mid: 'Actividad media', lo: 'Actividad baja', none: 'Actividad baja' };
+const HIT_K = 1.8;                          // área de detección del ratón, en radios de la bolita visible
+// Todos los países tienen actividad; los grises simplemente no destacan hoy (el criterio, solo en ⓘ)
+const ESTADO = { hi: 'Actividad alta', mid: 'Actividad media', lo: 'Actividad baja', none: 'Zona de baja actividad' };
 const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
 const MAX_ARCS = 30;                       // rayas estáticas (reducir movimiento)
 /* Disparos: un par por turno (planificador.js), cada uno es una sola pasada del trazo y un
@@ -57,7 +58,7 @@ const NONE = 'rgba(0,0,0,0)';               // raya del pool sin disparo: invisi
 const narrow = () => innerWidth < 760;
 const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null,
   plan: null, maxShare: 1, pool: [], flashes: [], pending: [], timer: 0, fired: 0, visible: false, armed: false,
-  all: [], vis: [], dotPx: DOT_PX.desk, dotDeg: 0.5, dotKey: '', focus: null, pinned: false, over: false, focusArcs: [] };
+  all: [], vis: [], dotPx: DOT_PX.desk, dotDeg: 0.5, dotKey: '', focus: null, pinned: false, flyUntil: 0, focusArcs: [] };
 
 /* ───────── escala: por país, logarítmica, por tercios (guía Órbita §1) ───────── */
 
@@ -75,7 +76,7 @@ export function countryMarkers(map) {
 }
 
 /** Todos los países: los de DShield (como countryMarkers, primero) y, detrás, el resto del mundo
- *  en su centroide con 0 ataques (bolita gris, «Actividad baja»: fuera del top de DShield). */
+ *  en su centroide con 0 ataques (bolita gris, «Zona de baja actividad»). */
 export function allMarkers(map, data = countryMarkers(map)) {
   const seen = new Set(data.map((m) => m.cc));
   const rest = Object.keys(CENTROIDES).filter((cc) => !seen.has(cc)).sort()
@@ -203,10 +204,10 @@ function setAuto(on) {
   if (S.zone) S.zone.dataset.spin = spin ? 'on' : 'off';
 }
 function hold() { clearTimeout(S.idle); setAuto(false); }
-/** Vuelve a girar a 1 s, salvo con el puntero encima del globo o un panel de país abierto. */
+/** Vuelve a girar a 1 s, salvo con un país enfocado (puntero sobre su bolita o panel abierto). */
 function release() {
   clearTimeout(S.idle);
-  if (!S.reduced && !S.over && !S.pinned) S.idle = setTimeout(() => setAuto(true), RESUME_MS);
+  if (!S.reduced && !S.focus) S.idle = setTimeout(() => setAuto(true), RESUME_MS);
 }
 
 /* ───────── controles (zoom corto, teclado y flyTo) para el globo 3D y el SVG ───────── */
@@ -256,6 +257,7 @@ export function zoomControls() {
 export function flyTo(lat, lng) {
   if (S.mode === 'globe' && S.globe) {
     hold();
+    S.flyUntil = performance.now() + (S.reduced ? 0 : 950);   // en vuelo, lo que pase bajo el puntero no cuenta
     S.globe.pointOfView({ lat, lng }, S.reduced ? 0 : 900);   // sin altitude: la altitud no cambia
     S.globe.resumeAnimation();
     release();
@@ -291,8 +293,10 @@ function onKey(e) {
 const byShare = (a, b) => b.share - a.share;
 
 /** Contenido del panel: país, estado, IPs de DShield y principales destinos y orígenes (Radar). */
-export function panelContent(m, pairs, scale = SCALE, ipsN = S.map && S.map.dshield_ips) {
+export function panelContent(m, pairs, scale = SCALE) {
   const tier = scale.tier(m.attacks);
+  // País gris: solo su nombre y «Zona de baja actividad»; ni fuentes ni rankings (eso va en ⓘ)
+  if (tier === 'none') return [el('p', { class: 'gpan__t' }, [el('b', { text: countryName(m.cc, m.country) }), ' ', el('span', { class: 'gpan__e gpan__e--none', text: ESTADO.none })])];
   const out = pairs.filter((p) => p.from_cc === m.cc && p.to_cc !== m.cc).sort(byShare).slice(0, 3);
   const inn = pairs.filter((p) => p.to_cc === m.cc && p.from_cc !== m.cc).sort(byShare).slice(0, 3);
   const self = pairs.find((p) => p.from_cc === m.cc && p.to_cc === m.cc);
@@ -300,8 +304,7 @@ export function panelContent(m, pairs, scale = SCALE, ipsN = S.map && S.map.dshi
     list.map((p) => `${countryName(cc(p))} ${nf(p.share, 1)} %`).join(' · ')]);
   return [
     el('p', { class: 'gpan__t' }, [el('b', { text: countryName(m.cc, m.country) }), ' ', el('span', { class: `gpan__e gpan__e--${tier}`, text: ESTADO[tier] })]),
-    m.attacks > 0 ? el('p', { class: 'gpan__l', text: `DShield: ${nf(m.sources)} ${m.sources === 1 ? 'IP activa' : 'IPs activas'} · ${nf(m.attacks)} ataques acumulados` })
-      : el('p', { class: 'gpan__l gpan__l--m', text: ipsN ? `Fuera de las ${nf(ipsN)} IPs más activas de DShield hoy` : 'Fuera de las IPs más activas de DShield hoy' }),
+    el('p', { class: 'gpan__l', text: `DShield: ${nf(m.sources)} ${m.sources === 1 ? 'IP activa' : 'IPs activas'} · ${nf(m.attacks)} ataques acumulados` }),
     out.length ? line('Destinos (Radar): ', out, (p) => p.to_cc) : null,
     inn.length ? line('Orígenes (Radar): ', inn, (p) => p.from_cc) : null,
     self ? el('p', { class: 'gpan__l' }, [el('span', { class: 'gpan__k', text: 'Dentro del país (Radar): ' }), `${nf(self.share, 1)} %`]) : null,
@@ -328,7 +331,7 @@ function setFocus(m, pin = false) {
     S.globe.htmlElementsData(htmlItems());
     paintArcs();
   } else if (S.mode === 'flat' && S.flat) S.flat.focus(S.focus);
-  if (S.focus) hold(); else release();
+  if (S.mode === 'globe') { if (S.focus) hold(); else release(); }   // el SVG lo hace en focus()
 }
 
 /** Para el ranking: foco (sin fijar) en un país por su código, o null para quitarlo. */
@@ -398,16 +401,22 @@ function facing(m, pov) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] > 1 / (1 + pov.altitude) + 0.02;
 }
 
-/** Bolita visible más cercana a (x, y) de pantalla, a menos de `tol` px de su borde. */
-function pick(x, y, tol) {
+/**
+ * Bolita bajo (x, y) de pantalla. Ratón (touchTol = 0): dentro de una bolita visible, esa; si no,
+ * la de más actividad cuya área de detección (HIT_K radios) contenga el punto: S.vis va en orden de
+ * actividad, así que en el solape de dos áreas manda la mayor. Toque: la más cercana a touchTol px.
+ */
+function pick(x, y, touchTol = 0) {
   const host = S.zone.querySelector('#globe'), r = host.getBoundingClientRect(), pov = S.globe.pointOfView();
   let best = null, bd = Infinity;
-  const lim = (S.dotPx / 2 + tol) ** 2;
+  const r2 = (S.dotPx / 2) ** 2, lim = touchTol ? (S.dotPx / 2 + touchTol) ** 2 : r2 * HIT_K * HIT_K;
   for (const m of S.vis) {
     if (!facing(m, pov)) continue;
     const s = S.globe.getScreenCoords(m.lat, m.lon, PT_ALT);
     const d = (s.x + r.left - x) ** 2 + (s.y + r.top - y) ** 2;
-    if (d < lim && d < bd) { bd = d; best = m; }
+    if (touchTol) { if (d < lim && d < bd) { bd = d; best = m; } }
+    else if (d <= r2) return m;
+    else if (d < lim && !best) best = m;
   }
   return best;
 }
@@ -623,29 +632,31 @@ function createGlobe() {
 
   /* Hover y toque. La detección es nuestra (pick: proyección + distancia), no la de globe.gl. */
   const isMouse = (e) => e.pointerType === 'mouse';
-  host.addEventListener('pointerenter', (e) => { if (isMouse(e)) { S.over = true; hold(); } });
+  let hoverRaf = 0, hoverT = 0, lastMove = null, down = null;
+  const hoverNow = () => {
+    if (!lastMove || down || S.pinned || performance.now() < S.flyUntil) return;
+    const m = pick(lastMove.clientX, lastMove.clientY);
+    host.classList.toggle('is-pick', !!m);
+    setFocus(m);
+  };
   host.addEventListener('pointerleave', (e) => {
     if (!isMouse(e)) return;
-    S.over = false;
+    lastMove = null; clearInterval(hoverT); hoverT = 0;
+    host.classList.remove('is-pick');
     if (!S.pinned) setFocus(null);
-    release();
   });
-  let hoverRaf = 0, lastMove = null, down = null;
   host.addEventListener('pointermove', (e) => {
     if (!isMouse(e) || e.buttons) return;
     lastMove = e;
-    if (!hoverRaf) hoverRaf = requestAnimationFrame(() => {
-      hoverRaf = 0;
-      const m = pick(lastMove.clientX, lastMove.clientY, 3);
-      host.classList.toggle('is-pick', !!m);
-      if (!S.pinned) setFocus(m);
-    });
+    // Con el ratón quieto, las bolitas siguen pasando por debajo mientras el globo gira
+    if (!hoverT) hoverT = setInterval(() => { if (S.zone.dataset.spin === 'on') hoverNow(); }, 120);
+    if (!hoverRaf) hoverRaf = requestAnimationFrame(() => { hoverRaf = 0; hoverNow(); });
   });
   host.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, mouse: isMouse(e) }; }, { capture: true });
   host.addEventListener('pointerup', (e) => {
     const d = down; down = null;
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // fue un arrastre
-    const m = pick(e.clientX, e.clientY, d.mouse ? 3 : 12);                 // el dedo es menos preciso
+    const m = pick(e.clientX, e.clientY, d.mouse ? 0 : 12);                 // el dedo es menos preciso
     // Ratón: el panel ya sale con el hover y el clic hace flyTo. Toque: el panel queda fijo
     // hasta otro toque fuera (o Esc).
     if (m) { setFocus(m, !d.mouse); flyTo(m.lat, m.lon); }

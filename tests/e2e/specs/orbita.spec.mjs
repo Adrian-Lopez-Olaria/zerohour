@@ -25,7 +25,7 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     expect(await page.locator('#panel-top .orow').count()).toBe(10);
   });
 
-  test('3. el globo gira solo, se para con el puntero encima o al arrastrarlo y vuelve a 1 s de salir', async ({ page }) => {
+  test('3. el globo gira solo, se para al arrastrarlo y vuelve a girar a 1 s de soltar', async ({ page }) => {
     await open(page, FIXTURE.real);
     expect(await globeReady(page)).toContain('is-globe');
     const zone = page.locator('#globe-zone');
@@ -39,10 +39,8 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 60, { steps: 8 });
     await expect(zone).toHaveAttribute('data-spin', 'off');                  // al arrastrar se para
     await page.mouse.up();
-    await page.waitForTimeout(1500);
-    await expect(zone).toHaveAttribute('data-spin', 'off');                  // con el puntero encima sigue parado
-    await page.mouse.move(5, 5);
-    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y, ~1 s después de salir, vuelve a girar
+    await page.mouse.move(5, 5);                                             // fuera: ninguna bolita bajo el puntero
+    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y, ~1 s después, vuelve a girar
   });
 
   test('3. un país del ranking lleva el globo hasta él (flyTo) y vuelve a girar a 1 s', async ({ page }) => {

@@ -13,7 +13,7 @@ const SIZE = 560, PAD = 30, SPEED = 6.8, RESUME_MS = 1000, ZMIN = 1, ZMAX = 1.6;
 // Disparos con el ritmo y el máximo del móvil (la vista plana es el respaldo de equipos modestos)
 const SHOT_EVERY = 500, SHOT_MAX = 6, DASH = 0.35, FLASH_MS = 700;
 // Bolitas del mismo tamaño (radio en unidades del viewBox de 560) y separación mínima entre centros
-const DOT_R = 3.4, DOT_GAP = 1.15, HOT_R = 7;
+const DOT_R = 3.4, DOT_GAP = 1.15, HOT_R = 7, HIT_K = 1.8;   // HIT_K: área de detección del ratón, en radios
 
 /** Punto de la curva cuadrática a→c→b en s ∈ [0, 1]. */
 const quad = (a, c, b, s) => ({ x: (1 - s) * (1 - s) * a.x + 2 * (1 - s) * s * c.x + s * s * b.x, y: (1 - s) * (1 - s) * a.y + 2 * (1 - s) * s * c.y + s * s * b.y });
@@ -53,7 +53,7 @@ export function mountFlatGlobe(host, o) {
   let plan = null, maxShare = 1, timer = 0, onScreen = true, fired = 0;
   const shots = Array.from({ length: SHOT_MAX }, () => ({ live: false, from: null, to: null, r: 0, born: 0, dur: 0 }));
   let flashes = [];
-  let focus = null, drawn = [], over = false;   // país enfocado; bolitas pintadas (para el hover)
+  let focus = null, drawn = [], lastMouse = null, lastPick = 0;   // país enfocado; bolitas pintadas (para el hover)
   function setPairs(pr) {
     pairs = pr || [];
     const ok = pairs.filter((p) => o.centroid(p.from_cc) && o.centroid(p.to_cc));
@@ -209,21 +209,29 @@ export function mountFlatGlobe(host, o) {
     const dt = last ? Math.min(100, ts - last) : 16; last = ts;
     if (auto) { st.lon0 = ((st.lon0 - SPEED * dt / 1000 + 540) % 360) - 180; dirty = true; }
     if (timer && (flashes.length || shots.some((s) => s.live))) dirty = true;   // trazos en vuelo
+    // Con el ratón quieto, las bolitas siguen pasando por debajo mientras gira
+    if (auto && lastMouse && !pts.size && ts - lastPick > 120) { lastPick = ts; o.onHover(pickAt(lastMouse[0], lastMouse[1])); }
     if (dirty && ts - lastDraw > 33) { lastDraw = ts; draw(); }     // ~30 fps
     else pulse(ts);
   }
 
   const spin = (on) => { auto = on; if (o.onSpin) o.onSpin(on); };
   const hold = () => { spin(false); clearTimeout(idle); };
-  // Con el puntero encima o un país enfocado no se reanuda el giro
-  const release = () => { clearTimeout(idle); if (!o.reduced && !over && !focus) idle = setTimeout(() => spin(true), RESUME_MS); };
+  // Con un país enfocado (puntero sobre su bolita o panel abierto) no se reanuda el giro
+  const release = () => { clearTimeout(idle); if (!o.reduced && !focus) idle = setTimeout(() => spin(true), RESUME_MS); };
 
-  /** Bolita pintada más cercana a un punto de pantalla (a menos de tol px de su borde). */
-  function pickAt(cx, cy, tol) {
+  /** Bolita bajo un punto de pantalla. Ratón (tol = 0): la visible que lo contenga o, si no, la de
+   *  más actividad cuya área (HIT_K radios) lo contenga. Toque: la más cercana a tol px. */
+  function pickAt(cx, cy, tol = 0) {
     const b = host.getBoundingClientRect(), k = SIZE / Math.max(1, b.width);
-    const x = (cx - b.left) * k, y = (cy - b.top) * k, lim = (DOT_R + tol * k) ** 2;
+    const x = (cx - b.left) * k, y = (cy - b.top) * k, r2 = DOT_R * DOT_R, lim = tol ? (DOT_R + tol * k) ** 2 : r2 * HIT_K * HIT_K;
     let best = null, bd = Infinity;
-    for (const d of drawn) { const dd = (d.x - x) ** 2 + (d.y - y) ** 2; if (dd < lim && dd < bd) { bd = dd; best = d.m; } }
+    for (const d of drawn) {
+      const dd = (d.x - x) ** 2 + (d.y - y) ** 2;
+      if (tol) { if (dd < lim && dd < bd) { bd = dd; best = d.m; } }
+      else if (dd <= r2) return d.m;
+      else if (dd < lim && !best) best = d.m;
+    }
     return best;
   }
   const setZoom = (z) => { st.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); dirty = true; };
@@ -232,9 +240,8 @@ export function mountFlatGlobe(host, o) {
   const pts = new Map();
   let pinch0 = 0, zoom0 = 1;
   let down = null;
-  host.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { over = true; hold(); } });
-  host.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { over = false; o.onHover(null); release(); } });
-  host.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && !e.buttons) o.onHover(pickAt(e.clientX, e.clientY, 3)); });
+  host.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { lastMouse = null; o.onHover(null); } });
+  host.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && !e.buttons) { lastMouse = [e.clientX, e.clientY]; o.onHover(pickAt(e.clientX, e.clientY)); } });
   host.addEventListener('pointerdown', (e) => {
     down = { x: e.clientX, y: e.clientY, mouse: e.pointerType === 'mouse' };
     host.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); hold();
@@ -254,7 +261,7 @@ export function mountFlatGlobe(host, o) {
     const d = down; down = null;
     up(e);
     // Un toque/clic (sin arrastre): bolita → panel y flyTo; fuera de una bolita → se cierra
-    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) <= 6 && o.onPick) o.onPick(pickAt(e.clientX, e.clientY, d.mouse ? 3 : 12), !d.mouse);
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) <= 6 && o.onPick) o.onPick(pickAt(e.clientX, e.clientY, d.mouse ? 0 : 12), !d.mouse);
   });
   host.addEventListener('pointercancel', up);
   // La rueda sin Ctrl hace scroll de la página; con Ctrl, zoom corto
