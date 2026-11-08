@@ -225,6 +225,13 @@ El pipeline escribe en `data/` (ignorada por git). Al publicar, `scripts/montar_
 
 > **Qué es (y qué no es) el mapa.** `sources/attacks/{n}/{fecha}` de SANS ISC no es un top del día: es el ranking acumulado de DShield (IPs vistas desde hace años) filtrado a las que siguen activas desde esa fecha. Se piden 2000 IPs (`[mapa] ips`), se geolocalizan offline con DB-IP y se agregan por zona y país; **no se publica ninguna IP**. Por eso la web lo rotula «RANKING DSHIELD · IPS ACTIVAS HOY» y no «últimas 24 horas». Si un día salen menos de 10 países, el job deja un aviso en GitHub Actions. Se actualiza cada 3 horas.
 
+**Las rayas: disparos con frecuencia proporcional al dato.** Cada par de Cloudflare Radar no es una raya fija, sino una fuente de disparos: cada disparo es una sola pasada del trazo de origen a destino (1,2–1,8 s, más rápida cuanto más share) y un destello al llegar; un par consigo mismo (US → US) es un pulso en el país. Uno cada 300 ms en escritorio (12 a la vez como mucho) y cada 500 ms en móvil y en el globo SVG (6). Qué par dispara lo decide [`planificador.js`](web/assets/js/planificador.js), de forma determinista y no aleatoria, para que lo que se ve sea honesto con los datos:
+
+- **Ventanas Pfair centradas.** Con T = suma de shares, el k-ésimo disparo de un par de share w tiene la ventana [⌊(k−1)·T/w⌋, ⌈k·T/w⌉) y el instante ideal (k−½)·T/w. En cada turno dispara el par cuya ventana se cierra; si ninguno, el más retrasado respecto a su instante ideal.
+- **Garantías comprobadas en `tests/unit/`** (`node --test`, también en CI). Con shares 50/2/1 y 530 disparos: recuentos exactos 500/20/10, cada par a ±1 de lo esperado en cualquier prefijo, y ningún par pequeño espera más de ⌈T/w⌉+1 disparos entre dos suyos. Con los 28 pares reales del 04/11, ±1,5 en todo momento.
+- **Por qué no el SWRR de nginx.** Da la misma proporción y el mismo ±1, pero deja huecos de hasta ~2·T/w en los pares pequeños (32 disparos frente a un máximo de 28 con 50/2/1): Francia «desaparecía» y luego salía dos veces casi seguidas. Con muchos pares de pesos muy distintos ningún algoritmo cumple a la vez el ±1 y ese límite de huecos; las ventanas centradas son el mejor compromiso medido.
+- **Rendimiento.** Un solo temporizador; las rayas son un pool fijo que globe.gl reutiliza (no crea ni destruye mallas); cada turno llama una vez a `arcsData()` y a `ringsData()` y nunca rehace los marcadores. Pausa total con la pestaña oculta, con el globo fuera de pantalla y hasta 1,5 s después de montarlo. Con `prefers-reduced-motion` no hay disparos: las rayas del top se quedan estáticas.
+
 ## Seguridad
 
 Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y descripciones de repos de PoC) se tratan como **hostiles**.

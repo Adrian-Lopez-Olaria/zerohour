@@ -28,7 +28,7 @@ dependencias del proyecto).
 4. **zizmor `secrets-outside-env`.** `NVD_API_KEY` está en el job `recolectar` sin entorno.
    - Es una clave gratuita que solo amplía el límite de peticiones a la NVD.
    - El job solo corre en `main` (programado, por push o manual) y tiene `contents: read`.
-   - **Aceptado.** Mejora opcional: moverla a un entorno restringido a `main`, como el de Cloudflare.
+   - Aceptado el 04/11. **Corregido el 05/11:** vive, junto con `CLOUDFLARE_RADAR_TOKEN`, en el entorno `recolectar`, restringido a `main`.
 5. **semgrep `unsafe-add-mask-workflow-command` (2).** Aparece en `radar.yml`, en los jobs `recolectar` y `publicar`.
    - El ataque descrito (`::stop-commands::` en un workflow modificado) exige poder ejecutar workflows en el repositorio, y quien puede hacerlo ya tiene el token.
    - El `add-mask` es necesario porque Actions enmascara el token, pero no su base64.
@@ -46,10 +46,10 @@ dependencias del proyecto).
 
 ### CSP
 
-Producción sirve:
+Producción sirve (desde el 08/11, con los dos endurecimientos de abajo aplicados):
 
 ```
-default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'
+default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'; trusted-types 'none'
 ```
 
 Junto con:
@@ -64,11 +64,12 @@ Lo que se ha comprobado:
 - No hay `unsafe-inline`, `unsafe-eval` ni ningún origen de terceros.
 - Los estilos dinámicos usan CSSOM (`style.setProperty`), que la CSP permite.
 - La librería del globo se carga con `import()`, que no es un sink de Trusted Types, así que no hay ninguna política creada.
-- Las 32 pruebas E2E verifican que no se produce ninguna violación en las 4 vistas, también con los datos XSS.
+- Las pruebas E2E verifican que no se produce ninguna violación en las 4 vistas, también con los datos XSS.
 
-Posibles endurecimientos, que **no se aplican** sin aprobación porque cambian la CSP aprobada:
-- `trusted-types 'none'`: ningún script podría crear una política para saltarse Trusted Types.
-- `img-src 'self'`: pasaría el favicon de `data:` a un fichero. La textura del globo ya no usa `data:`.
+Endurecimientos propuestos en esta auditoría y **aplicados el 08/11** (aprobados por dirección):
+- `trusted-types 'none'`: ningún script puede crear una política para saltarse Trusted Types.
+- `img-src 'self'`: los favicons pasan de `data:` a ficheros propios (`web/assets/favicon.svg` y `favicon-404.svg`).
+- Tras el cambio: 0 violaciones en los E2E y Mozilla HTTP Observatory A+ (145, 12/12) en un escaneo nuevo.
 
 ### Flujo dato externo → DOM
 
@@ -81,3 +82,23 @@ Los datos de NVD, KEV, GHSA, RSS, PoC y DShield se tratan como hostiles.
 - Los enlaces externos salen de `extLink()`, con `rel="noopener noreferrer"`; los de PoC añaden `nofollow ugc`.
 - No hay `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, `new Function` ni `setTimeout` con cadenas en el código propio. Se ha comprobado con grep y con semgrep.
 - Los únicos valores de datos que acaban en CSS son números (anchos de barra, `flex` del histórico y tamaño de los marcadores).
+
+## Actualización · 8 de noviembre de 2026 (antes del lanzamiento)
+
+| Cambio | Commit | Comprobación |
+|---|---|---|
+| CSP: `trusted-types 'none'` e `img-src 'self'` (ver arriba) | `66c501e` | 0 violaciones en E2E; Observatory A+ (145) |
+| `user_agent` sin marcadores de posición: `ZEROHOUR/1.0 (+https://zerohour-cve.dev)` | `6d20238` | sin `TU_USUARIO`, `RadarCVE` ni `radar-cve` en el código |
+| Fuera la plataforma de hosting anterior: las cabeceras viven en `cabeceras.toml` (única fuente) | `535e303`, `0db0572` | cabeceras servidas en producción idénticas antes y después (`curl -sI` en 5 rutas) |
+| Fuera del repo el material de trabajo (prototipos, órdenes, traspasos, encargo del pentest) | `82af2c7` | sin enlaces rotos; `.gitignore` impide que vuelva |
+| Correo personal en el historial | — | clon nuevo, `git log --all -p` en todas las ramas: 0 apariciones; solo direcciones `noreply` como autoras |
+| Test de secretos de los workflows al día | `66c501e` | distingue el token de Radar (`recolectar`) del de despliegue (`desplegar`) |
+
+### Honestidad de los datos del mapa
+
+- **Frecuencia de las rayas.** Las rayas de Cloudflare Radar se ven como disparos cuya frecuencia es proporcional al % real de cada par. El reparto es determinista (`web/assets/js/planificador.js`, ventanas Pfair centradas) y está probado: con 50/2/1, recuentos exactos, ±1 en cualquier prefijo y sin huecos largos en los pares pequeños; con los 28 pares reales, ±1,5. La web lo dice: «Frecuencia de cada raya proporcional a su % real».
+- **Pendiente (H1).** Las llamadas a Radar por país (`&location=XX`) devuelven el % del tráfico con origen en ese país, no del total mundial, y el pipeline los mezclaba con los de la llamada global. Corrección propuesta: un campo `scope` por par y no comparar nunca shares de ámbitos distintos; si no se aprueba antes del lanzamiento, se publica solo la llamada global.
+
+### Pentest externo
+
+Pendiente. Cuando se haga, el resumen del informe irá en `docs/`.
