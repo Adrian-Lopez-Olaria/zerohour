@@ -14,7 +14,7 @@ Todo corre gratis: el pipeline en **GitHub Actions** y la web en **Cloudflare Wo
 |---|---|---|
 | ![Briefing en móvil: lead, cifras y el globo, con el top justo después](docs/capturas/orbita-briefing-390.png) | ![Ficha: «Qué hacer» primero, con el plazo CISA y el desglose del score](docs/capturas/orbita-ficha-1440.png) | ![Listado agrupado por veredicto con buscador y filtros](docs/capturas/orbita-listado-1440.png) |
 
-El diseño es «Órbita»: el globo manda y los datos orbitan a su alrededor. Está documentado en [`design/orbita/`](design/orbita/) (guía de estilo, lista de cambios, prototipo y capturas). Las fuentes son Saira y Azeret Mono (OFL), autoalojadas; `design/` no se publica.
+El diseño es «Órbita»: el globo manda y los datos orbitan a su alrededor. Los colores y las medidas viven en [`web/assets/css/tokens.css`](web/assets/css/tokens.css). Las fuentes son Saira y Azeret Mono (OFL), autoalojadas: ver [`FUENTES.md`](web/assets/fonts/FUENTES.md).
 
 Anchos intermedios: [1024 px](docs/capturas/orbita-briefing-1024.png) · [768 px](docs/capturas/orbita-briefing-768.png) · histórico: [1440 px](docs/capturas/orbita-historico-1440.png).
 

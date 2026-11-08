@@ -1,5 +1,5 @@
 /* =============================================================================
-   render/briefing.js · BRIEFING «Órbita» (design/orbita/zerohour-estilo-orbita.md §4)
+   render/briefing.js · BRIEFING «Órbita»
    Escritorio (1440 × 900 sin scroll): «Lo primero hoy» + tira de cifras y, 24 px debajo,
    tres columnas que empiezan a la misma altura: top 10 (440) · globo (1fr) · radar y
    puertos (330). Debajo del primer pantallazo, «Más del día»: avisos y prensa y el resumen.

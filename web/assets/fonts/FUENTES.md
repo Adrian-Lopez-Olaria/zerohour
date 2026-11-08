@@ -1,8 +1,7 @@
 # Fuentes autoalojadas (Órbita)
 
 Subconjunto **latin** servido desde el propio dominio (la CSP es `font-src 'self'`; no se
-permiten terceros), con `font-display: swap`. Llegan en el paquete de diseño
-(`design/orbita/fuentes/`), con sus licencias y su `SHA256SUMS.txt`.
+permiten terceros), con `font-display: swap`.
 
 | Archivo | Familia | Estilo / ejes | Uso | SHA-256 |
 |---|---|---|---|---|
@@ -18,7 +17,7 @@ tampoco ′). Las formas de los veredictos, las flechas y los iconos son **SVG p
 `tests/pipeline/test_glifos.py` comprueba con fontTools que todo carácter que pinta la web
 tiene glifo en Saira, para que ninguno caiga en una fuente del sistema.
 
-Comprobación: `sha256sum -c` con las sumas de esta tabla (o el `SHA256SUMS.txt` del paquete).
+Comprobación: `sha256sum -c` con las sumas de esta tabla.
 
 ## Licencia
 

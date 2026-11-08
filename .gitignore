@@ -21,6 +21,12 @@ node_modules/
 /playwright-report/
 /.playwright/
 
+# ── Material de trabajo: diseño, paquetes y documentos internos (no van al repo) ──
+design/
+*.zip
+*.bundle
+docs/interno/
+
 # ── Varios ──
 .netlify/
 .wrangler/

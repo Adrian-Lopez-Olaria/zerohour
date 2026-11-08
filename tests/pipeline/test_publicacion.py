@@ -117,8 +117,10 @@ def test_montar_solo_publica_la_lista_blanca(tmp_path):
 
 
 def test_montar_no_publica_design_ni_nada_fuera_de_web(tmp_path):
-    """Órdenes de Órbita §0.3: nada de design/ (prototipos, capturas, paquete de fuentes) se publica."""
-    assert (ROOT / "design").is_dir()
+    """Material de trabajo en la raíz (design/, zips) nunca se publica: solo web/ y la configuración."""
+    (tmp_path / "design").mkdir()
+    (tmp_path / "design" / "prototipo.html").write_text("<p>x</p>")
+    (tmp_path / "paquete.zip").write_bytes(b"PK")
     shutil.copy2(ROOT / "cabeceras.toml", tmp_path / "cabeceras.toml")
     shutil.copy2(ROOT / "wrangler.jsonc", tmp_path / "wrangler.jsonc")
     out = tmp_path / "_deploy"

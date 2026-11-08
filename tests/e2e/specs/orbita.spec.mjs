@@ -1,5 +1,5 @@
-// Criterios de aceptación de «Órbita» (design/orbita/zerohour-cambios-orbita.md §9) y órdenes de
-// dirección: 4 rutas, estados especiales, respaldo sin WebGL, accesibilidad y capturas.
+// Criterios de aceptación del diseño «Órbita»: 4 rutas, estados especiales, respaldo sin WebGL,
+// accesibilidad y capturas.
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { open, go, csp, globeReady, noHorizontalScroll, FIXTURE, VIEWS } from './helpers.mjs';
