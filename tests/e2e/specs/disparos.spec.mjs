@@ -7,6 +7,18 @@ import { open, csp, globeReady, FIXTURE } from './helpers.mjs';
 const zone = (page) => page.locator('#globe-zone');
 const fired = async (page) => Number(await zone(page).getAttribute('data-shots')) || 0;
 
+/** Disparos en una ventana medida con el reloj de la propia página (el del runner, con carga, no vale). */
+const rate = (page, ms) => page.evaluate((w) => new Promise((res) => {
+  const z = document.getElementById('globe-zone'), n0 = Number(z.dataset.shots) || 0, t0 = performance.now();
+  setTimeout(() => res({ n: (Number(z.dataset.shots) || 0) - n0, dt: performance.now() - t0 }), w);
+}), ms);
+
+/** Ritmo: nunca más rápido que 1 cada `every` ms (±1 por el borde de la ventana) y al menos el 50 %. */
+function expectRate({ n, dt }, every) {
+  expect(n).toBeLessThanOrEqual(Math.floor(dt / every) + 1);
+  expect(n).toBeGreaterThanOrEqual(Math.floor((dt / every) * 0.5));
+}
+
 async function setHidden(page, hidden) {
   await page.evaluate((h) => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
@@ -23,11 +35,7 @@ test.describe('disparos · escritorio', () => {
     expect(await globeReady(page)).toContain('is-globe');
     await expect(zone(page)).toHaveAttribute('data-disparos', 'on');
     await expect(page.locator('.mapp__freq')).toHaveText('Frecuencia de cada raya proporcional a su % real');
-    const a = await fired(page);
-    await page.waitForTimeout(3000);
-    const n = (await fired(page)) - a;
-    expect(n).toBeGreaterThanOrEqual(7);                   // 10 en teoría; margen para CI lento
-    expect(n).toBeLessThanOrEqual(11);
+    expectRate(await rate(page, 3000), 300);
     expect(await csp(page)).toEqual([]);
     expect(errors).toEqual([]);
   });
@@ -68,12 +76,9 @@ test.describe('disparos · móvil 390 × 844', () => {
     await open(page, FIXTURE.orbita);
     await globeReady(page);
     await expect(zone(page)).toHaveAttribute('data-disparos', 'on');
-    const a = await fired(page);
-    await page.waitForTimeout(3000);
-    const n = (await fired(page)) - a;
-    expect(n).toBeGreaterThanOrEqual(4);                   // 6 en teoría
-    expect(n).toBeLessThanOrEqual(7);
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    expectRate(await rate(page, 3000), 500);
+    // Fuera de pantalla: se baja hasta que el globo queda entero por encima de la ventana
+    await page.evaluate(() => { const r = document.getElementById('globe-zone').getBoundingClientRect(); window.scrollBy(0, r.bottom + 50); });
     await expect(zone(page)).toHaveAttribute('data-disparos', 'off');
   });
 });

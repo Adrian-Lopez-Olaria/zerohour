@@ -157,7 +157,8 @@ test.describe('sin WebGL: globo SVG de respaldo', () => {
       await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 });
       await page.getByRole('button', { name: 'Acercar' }).click();                 // zoom corto en el SVG
       await expect(page.locator('#globe-flat svg.is-zoomed')).toHaveCount(1);
-      expect(await page.locator('#globe-flat path.gp-arc').count()).toBeGreaterThan(0);  // mismas rayas en SVG
+      // Mismas rayas en SVG: son disparos efímeros, así que se espera a que pase alguno
+      await expect.poll(() => page.locator('#globe-flat path.gp-arc').count(), { timeout: 8000 }).toBeGreaterThan(0);
       expect(await csp(page)).toEqual([]);
       // El único error es la petición bloqueada a propósito
       expect(errors.filter((e) => !/globo no disponible|Failed to load resource/.test(e))).toEqual([]);
