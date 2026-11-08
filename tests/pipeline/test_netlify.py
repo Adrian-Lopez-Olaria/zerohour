@@ -47,10 +47,11 @@ def test_csp_estricta():
     assert d["default-src"] == ["'none'"]
     for k in ("script-src", "style-src", "connect-src", "font-src", "manifest-src"):
         assert d[k] == ["'self'"], k
-    assert d["img-src"] == ["'self'", "data:"]
+    assert d["img-src"] == ["'self'"]
     assert d["worker-src"] == ["'none'"]
     assert d["base-uri"] == d["form-action"] == d["frame-ancestors"] == ["'none'"]
     assert d["require-trusted-types-for"] == ["'script'"]
+    assert d["trusted-types"] == ["'none'"]
     assert "upgrade-insecure-requests" in d
     todo = " ".join(" ".join(v) for v in d.values())
     assert not re.search(r"unsafe-|blob:|\*|https?:", todo)

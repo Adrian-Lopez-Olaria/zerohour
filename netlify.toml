@@ -21,9 +21,10 @@
   for = "/*"
   [headers.values]
     # Solo recursos propios, sin excepciones. worker-src 'none': el bundle de globe.gl/three.js
-    # no crea workers ni blobs (comprobado en el fichero), así que no hace falta blob:.
-    # Trusted Types obligatorio para los sinks de script.
-    Content-Security-Policy = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'"
+    # no crea workers ni blobs (comprobado en el fichero), así que no hace falta blob:. El
+    # favicon es un fichero propio (web/assets/favicon.svg): sin data: en img-src. trusted-types
+    # 'none': ningún script crea una política de Trusted Types, así que se bloquea cualquiera.
+    Content-Security-Policy = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'; trusted-types 'none'"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
@@ -78,6 +79,16 @@
 
 [[headers]]
   for = "/assets/geo/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/favicon.svg"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/assets/favicon-404.svg"
   [headers.values]
     Cache-Control = "no-cache"
 

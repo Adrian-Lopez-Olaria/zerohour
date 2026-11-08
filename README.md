@@ -235,7 +235,7 @@ Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y
   - Sin `eval`, sin trackers y sin secretos en el frontend.
 - **Pipeline.** `radar.py` vuelve a sanear en origen: descarta URLs que no sean http(s), recorta textos y valida coordenadas, códigos de país y fechas. Es defensa en profundidad. Los datos se validan otra vez antes de publicar.
 - **Cabeceras (`netlify.toml` → `_headers` de Cloudflare).**
-  - CSP `default-src 'none'` con solo `'self'`, sin `unsafe-*` ni `blob:` y con `require-trusted-types-for 'script'`.
+  - CSP `default-src 'none'` con solo `'self'` (favicon incluido, como fichero), sin `unsafe-*` ni `blob:`, con `require-trusted-types-for 'script'` y `trusted-types 'none'`.
   - HSTS con *preload*, `nosniff`, `Referrer-Policy`, `Permissions-Policy` con todo desactivado, COOP, CORP y `X-Frame-Options: DENY`.
   - Caché: inmutable solo en `vendor/` y fuentes. El resto se revalida siempre, y el HTML lleva `no-transform`.
 - **Dominio.** DNSSEC, CAA solo para las autoridades que usa Cloudflare, TLS 1.2 como mínimo y http → https. El dominio no envía correo: SPF `-all`, DMARC `p=reject` y MX nulo.

@@ -305,7 +305,10 @@ def test_workflow_secrets_de_cloudflare_solo_en_el_paso_de_despliegue():
     w = _workflow()
     for nombre, job in w["jobs"].items():
         for paso in job["steps"]:
-            if "CLOUDFLARE" in json.dumps(paso):
+            txt = json.dumps(paso)
+            if "CLOUDFLARE_RADAR_TOKEN" in txt:
+                assert nombre == "recolectar"                              # token de Radar, solo ahí
+            elif "CLOUDFLARE" in txt:
                 assert (nombre, paso.get("name")) == ("desplegar", "Desplegar en Cloudflare Workers")
     paso = next(p for p in w["jobs"]["desplegar"]["steps"] if p.get("name") == "Desplegar en Cloudflare Workers")
     assert paso["env"]["CLOUDFLARE_API_TOKEN"] == "${{ secrets.CLOUDFLARE_API_TOKEN }}"
