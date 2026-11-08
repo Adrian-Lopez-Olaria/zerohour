@@ -2,7 +2,7 @@
 // wrangler.jsonc · ZEROHOUR en Cloudflare Workers, solo ficheros estáticos (sin código de Worker)
 //
 // montar_deploy.py copia este fichero a la raíz del sitio montado (_deploy/) y genera
-// _deploy/web/_headers desde netlify.toml, la única fuente de las cabeceras. El job
+// _deploy/web/_headers desde cabeceras.toml, la única fuente de las cabeceras. El job
 // `desplegar` del workflow ejecuta `wrangler deploy` sobre esa carpeta.
 // ─────────────────────────────────────────────────────────────────────────────
 {

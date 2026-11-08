@@ -104,38 +104,38 @@ def test_montar_solo_publica_la_lista_blanca(tmp_path):
     data = write_data(tmp_path / "data")
     (data / "linkedin.md").write_text("borrador")                  # borrador: no se publica
     (data / "days" / "notas.txt").write_text("x")                  # resto: no se publica
-    shutil.copy2(ROOT / "netlify.toml", tmp_path / "netlify.toml")
+    shutil.copy2(ROOT / "cabeceras.toml", tmp_path / "cabeceras.toml")
     shutil.copy2(ROOT / "wrangler.jsonc", tmp_path / "wrangler.jsonc")
     out = tmp_path / "_deploy"
     info = mon.montar(web, data, out, tmp_path)
     pub = sorted(p.relative_to(out / "web" / "data").as_posix() for p in (out / "web" / "data").rglob("*") if p.is_file())
     assert pub == sorted(["latest.json", "index.json", "map.json", f"days/{DATE}.json"])
-    assert (out / "web" / "index.html").is_file() and (out / "netlify.toml").is_file()
+    assert (out / "web" / "index.html").is_file() and (out / "cabeceras.toml").is_file()
     assert (out / "wrangler.jsonc").is_file()
-    assert (out / "web" / "_headers").read_text(encoding="utf-8") == mon.cabeceras_cloudflare(ROOT / "netlify.toml")
+    assert (out / "web" / "_headers").read_text(encoding="utf-8") == mon.cabeceras_cloudflare(ROOT / "cabeceras.toml")
     assert info["dias"] == 1
 
 
 def test_montar_no_publica_design_ni_nada_fuera_de_web(tmp_path):
     """Órdenes de Órbita §0.3: nada de design/ (prototipos, capturas, paquete de fuentes) se publica."""
     assert (ROOT / "design").is_dir()
-    shutil.copy2(ROOT / "netlify.toml", tmp_path / "netlify.toml")
+    shutil.copy2(ROOT / "cabeceras.toml", tmp_path / "cabeceras.toml")
     shutil.copy2(ROOT / "wrangler.jsonc", tmp_path / "wrangler.jsonc")
     out = tmp_path / "_deploy"
     mon.montar(ROOT / "web", write_data(tmp_path / "data"), out, tmp_path)
     top = {p.name for p in out.iterdir()}
-    assert top == {"web", "netlify.toml", "wrangler.jsonc"}
+    assert top == {"web", "cabeceras.toml", "wrangler.jsonc"}
     assert not any("design" in p.parts or p.suffix == ".zip" or "orbita" in p.name for p in out.rglob("*"))
 
 
-def test_montar_exige_netlify_toml(tmp_path):
-    """Sin netlify.toml el sitio saldría sin CSP ni cabeceras: no se monta."""
-    with pytest.raises(SystemExit, match="netlify.toml"):
+def test_montar_exige_cabeceras_toml(tmp_path):
+    """Sin cabeceras.toml el sitio saldría sin CSP ni cabeceras: no se monta."""
+    with pytest.raises(SystemExit, match="cabeceras.toml"):
         mon.montar(ROOT / "web", write_data(tmp_path / "data"), tmp_path / "_deploy", tmp_path)
 
 
 def test_montar_exige_wrangler_jsonc(tmp_path):
-    shutil.copy2(ROOT / "netlify.toml", tmp_path / "netlify.toml")
+    shutil.copy2(ROOT / "cabeceras.toml", tmp_path / "cabeceras.toml")
     with pytest.raises(SystemExit, match="wrangler.jsonc"):
         mon.montar(ROOT / "web", write_data(tmp_path / "data"), tmp_path / "_deploy", tmp_path)
 
@@ -150,10 +150,10 @@ def test_montar_exige_wrangler_jsonc(tmp_path):
     ("".join(f'[[headers]]\nfor = "/r{i}"\n[headers.values]\nX = "1"\n' for i in range(101)), "admite 100"),
 ])
 def test_cabeceras_cloudflare_rechaza_lo_que_no_se_puede_traducir(tmp_path, toml, motivo):
-    """Si netlify.toml tiene algo que _headers no expresa (o pasa sus límites), no se publica."""
-    (tmp_path / "netlify.toml").write_text(toml, encoding="utf-8")
+    """Si cabeceras.toml tiene algo que _headers no expresa (o pasa sus límites), no se publica."""
+    (tmp_path / "cabeceras.toml").write_text(toml, encoding="utf-8")
     with pytest.raises(SystemExit, match=motivo):
-        mon.cabeceras_cloudflare(tmp_path / "netlify.toml")
+        mon.cabeceras_cloudflare(tmp_path / "cabeceras.toml")
 
 
 # ───────────────────────── force-push a deploy (repo bare local) ─────────────────────────
@@ -200,7 +200,7 @@ def test_publicar_es_huerfano_y_no_toca_main(tmp_path, remoto):
     assert git("--git-dir", str(remoto), "rev-parse", "main") == main_antes             # main intacta
     files = git("--git-dir", str(remoto), "ls-tree", "-r", "--name-only", "deploy").splitlines()
     assert "web/index.html" in files and "web/data/latest.json" in files
-    assert "netlify.toml" in files and "web/.well-known/security.txt" in files and "web/404.html" in files
+    assert "cabeceras.toml" in files and "web/.well-known/security.txt" in files and "web/404.html" in files
     assert "wrangler.jsonc" in files and "web/_headers" in files
     assert not any(f.startswith(("scripts/", "tests/", "design/")) or f.endswith((".py", ".toml.bak")) for f in files)
 

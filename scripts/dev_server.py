@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-dev_server.py · sirve web/ en local con las MISMAS cabeceras que Netlify (solo biblioteca estándar)
+dev_server.py · sirve web/ en local con las MISMAS cabeceras que producción (solo biblioteca estándar)
 
-Lee las reglas [[headers]] de netlify.toml y las aplica igual que Netlify: se juntan todas
-las reglas cuyo `for` casa con la ruta pedida y, si dos fijan la misma cabecera, se unen con
-", " (como hace Netlify; así un solape se ve también aquí). Así la CSP, Trusted Types, nosniff
-y la caché se prueban en local antes de publicar.
+Lee las reglas [[headers]] de cabeceras.toml y las aplica con la misma semántica que Cloudflare:
+se juntan todas las reglas cuyo `for` casa con la ruta pedida y, si dos fijan la misma cabecera,
+se unen con ", " (así un solape se ve también aquí). Así la CSP, Trusted Types, nosniff y la
+caché se prueban en local antes de publicar.
 
   python scripts/dev_server.py                      # http://127.0.0.1:8000 · datos de data/
   python scripts/dev_server.py --dev                # además /fixtures/ (tests/fixtures), solo en local
@@ -48,7 +48,7 @@ MIME = {
 }
 
 
-# ───────────────────────── reglas de netlify.toml ─────────────────────────
+# ───────────────────────── reglas de cabeceras.toml ─────────────────────────
 
 def load_rules(toml_path: Path) -> list[tuple[re.Pattern, dict[str, str]]]:
     conf = tomllib.loads(toml_path.read_text(encoding="utf-8"))
@@ -59,7 +59,7 @@ def load_rules(toml_path: Path) -> list[tuple[re.Pattern, dict[str, str]]]:
 
 
 def pattern(spec: str) -> re.Pattern:
-    """Ruta de Netlify → regex: `*` es el splat (cualquier resto, incluidas barras);
+    """Ruta de cabeceras.toml → regex: `*` es el splat (cualquier resto, incluidas barras);
     `:param` es un segmento. El resto es literal y la ruta casa entera."""
     out = []
     for tok in re.split(r"(\*|:[A-Za-z_]\w*)", spec):
@@ -146,14 +146,14 @@ class Handler(BaseHTTPRequestHandler):
         f = self.map_path(path) if path and path.startswith("/") else None
         status = HTTPStatus.OK
         if f is None or not f.is_file():
-            status, f = HTTPStatus.NOT_FOUND, self.cfg.root / "404.html"   # como Netlify
+            status, f = HTTPStatus.NOT_FOUND, self.cfg.root / "404.html"   # cualquier ruta inexistente
         data = f.read_bytes() if f.is_file() else b"404"
 
         h = headers_for(path or "/", self.cfg.rules)
         if "Content-Security-Policy" in h:
             h["Content-Security-Policy"] = dev_csp(h["Content-Security-Policy"])
         h.setdefault("Content-Type", MIME.get(f.suffix.lower(), "application/octet-stream"))
-        h.setdefault("Cache-Control", "public, max-age=0, must-revalidate")   # el valor por defecto de Netlify
+        h.setdefault("Cache-Control", "public, max-age=0, must-revalidate")   # el valor por defecto de la plataforma
         self.send_response(status)
         for k, v in h.items():
             self.send_header(k, v)
@@ -173,17 +173,17 @@ class Server(ThreadingHTTPServer):
 
 
 class Cfg:
-    def __init__(self, root: Path, data: Path, fixtures: Path | None, netlify: Path, quiet: bool):
-        self.root, self.data, self.fixtures, self.netlify, self.quiet = root, data, fixtures, netlify, quiet
-        self.rules = load_rules(netlify)
+    def __init__(self, root: Path, data: Path, fixtures: Path | None, cabeceras: Path, quiet: bool):
+        self.root, self.data, self.fixtures, self.cabeceras, self.quiet = root, data, fixtures, cabeceras, quiet
+        self.rules = load_rules(cabeceras)
 
 
 def build(argv=None) -> tuple[Server, Cfg]:
-    ap = argparse.ArgumentParser(description="Servidor local con las cabeceras de netlify.toml")
+    ap = argparse.ArgumentParser(description="Servidor local con las cabeceras de cabeceras.toml")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--root", type=Path, default=ROOT / "web", help="carpeta publicada (por defecto web/)")
     ap.add_argument("--data", type=Path, help="carpeta servida en /data/ (por defecto <root>/data o data/)")
-    ap.add_argument("--netlify", type=Path, default=ROOT / "netlify.toml")
+    ap.add_argument("--cabeceras", type=Path, default=ROOT / "cabeceras.toml")
     ap.add_argument("--dev", action="store_true", help="sirve tests/fixtures en /fixtures/ (?fixtures=normal|xss|…)")
     ap.add_argument("--fixtures", type=Path, default=ROOT / "tests" / "fixtures", help="carpeta de fixtures (con --dev)")
     ap.add_argument("--quiet", action="store_true")
@@ -193,7 +193,7 @@ def build(argv=None) -> tuple[Server, Cfg]:
     if not (root / "index.html").is_file():
         ap.error(f"{root} no contiene index.html")
     data = (a.data or (root / "data" if (root / "data" / "latest.json").is_file() else ROOT / "data")).resolve()
-    cfg = Cfg(root, data, a.fixtures.resolve() if a.dev else None, a.netlify, a.quiet)
+    cfg = Cfg(root, data, a.fixtures.resolve() if a.dev else None, a.cabeceras, a.quiet)
     return Server(("127.0.0.1", a.port), partial(Handler, cfg=cfg)), cfg
 
 
@@ -202,7 +202,7 @@ def main(argv=None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
     httpd, cfg = build(argv)
-    print(f"ZEROHOUR dev · http://127.0.0.1:{httpd.server_port}/  (cabeceras de {cfg.netlify.name}: {len(cfg.rules)} reglas)")
+    print(f"ZEROHOUR dev · http://127.0.0.1:{httpd.server_port}/  (cabeceras de {cfg.cabeceras.name}: {len(cfg.rules)} reglas)")
     print(f"  web: {cfg.root}\n  datos: {cfg.data}"
           + (f"\n  fixtures: {cfg.fixtures}  → /?fixtures=normal" if cfg.fixtures else ""))
     try:

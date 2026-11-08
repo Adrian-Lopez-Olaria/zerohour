@@ -44,7 +44,7 @@ aviso después, con un máximo de 90 días desde el reporte salvo que acordemos 
   nombre o descripción de un repo de PoC…) acabe ejecutando código o rompiendo la CSP.
 - El pipeline `scripts/` (sobre todo `radar.py`): parseo de fuentes de terceros, escritura de
   ficheros, descarga y verificación de la base de DB-IP.
-- `config.toml`, `.github/workflows/`, `netlify.toml` (fuente de las cabeceras), `wrangler.jsonc`
+- `config.toml`, `.github/workflows/`, `cabeceras.toml` (fuente de las cabeceras), `wrangler.jsonc`
   y la cadena de suministro del repo (acciones fijadas por SHA, dependencias con hashes).
 
 **Fuera:**

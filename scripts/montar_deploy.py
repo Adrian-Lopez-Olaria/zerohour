@@ -8,9 +8,9 @@ commit huérfano, así que el historial de git no crece con los datos.
 
   _deploy/
     wrangler.jsonc        (de main: configuración de Cloudflare Workers; obligatorio)
-    netlify.toml          (de main: la ÚNICA fuente de las cabeceras de seguridad y caché)
+    cabeceras.toml        (de main: la ÚNICA fuente de las cabeceras de seguridad y caché)
     web/                  (de main, sin web/data/ local)
-    web/_headers          (GENERADO aquí desde netlify.toml: cabeceras para Cloudflare)
+    web/_headers          (GENERADO aquí desde cabeceras.toml: cabeceras para Cloudflare)
     web/data/             (datos: solo lo que la web usa, ver PUBLICABLE)
 
 Uso:
@@ -34,7 +34,7 @@ CF_MAX_LINEA = 2000
 
 
 def cabeceras_cloudflare(toml_path: Path) -> str:
-    """_headers de Cloudflare a partir de las reglas [[headers]] de netlify.toml.
+    """_headers de Cloudflare a partir de las reglas [[headers]] de cabeceras.toml.
 
     La semántica es la misma en los dos: se aplican TODAS las reglas cuyo patrón casa con la
     ruta, una cabecera repetida en dos reglas se une con comas y `*` es el splat. Por eso la
@@ -45,7 +45,7 @@ def cabeceras_cloudflare(toml_path: Path) -> str:
         raise SystemExit(f"{toml_path} no tiene [[headers]]: sin cabeceras de seguridad no se publica")
     if len(reglas) > CF_MAX_REGLAS:
         raise SystemExit(f"{len(reglas)} reglas de cabeceras: Cloudflare admite {CF_MAX_REGLAS}")
-    out = ["# GENERADO por scripts/montar_deploy.py desde netlify.toml. No se edita a mano.", ""]
+    out = ["# GENERADO por scripts/montar_deploy.py desde cabeceras.toml. No se edita a mano.", ""]
     for r in reglas:
         ruta = str(r.get("for", ""))
         if not ruta.startswith("/") or any(c.isspace() for c in ruta) or ruta.count("*") > 1:
@@ -65,12 +65,12 @@ def cabeceras_cloudflare(toml_path: Path) -> str:
 def montar(web: Path, data: Path, out: Path, root: Path) -> dict:
     if not (web / "index.html").is_file():
         raise SystemExit(f"{web} no parece la web (falta index.html)")
-    # Sin netlify.toml el sitio saldría sin CSP ni cabeceras: no se monta
-    if not (root / "netlify.toml").is_file():
-        raise SystemExit(f"falta {root / 'netlify.toml'}: sin cabeceras de seguridad no se publica")
+    # Sin cabeceras.toml el sitio saldría sin CSP ni cabeceras: no se monta
+    if not (root / "cabeceras.toml").is_file():
+        raise SystemExit(f"falta {root / 'cabeceras.toml'}: sin cabeceras de seguridad no se publica")
     if not (root / "wrangler.jsonc").is_file():
         raise SystemExit(f"falta {root / 'wrangler.jsonc'}: sin configuración de Cloudflare no se publica")
-    headers = cabeceras_cloudflare(root / "netlify.toml")      # antes de borrar nada: si falla, no se toca _deploy
+    headers = cabeceras_cloudflare(root / "cabeceras.toml")    # antes de borrar nada: si falla, no se toca _deploy
     if out.exists():
         shutil.rmtree(out)
     # Código: web/ entero salvo web/data (copia local de desarrollo, gitignored)
@@ -87,7 +87,7 @@ def montar(web: Path, data: Path, out: Path, root: Path) -> dict:
     dias = sorted(data.glob(DAYS_GLOB))
     for f in dias:
         shutil.copy2(f, dest / "days" / f.name)
-    shutil.copy2(root / "netlify.toml", out / "netlify.toml")
+    shutil.copy2(root / "cabeceras.toml", out / "cabeceras.toml")
     shutil.copy2(root / "wrangler.jsonc", out / "wrangler.jsonc")
     return {"datos": copiados, "dias": len(dias)}
 
@@ -97,7 +97,7 @@ def main() -> int:
     ap.add_argument("--web", type=Path, default=Path("web"))
     ap.add_argument("--data", type=Path, default=Path("data"))
     ap.add_argument("--out", type=Path, default=Path("_deploy"))
-    ap.add_argument("--root", type=Path, default=Path("."), help="raíz del repo (netlify.toml y wrangler.jsonc)")
+    ap.add_argument("--root", type=Path, default=Path("."), help="raíz del repo (cabeceras.toml y wrangler.jsonc)")
     a = ap.parse_args()
     info = montar(a.web, a.data, a.out, a.root)
     print(f"✓ sitio montado en {a.out}: wrangler.jsonc + _headers + {', '.join(info['datos'])} + {info['dias']} días")

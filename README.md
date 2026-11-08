@@ -60,7 +60,7 @@ Trece fuentes de datos, más prensa especializada y geolocalización offline:
                 ▼
  ┌──────────────────────────── GitHub Actions (cron 05:17 UTC y cada 3 h) ───────────────────┐
  │ recolectar · contents: read   radar.py → data/*.json → validar_datos.py → artifact        │
- │ publicar   · contents: write  montar_deploy.py: web/ + datos + _headers (de netlify.toml)  │
+ │ publicar   · contents: write  montar_deploy.py: web/ + datos + _headers (de cabeceras.toml)  │
  │                               → commit huérfano y force-push SOLO a la rama deploy         │
  │ desplegar  · contents: read   wrangler deploy de ese commit exacto (entorno «cloudflare»)  │
  └────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -79,9 +79,9 @@ Trece fuentes de datos, más prensa especializada y geolocalización offline:
 - **`main` solo tiene código.** Los datos nunca se suben a `main`, así que su historial no crece cada día.
 - **`deploy` es el sitio ya montado** y tiene siempre **un único commit**: cada publicación lo reemplaza con un commit huérfano y *force-push*. El *force-push* solo existe hacia `deploy`: el destino está fijado en `scripts/publicar_deploy.sh` y un test lo comprueba.
 - **Tres jobs con permisos mínimos.** `recolectar` (`contents: read`) ejecuta el pipeline y recupera el histórico de 90 días **desde `deploy`**. `publicar` (`contents: write`) solo valida, monta y empuja, sin instalar nada. `desplegar` (`contents: read`) sube a Cloudflare exactamente ese commit de `deploy` con `wrangler`, instalado con `npm ci --ignore-scripts` desde un lockfile con hashes; es el único paso que ve el token de Cloudflare.
-- **Una sola fuente de cabeceras.** `netlify.toml` define la CSP, el resto de cabeceras y la caché; `scripts/montar_deploy.py` lo traduce al `_headers` de Cloudflare y los tests comprueban, ruta a ruta, que salen idénticas.
+- **Una sola fuente de cabeceras.** `cabeceras.toml` define la CSP, el resto de cabeceras y la caché; `scripts/montar_deploy.py` lo traduce al `_headers` de Cloudflare y los tests comprueban, ruta a ruta, que salen idénticas.
 - **Si los datos no pasan `scripts/validar_datos.py`, no se publica nada** y la web sigue con la edición anterior. Lo mismo si el histórico pierde días recientes.
-- **Un cambio de código en `main`** (web, `netlify.toml` o scripts de publicación) regenera `deploy` reutilizando los datos ya publicados.
+- **Un cambio de código en `main`** (web, `cabeceras.toml` o scripts de publicación) regenera `deploy` reutilizando los datos ya publicados.
 - Cada recolección diaria guarda además una copia de los datos como *artifact* durante 7 días.
 
 ## Puesta en marcha
@@ -109,7 +109,7 @@ python scripts/dev_server.py --dev                 # además /?fixtures=normal|v
 python -m pytest tests/pipeline                    # tests del pipeline, la publicación y las cabeceras
 ```
 
-`dev_server.py` lee `netlify.toml` y manda las mismas cabeceras que producción, así que una violación de CSP o de Trusted Types aparece en local antes de publicar. Solo escucha en `127.0.0.1` y, a diferencia de producción, quita `upgrade-insecure-requests`, que en `http://127.0.0.1` haría pedirlo todo por https. Los *fixtures* de prueba, incluido el de XSS, solo se sirven con `--dev` y nunca llegan a `deploy`.
+`dev_server.py` lee `cabeceras.toml` y manda las mismas cabeceras que producción, así que una violación de CSP o de Trusted Types aparece en local antes de publicar. Solo escucha en `127.0.0.1` y, a diferencia de producción, quita `upgrade-insecure-requests`, que en `http://127.0.0.1` haría pedirlo todo por https. Los *fixtures* de prueba, incluido el de XSS, solo se sirven con `--dev` y nunca llegan a `deploy`.
 
 ## Personalizar (`config.toml`)
 
@@ -234,7 +234,7 @@ Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y
   - Enlaces externos con `rel="noopener noreferrer"`, y los de PoC además con `nofollow ugc` y un aviso de que pueden ser maliciosas.
   - Sin `eval`, sin trackers y sin secretos en el frontend.
 - **Pipeline.** `radar.py` vuelve a sanear en origen: descarta URLs que no sean http(s), recorta textos y valida coordenadas, códigos de país y fechas. Es defensa en profundidad. Los datos se validan otra vez antes de publicar.
-- **Cabeceras (`netlify.toml` → `_headers` de Cloudflare).**
+- **Cabeceras (`cabeceras.toml` → `_headers` de Cloudflare).**
   - CSP `default-src 'none'` con solo `'self'` (favicon incluido, como fichero), sin `unsafe-*` ni `blob:`, con `require-trusted-types-for 'script'` y `trusted-types 'none'`.
   - HSTS con *preload*, `nosniff`, `Referrer-Policy`, `Permissions-Policy` con todo desactivado, COOP, CORP y `X-Frame-Options: DENY`.
   - Caché: inmutable solo en `vendor/` y fuentes. El resto se revalida siempre, y el HTML lleva `no-transform`.

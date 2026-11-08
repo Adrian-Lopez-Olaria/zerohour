@@ -1,15 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# netlify.toml · cabeceras de seguridad y caché de ZEROHOUR (ÚNICA fuente de verdad)
+# cabeceras.toml · cabeceras de seguridad y caché de ZEROHOUR (ÚNICA fuente de verdad)
 #
 # El sitio se sirve desde Cloudflare Workers (ficheros estáticos). scripts/montar_deploy.py
 # traduce las reglas [[headers]] de este fichero a web/_headers, el formato de Cloudflare,
-# con la misma semántica; tests/pipeline/test_netlify.py comprueba ruta a ruta que salen
+# con la misma semántica; tests/pipeline/test_cabeceras.py comprueba ruta a ruta que salen
 # idénticas. scripts/dev_server.py lee también ESTE fichero y manda las mismas cabeceras en local.
 #
-# Regla de mantenimiento: cada cabecera se define en UNA sola regla por ruta. Cloudflare (y
-# Netlify) aplican todas las reglas que casan con una ruta y, si dos fijan la misma cabecera,
-# juntan los valores ("no-cache, public, max-age=…"). Por eso Cache-Control no va en "/*",
-# sino en rutas que no se solapan. Los tests lo comprueban fichero a fichero.
+# Regla de mantenimiento: cada cabecera se define en UNA sola regla por ruta. Cloudflare aplica
+# todas las reglas que casan con una ruta y, si dos fijan la misma cabecera, junta los valores
+# ("no-cache, public, max-age=…"). Por eso Cache-Control no va en "/*", sino en rutas que no se
+# solapan. Los tests lo comprueban fichero a fichero.
 # ─────────────────────────────────────────────────────────────────────────────
 
 [build]

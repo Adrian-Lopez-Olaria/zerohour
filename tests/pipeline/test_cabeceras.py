@@ -1,4 +1,4 @@
-"""Tests de la fase 6.5: netlify.toml (cabeceras y caché), dev_server.py, security.txt y 404.
+"""Tests de la fase 6.5: cabeceras.toml (cabeceras y caché), dev_server.py, security.txt y 404.
 El servidor se levanta en 127.0.0.1 con un puerto libre; no sale nada a la red."""
 import datetime as dt
 import http.client
@@ -13,7 +13,7 @@ import pytest
 from conftest import ROOT
 
 WEB = ROOT / "web"
-CONF = tomllib.loads((ROOT / "netlify.toml").read_text(encoding="utf-8"))
+CONF = tomllib.loads((ROOT / "cabeceras.toml").read_text(encoding="utf-8"))
 
 
 def _load(name):
@@ -24,7 +24,7 @@ def _load(name):
 
 
 dev = _load("dev_server")
-RULES = dev.load_rules(ROOT / "netlify.toml")
+RULES = dev.load_rules(ROOT / "cabeceras.toml")
 
 
 def global_headers():
@@ -35,7 +35,7 @@ def csp_directives(value):
     return {d.split()[0]: d.split()[1:] for d in (x.strip() for x in value.split(";")) if d}
 
 
-# ───────────────────────── netlify.toml ─────────────────────────
+# ───────────────────────── cabeceras.toml ─────────────────────────
 
 def test_publica_web_sin_comando_de_build():
     assert CONF["build"]["publish"] == "web"
@@ -80,7 +80,7 @@ def rutas_publicadas():
 
 @pytest.mark.parametrize("ruta", rutas_publicadas())
 def test_ninguna_cabecera_se_define_dos_veces(ruta):
-    """Netlify une los valores si dos reglas fijan la misma cabecera: no debe pasar nunca."""
+    """Se unen los valores si dos reglas fijan la misma cabecera: no debe pasar nunca."""
     vistos = {}
     for rx, values in RULES:
         if rx.match(ruta):
@@ -102,7 +102,7 @@ def test_cache_inmutable_solo_en_vendor_y_fuentes():
             assert cc == "no-cache", ruta                             # código, página y datos: revalidar
 
 
-def test_patron_de_rutas_como_netlify():
+def test_patron_de_rutas():
     assert dev.pattern("/*").match("/a/b/c.js")
     assert dev.pattern("/assets/js/*").match("/assets/js/render/detalle.js")
     assert not dev.pattern("/assets/js/*").match("/assets/json")
@@ -131,9 +131,9 @@ def leer_headers_cf(texto):
 
 
 @pytest.mark.parametrize("ruta", rutas_publicadas())
-def test_headers_de_cloudflare_identicas_a_netlify_toml(ruta):
+def test_headers_de_cloudflare_identicas_a_cabeceras_toml(ruta):
     """Una sola fuente de verdad: el _headers generado da, ruta a ruta, las mismas cabeceras."""
-    cf = leer_headers_cf(mon.cabeceras_cloudflare(ROOT / "netlify.toml"))
+    cf = leer_headers_cf(mon.cabeceras_cloudflare(ROOT / "cabeceras.toml"))
     assert dev.headers_for(ruta, cf) == dev.headers_for(ruta, RULES)
 
 
@@ -170,7 +170,7 @@ def get(port, path, method="GET"):
     return r.status, {k.lower(): v for k, v in r.getheaders()}, body
 
 
-def test_dev_server_manda_las_cabeceras_de_netlify(servidor):
+def test_dev_server_manda_las_cabeceras_de_produccion(servidor):
     st, h, body = get(servidor, "/")
     assert st == 200 and b"<title>ZEROHOUR" in body
     prod = global_headers()
@@ -196,7 +196,7 @@ def test_dev_server_tipos_mime(servidor, ruta, tipo):
 
 
 @pytest.mark.parametrize("ruta", [
-    "/no/existe", "/../netlify.toml", "/%2e%2e/netlify.toml", "/..%5cnetlify.toml",
+    "/no/existe", "/../cabeceras.toml", "/%2e%2e/cabeceras.toml", "/..%5ccabeceras.toml",
     "/assets/../../config.toml", "/.git/config", "/%00", "/C:/Windows/win.ini",
     "/fixtures/xss.json",                                # sin --dev no hay fixtures
 ])
@@ -260,7 +260,7 @@ def test_html_sin_codigo_inline(pagina):
 
 
 def test_404_usa_rutas_absolutas_que_existen():
-    """Netlify sirve 404.html en cualquier ruta (/a/b/c): sus recursos tienen que ser absolutos."""
+    """Cloudflare sirve 404.html en cualquier ruta que no exista (/a/b/c): sus recursos tienen que ser absolutos."""
     html = (WEB / "404.html").read_text(encoding="utf-8")
     refs = re.findall(r'(?:href|src)="([^"#][^"]*)"', html)
     locales = [r for r in refs if not r.startswith(("data:", "#"))]

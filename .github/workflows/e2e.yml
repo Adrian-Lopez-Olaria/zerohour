@@ -10,7 +10,7 @@ on:
     branches: [main]
     paths:
       - "web/**"
-      - "netlify.toml"
+      - "cabeceras.toml"
       - "scripts/dev_server.py"
       - "tests/e2e/**"
       - "tests/fixtures/**"
