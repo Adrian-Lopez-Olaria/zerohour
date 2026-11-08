@@ -73,9 +73,9 @@ ISC_PORTS_URL = "https://isc.sans.edu/api/topports/records/10/{date}?json"
 # Rayas de ataques web (capa 7) mitigados por Cloudflare, origen→destino, últimas 24 h.
 # El token (CLOUDFLARE_RADAR_TOKEN) solo se usa en recolectar: nunca en desplegar ni en el frontend.
 RADAR_URL = ("https://api.cloudflare.com/client/v4/radar/attacks/layer7/top/attacks"
-             "?dateRange=1d&limit=30&limitPerLocation=3&format=json")
+             "?dateRange=1d&limit=100&limitPerLocation=3&format=json")
 # Además de la global, una llamada por país para traer rayas de países que la global no cubre.
-RADAR_LOCATIONS = ["ES", "RU", "UA", "VN", "KR", "TR"]
+RADAR_MAX_PARES = 100                 # = limit de la llamada global y tope de validar_datos.py
 DBIP_URL = "https://download.db-ip.com/free/dbip-city-lite-{month}.mmdb.gz"
 DBIP_PAGE = "https://db-ip.com/db/download/ip-to-city-lite"   # publica el SHA-1 de cada fichero
 GEO_CACHE = ROOT / CONFIG["mapa"].get("geo_cache", ".cache/geo")
@@ -1264,26 +1264,19 @@ def _radar_rows(body: dict):
 
 
 def fetch_radar_pairs() -> dict:
-    """Rayas de ataques REALES de Cloudflare Radar (CC BY-NC 4.0): origen→destino, % del total,
-    últimas 24 h. Una llamada global más una por país (RADAR_LOCATIONS: España y 5 que la global no
-    cubre), fusionadas sin duplicados por (origen, destino), quedándonos con el mayor share. US→US y
-    demás pares consigo mismo se conservan: el frontend los pinta como pulso, no como raya. Máx. 30."""
+    """Rayas de ataques REALES de Cloudflare Radar (CC BY-NC 4.0): origen→destino, % del total
+    mundial, últimas 24 h. SOLO la llamada global (limit=100): los % de las llamadas filtradas por
+    país (&location=XX) son del tráfico con origen en ese país, no del total, y no son comparables
+    con los globales (H1, cerrado el 08/11). US→US y demás pares consigo mismo se conservan: el
+    frontend los pinta como pulso, no como raya. Radar solo da %, no recuentos absolutos."""
     token = os.getenv("CLOUDFLARE_RADAR_TOKEN")
     if not token:
         raise RuntimeError("falta CLOUDFLARE_RADAR_TOKEN")
     merged: dict[tuple, float] = {}
-    rows, meta = _radar_rows(_radar_call(RADAR_URL, token))   # la global manda y da la meta
+    rows, meta = _radar_rows(_radar_call(RADAR_URL, token))
     for frm, to, share in rows:
         merged[(frm, to)] = max(share, merged.get((frm, to), -1))
-    for loc in RADAR_LOCATIONS:
-        try:
-            rows2, _ = _radar_rows(_radar_call(RADAR_URL + f"&location={loc}", token))
-        except Exception as e:                               # un país que falle no tira el resto
-            log(f"⚠ radar {loc}: {type(e).__name__}")
-            continue
-        for frm, to, share in rows2:
-            merged[(frm, to)] = max(share, merged.get((frm, to), -1))
-    top = sorted(merged.items(), key=lambda kv: kv[1], reverse=True)[:30]   # priorizar más share
+    top = sorted(merged.items(), key=lambda kv: kv[1], reverse=True)[:RADAR_MAX_PARES]   # más share primero
     pairs = [{"from_cc": k[0], "to_cc": k[1], "share": v} for k, v in top]
     rng = (meta.get("dateRange") or [None])[0]
     rng = ({"start": str(rng.get("startTime") or "")[:40], "end": str(rng.get("endTime") or "")[:40]}
@@ -1447,6 +1440,7 @@ def build_map() -> None:
         "data_day": day,
         "source": "SANS Internet Storm Center (DShield) · geolocalización IP Geolocation by DB-IP (CC BY 4.0)",
         # Lo que es de verdad: el ranking acumulado de DShield, no un recuento de las últimas 24 h
+        "dshield_ips": len(attackers),
         "note": (f"Ranking de DShield: las {len(attackers)} IPs con más ataques acumulados entre las que "
                  f"siguen activas el {day}, geolocalizadas y agregadas por zona. No es un recuento de 24 horas."),
         "points": sorted(points.values(), key=lambda p: p["attacks"], reverse=True),

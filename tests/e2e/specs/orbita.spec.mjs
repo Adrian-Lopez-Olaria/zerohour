@@ -25,7 +25,7 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     expect(await page.locator('#panel-top .orow').count()).toBe(10);
   });
 
-  test('3. el globo gira solo, se para al arrastrarlo y vuelve a girar a 1 s', async ({ page }) => {
+  test('3. el globo gira solo, se para con el puntero encima o al arrastrarlo y vuelve a 1 s de salir', async ({ page }) => {
     await open(page, FIXTURE.real);
     expect(await globeReady(page)).toContain('is-globe');
     const zone = page.locator('#globe-zone');
@@ -39,7 +39,10 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 60, { steps: 8 });
     await expect(zone).toHaveAttribute('data-spin', 'off');                  // al arrastrar se para
     await page.mouse.up();
-    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y, ~1 s después, vuelve a girar
+    await page.waitForTimeout(1500);
+    await expect(zone).toHaveAttribute('data-spin', 'off');                  // con el puntero encima sigue parado
+    await page.mouse.move(5, 5);
+    await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 }); // y, ~1 s después de salir, vuelve a girar
   });
 
   test('3. un país del ranking lleva el globo hasta él (flyTo) y vuelve a girar a 1 s', async ({ page }) => {
@@ -70,14 +73,26 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y0);
   });
 
-  test('rayas de Cloudflare Radar: rótulo honesto, atribución con enlace y 0 violaciones de CSP', async ({ page }) => {
+  test('rayas de Cloudflare Radar: explicación y atribución en el panel ⓘ y en el pie, 0 violaciones de CSP', async ({ page }) => {
     await open(page, FIXTURE.real);
     await globeReady(page);
-    await expect(page.locator('#map-arcs')).toContainText('Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h');
-    const link = page.locator('#map-foot a', { hasText: 'Cloudflare Radar' });
+    // Fuera los rótulos visibles: todo va al panel ⓘ
+    await expect(page.locator('#map-arcs, .mapp__freq, #map-foot')).toHaveCount(0);
+    await page.locator('#map-infobox summary').click();
+    await expect(page.locator('#map-info')).toContainText('pares origen → destino de ataques web mitigados por Cloudflare en las últimas 24 h');
+    await expect(page.locator('#map-info')).toContainText('frecuencia proporcional a su %');
+    const link = page.locator('#map-info a', { hasText: 'Cloudflare Radar' });
     await expect(link).toHaveAttribute('href', /^https:\/\/radar\.cloudflare\.com/);
     await expect(link).toHaveAttribute('rel', /noopener noreferrer/);
-    await expect(page.locator('#map-foot')).toContainText('CC BY-NC 4.0');
+    for (const t of ['SANS ISC DShield', 'CC BY-NC 4.0', 'IP Geolocation by DB-IP', 'CC BY 4.0']) await expect(page.locator('#map-info a', { hasText: t })).toHaveCount(1);
+    // La atribución obligatoria (CC BY / CC BY-NC) sigue también en el pie de la web
+    await expect(page.locator('footer.foot')).toContainText('Cloudflare Radar');
+    await expect(page.locator('footer.foot a', { hasText: 'CC BY-NC 4.0' })).toHaveCount(1);
+    await expect(page.locator('footer.foot a', { hasText: 'CC BY 4.0' })).toHaveCount(1);
+    await expect(page.locator('footer.foot .foot__src')).toContainText('SANS ISC · DB-IP (CC BY 4.0) · Cloudflare Radar (CC BY-NC 4.0)');
+    await expect(page.locator('footer.foot')).not.toContainText('honeypot');
+    await expect(page.locator('footer.foot')).not.toContainText('Web estática');
+    await expect(page.locator('footer.foot .foot__disc')).toHaveText('This product uses the NVD API but is not endorsed or certified by the NVD');
     expect(await csp(page)).toEqual([]);                                 // los arcos no violan la CSP
   });
 
@@ -96,12 +111,13 @@ test.describe('§9 · escritorio 1440 × 900', () => {
 
   test('textos del mapa coherentes: «IPs activas» y «ataques acumulados» como en map.json', async ({ page }) => {
     await open(page, FIXTURE.real);
-    await expect(page.locator('#h-map')).toHaveText('Ranking DShield · IPs activas hoy');
+    await expect(page.locator('#h-map')).toHaveText('Resumen de ataques');
     const name = await page.locator('.cc__b').first().evaluate((b) => b.textContent.replace(/\s+/g, ' ').trim());
     expect(name).toMatch(/^Llevar el globo a .+ ataques acumulados, [\d.]+ IPs? activas? \(DShield\)$/);
     expect(await page.locator('.cc__b').first().getAttribute('title')).toMatch(/: [\d.]+ ataques acumulados · [\d.]+ IPs? activas? \(DShield\)$/);
     const note = await page.evaluate(async () => (await (await fetch('fixtures/real-2026-10-31-fase6.json')).json()).map.note);
-    await expect(page.locator('#map-foot')).toContainText(note);             // map.note tal cual
+    await page.locator('#map-infobox summary').click();
+    await expect(page.locator('#map-info')).toContainText(note);             // map.note tal cual, en el panel ⓘ
   });
 
   test('plazo CISA y desglose en las accionables; «PoC*» con su pie obligatorio', async ({ page }) => {
@@ -154,6 +170,7 @@ test.describe('sin WebGL: globo SVG de respaldo', () => {
       await page.mouse.move(box.x + box.width / 2 + 50, box.y + box.height / 2, { steps: 8 });
       await expect(zone).toHaveAttribute('data-spin', 'off');
       await page.mouse.up();
+      await page.mouse.move(5, 5);                                               // fuera del globo
       await expect(zone).toHaveAttribute('data-spin', 'on', { timeout: 3000 });
       await page.getByRole('button', { name: 'Acercar' }).click();                 // zoom corto en el SVG
       await expect(page.locator('#globe-flat svg.is-zoomed')).toHaveCount(1);

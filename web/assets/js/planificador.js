@@ -9,18 +9,13 @@
    Sin estado global y sin DOM: lo usan el globo 3D y el globo SVG.
    ============================================================================= */
 
-/* Peso fijo para un par de otro ámbito (scope ≠ null: % del tráfico de un país de origen, no
-   del total mundial): el de un par del 0,5 % del total, por debajo del último par del top
-   mundial (~0,57 %), así que nunca dispara más que un par global real. */
-export const PESO_OTRO_AMBITO = 0.5;
-
-/** Peso de un par: su share si es del total mundial; si es de otro ámbito, el peso fijo. */
-export const pesoDe = (p) => (p.scope == null ? p.share : PESO_OTRO_AMBITO);
+/** Peso de un par: su share (% del total mundial; todos vienen de la llamada global de Radar). */
+export const pesoDe = (p) => p.share;
 
 const EPS = 1e-9;
 
 /**
- * Planificador sobre `pares` ({ from_cc, to_cc, share, scope? }). Descarta los pares sin peso
+ * Planificador sobre `pares` ({ from_cc, to_cc, share }). Descarta los pares sin peso
  * positivo. siguiente() devuelve el par al que le toca disparar, o null si no hay ninguno.
  */
 export function crearPlanificador(pares) {

@@ -38,6 +38,8 @@
 <link rel="modulepreload" href="assets/js/chart.js">
 <link rel="modulepreload" href="assets/js/globo-plano.js">
 <link rel="modulepreload" href="assets/js/planificador.js">
+<link rel="modulepreload" href="assets/js/geo/centroides.js">
+<link rel="modulepreload" href="assets/js/util/desplegable.js">
 </head>
 
 <body>
@@ -87,7 +89,7 @@
       <div>
         <div class="lockup"><svg class="brand__mark" aria-hidden="true" focusable="false"><use href="#logo"/></svg><span class="brand__name">ZEROHOUR</span></div>
         <p class="foot__by">Inteligencia de vulnerabilidades · por Adrián López Olaria</p>
-        <p>Un briefing de vulnerabilidades que se compila solo cada mañana: NVD, CISA KEV y SSVC, FIRST EPSS, exploits de Metasploit, Exploit-DB y Nuclei, PoC públicas, GitHub Advisories, avisos de INCIBE-CERT y CERT-EU y prensa especializada. Web estática; los datos son JSON que regenera un job programado.</p>
+        <p>Un briefing de vulnerabilidades que se compila solo cada mañana: NVD, CISA KEV y SSVC, FIRST EPSS, exploits de Metasploit, Exploit-DB y Nuclei, PoC públicas, GitHub Advisories, avisos de INCIBE-CERT y CERT-EU y prensa especializada.</p>
         <p class="foot__sign">Diseño y desarrollo: <b>Adrián López Olaria</b> · Castellón</p>
       </div>
       <div>
@@ -98,9 +100,11 @@
       </div>
       <div>
         <h3>Fuentes</h3>
-        <p>
+        <!-- Las licencias de DB-IP (CC BY) y Cloudflare Radar (CC BY-NC) son obligatorias: no se quitan -->
+        <p class="foot__src">
           <a class="link" href="https://nvd.nist.gov/" target="_blank" rel="noopener noreferrer">NVD</a> ·
-          <a class="link" href="https://www.cve.org/" target="_blank" rel="noopener noreferrer">CVE.org</a> / <a class="link" href="https://github.com/cisagov/vulnrichment" target="_blank" rel="noopener noreferrer">CISA Vulnrichment</a> ·
+          <a class="link" href="https://www.cve.org/" target="_blank" rel="noopener noreferrer">CVE.org</a> ·
+          <a class="link" href="https://github.com/cisagov/vulnrichment" target="_blank" rel="noopener noreferrer">CISA Vulnrichment</a> ·
           <a class="link" href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener noreferrer">CISA KEV</a> ·
           <a class="link" href="https://www.first.org/epss/" target="_blank" rel="noopener noreferrer">FIRST EPSS</a> ·
           <a class="link" href="https://github.com/advisories" target="_blank" rel="noopener noreferrer">GitHub Advisories</a> ·
@@ -110,18 +114,15 @@
           <a class="link" href="https://github.com/nomi-sec/PoC-in-GitHub" target="_blank" rel="noopener noreferrer">PoC-in-GitHub</a> ·
           <a class="link" href="https://www.incibe.es/incibe-cert/alerta-temprana/avisos" target="_blank" rel="noopener noreferrer">INCIBE-CERT</a> ·
           <a class="link" href="https://cert.europa.eu/publications/security-advisories" target="_blank" rel="noopener noreferrer">CERT-EU</a> ·
-          <a class="link" href="https://isc.sans.edu/" target="_blank" rel="noopener noreferrer">SANS ISC</a>
+          <a class="link" href="https://isc.sans.edu/" target="_blank" rel="noopener noreferrer">SANS ISC</a> ·
+          <a class="link" href="https://db-ip.com" target="_blank" rel="noopener noreferrer">DB-IP</a> (<a class="link" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>) ·
+          <a class="link" href="https://radar.cloudflare.com" target="_blank" rel="noopener noreferrer">Cloudflare Radar</a> (<a class="link" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>)
         </p>
-        <p>Actividad de ataques: sensores públicos tipo honeypot (puertos y orígenes agregados por zona; no se publican IPs).
-          Geolocalización offline: <a class="link" href="https://db-ip.com" target="_blank" rel="noopener noreferrer">IP Geolocation by DB-IP</a>,
-          con licencia <a class="link" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.</p>
-        <p>Datos de ataques (rayas origen → destino): <a class="link" href="https://radar.cloudflare.com" target="_blank" rel="noopener noreferrer">Cloudflare Radar</a>,
-          con licencia <a class="link" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC 4.0</a>.</p>
       </div>
     </div>
     <div class="foot__bar">
       <span>ZEROHOUR · 39°59′N 0°03′O</span>
-      <span class="foot__disc" lang="en">This product uses the NVD API but is not endorsed or certified by the NVD.</span>
+      <span class="foot__disc" lang="en">This product uses the NVD API but is not endorsed or certified by the NVD</span>
     </div>
   </div>
 </footer>

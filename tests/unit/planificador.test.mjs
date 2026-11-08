@@ -1,9 +1,9 @@
 // Planificador de disparos (SWRR). Se ejecuta con: node --test tests/unit/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crearPlanificador, PESO_OTRO_AMBITO } from '../../web/assets/js/planificador.js';
+import { crearPlanificador, pesoDe } from '../../web/assets/js/planificador.js';
 
-const par = (from_cc, to_cc, share, scope = null) => ({ from_cc, to_cc, share, scope });
+const par = (from_cc, to_cc, share) => ({ from_cc, to_cc, share });
 const clave = (p) => `${p.from_cc}>${p.to_cc}`;
 
 function disparar(pares, n) {
@@ -48,11 +48,13 @@ test('intercala los pares: no hay rachas de un par pequeño', () => {
   }
 });
 
-test('un par de otro ámbito (scope) pesa lo fijo, no su share', () => {
-  const pl = crearPlanificador([par('CN', 'US', 4.5), par('ES', 'US', 43.6, 'ES')]);
+test('el peso de un par es su share (todos son % del total mundial: sin campo scope)', () => {
+  assert.equal(pesoDe(par('CN', 'US', 4.5)), 4.5);
+  assert.equal(pesoDe({ ...par('ES', 'US', 2), scope: 'ES' }), 2);           // un scope heredado no cambia nada
+  const pl = crearPlanificador([par('CN', 'US', 4.5), par('ES', 'US', 0.5)]);
   const cuenta = {};
   for (let i = 0; i < 500; i++) { const k = clave(pl.siguiente()); cuenta[k] = (cuenta[k] || 0) + 1; }
-  assert.equal(cuenta['ES>US'], (500 * PESO_OTRO_AMBITO) / (4.5 + PESO_OTRO_AMBITO));
+  assert.equal(cuenta['ES>US'], 50);
 });
 
 test('28 pares reales (04/11): proporción a ±1,5 en todo momento y todos los pares disparan', async () => {

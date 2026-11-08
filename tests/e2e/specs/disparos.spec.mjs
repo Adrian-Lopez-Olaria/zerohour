@@ -30,11 +30,11 @@ async function setHidden(page, hidden) {
 test.describe('disparos · escritorio', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('disparan a ~1 cada 300 ms, con la frase de frecuencia, sin violaciones ni errores', async ({ page }) => {
+  test('disparan a ~1 cada 300 ms, con la frecuencia explicada en el panel ⓘ, sin violaciones ni errores', async ({ page }) => {
     const errors = await open(page, FIXTURE.orbita);
     expect(await globeReady(page)).toContain('is-globe');
     await expect(zone(page)).toHaveAttribute('data-disparos', 'on');
-    await expect(page.locator('.mapp__freq')).toHaveText('Frecuencia de cada raya proporcional a su % real');
+    await expect(page.locator('#map-info')).toContainText('Cada raya sale con una frecuencia proporcional a su %.', { useInnerText: false });
     expectRate(await rate(page, 3000), 300);
     expect(await csp(page)).toEqual([]);
     expect(errors).toEqual([]);
@@ -63,7 +63,7 @@ test.describe('disparos · reducir movimiento', () => {
     await page.waitForTimeout(1500);
     await expect(zone(page)).toHaveAttribute('data-disparos', 'off');
     expect(await fired(page)).toBe(0);
-    await expect(page.locator('.mapp__freq')).toHaveCount(0);
+    await expect(page.locator('#map-info')).toContainText('Se muestran quietas.', { useInnerText: false });
     expect(await csp(page)).toEqual([]);
     expect(errors).toEqual([]);
   });

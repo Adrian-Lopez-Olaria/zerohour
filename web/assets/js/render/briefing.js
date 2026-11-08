@@ -5,11 +5,12 @@
    puertos (330). Debajo del primer pantallazo, «Más del día»: avisos y prensa y el resumen.
    Móvil: lead → cifras → globo → países → top 10 (5 + «Ver las 10») → radar → puertos.
    ============================================================================= */
-import { el, clear, svg } from '../util/dom.js';
+import { el, clear } from '../util/dom.js';
 import { panelHead, emptyBlock, extLink, langOf, icon, verdictOf, vshape, cveHref, who } from './comunes.js';
 import { orbRows, rowsFoot } from './filas.js';
 import { renderRadar } from '../radar.js';
-import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField } from '../globe.js';
+import { scheduleGlobe, updateGlobe, countryMarkers, makeScale, zoomControls, kfmt, flyTo, markerText, starField, focusCountry } from '../globe.js';
+import { desplegable } from '../util/desplegable.js';
 import { nf, dLong, tLocal, tUTC, countryName, prefersReducedMotion } from '../util/format.js';
 
 /* Nombre del servicio por número de puerto: una etiqueta de la interfaz, no un dato del JSON
@@ -117,49 +118,52 @@ function newsPanel(news) {
 }
 
 /* ───────── escenario del globo (guía Órbita §5.7–5.8) ─────────
-   Textos coherentes (corrección 6 de dirección): el título dice lo que son los datos (el
-   ranking de DShield de IPs activas hoy) y el tooltip, los botones y el ranking usan la misma
-   unidad que map.json y su nota: «ataques acumulados» e «IPs activas». */
-const MAP_TITLE = 'Ranking DShield · IPs activas hoy';
+   Título «Resumen de ataques» (dirección, 08/11). Lo que son las bolitas y las rayas, la nota de
+   DShield y las fuentes con licencia van en el panel ⓘ junto al título; los botones y el panel de
+   país usan la misma unidad que map.json: «ataques acumulados» e «IPs activas». La atribución de
+   licencias sigue además en el pie de la web (obligatoria por CC BY / CC BY-NC). */
+const MAP_TITLE = 'Resumen de ataques';
 const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
-const ARCS_LABEL = 'Ataques web mitigados por Cloudflare · origen → destino · últimas 24 h';
+
+/** Panel ⓘ: qué son las bolitas y las rayas, la nota de DShield y las fuentes con licencia. */
+function infoBody(map) {
+  const hasArcs = (map.attack_pairs || []).length > 0;
+  const tier = (cls, txt) => el('li', [el('i', { class: `info__dot info__dot--${cls}`, 'aria-hidden': 'true' }), txt]);
+  return el('div', { class: 'info__p', id: 'map-info' }, [
+    el('p', [el('b', { text: 'Bolitas: ' }), 'una por país, todas del mismo tamaño. El color dice cuántos ataques acumulan las IPs de DShield (SANS ISC) de ese país que siguen activas hoy:']),
+    el('ul', { class: 'info__tiers' }, [tier('hi', 'alta'), tier('mid', 'media'), tier('lo', 'baja'), tier('none', 'gris: fuera de las IPs más activas de DShield hoy (actividad baja)')]),
+    map.note ? el('p', { class: 'info__note', text: map.note }) : null,
+    hasArcs ? el('p', [el('b', { text: 'Rayas: ' }), 'pares origen → destino de ataques web mitigados por Cloudflare en las últimas 24 h.',
+      prefersReducedMotion() ? ' Se muestran quietas.' : ' Cada raya sale con una frecuencia proporcional a su %.',
+      ' Radar solo da porcentajes, no recuentos.']) : null,
+    el('p', [el('b', { text: 'Fuentes: ' }),
+      extLink('https://isc.sans.edu/', { class: 'link' }, 'SANS ISC DShield'), ' · ',
+      extLink('https://radar.cloudflare.com', { class: 'link' }, 'Cloudflare Radar'), ' (',
+      extLink('https://creativecommons.org/licenses/by-nc/4.0/', { class: 'link' }, 'CC BY-NC 4.0'), ') · ',
+      extLink('https://db-ip.com', { class: 'link' }, 'IP Geolocation by DB-IP'), ' (',
+      extLink('https://creativecommons.org/licenses/by/4.0/', { class: 'link' }, 'CC BY 4.0'), ').']),
+  ]);
+}
+
+function infoPanel(map) {
+  return desplegable(el('details', { class: 'info', id: 'map-infobox' }, [
+    el('summary', { class: 'info__b', 'aria-label': 'Qué muestra el mapa y fuentes', title: 'Qué muestra el mapa y fuentes' },
+      el('span', { class: 'info__i', 'aria-hidden': 'true', text: 'i' })),
+    infoBody(map),
+  ]));
+}
 
 function mapSummary(map) {
   if (!map || !map.points.length) return 'Mapa de origen de ataques no disponible en esta lectura.';
   const ms = countryMarkers(map);
   let s = `Globo: ${MAP_TITLE}. ${ms.length} países; más ataques acumulados: ${ms.slice(0, 3).map((m) => `${countryName(m.cc, m.country)} ${nf(m.attacks)}`).join(', ')}.`;
   const arcs = (map.attack_pairs || []).filter((p) => p.from_cc !== p.to_cc).slice(0, 5);
-  if (arcs.length) s += ` ${ARCS_LABEL}: ${arcs.map((p) => `${countryName(p.from_cc)} a ${countryName(p.to_cc)}, ${nf(p.share)} por ciento del total`).join('; ')}.`;
+  if (arcs.length) s += ` Ataques web mitigados por Cloudflare, origen → destino, últimas 24 h: ${arcs.map((p) => `${countryName(p.from_cc)} a ${countryName(p.to_cc)}, ${nf(p.share)} por ciento del total`).join('; ')}.`;
   return s;
 }
 
 const mapSub = (map) => `${nf(countryMarkers(map).length)} países · lectura de las ${tUTC(map.updated_at)} UTC`;
-
-/** Rótulo honesto de las rayas + leyenda (trazo = raya de Radar, punto = marcador de DShield),
- *  arriba, justo debajo del rótulo de DShield. Solo si hay rayas de Cloudflare Radar. */
-function arcsHeader(map) {
-  if (!(map.attack_pairs || []).length) return null;
-  return el('p', { class: 'mapp__arcs', id: 'map-arcs' }, [
-    ARCS_LABEL,
-    el('span', { class: 'mapp__leg', 'aria-hidden': 'true' }, [
-      svg('svg', { class: 'leg leg--arc', viewBox: '0 0 26 8', focusable: 'false' }, svg('path', { d: 'M1 7 Q13 0 25 7' })), ' raya',
-      el('span', { class: 'mapp__legsep', text: ' · ' }),
-      svg('svg', { class: 'leg leg--dot', viewBox: '0 0 8 8', focusable: 'false' }, svg('circle', { cx: '4', cy: '4', r: '3' })), ' marcador',
-    ]),
-    // Con reducir movimiento no hay disparos (rayas estáticas): la frase no aplicaría
-    prefersReducedMotion() ? null : el('span', { class: 'mapp__freq', text: 'Frecuencia de cada raya proporcional a su % real' }),
-  ]);
-}
-
-function mapFoot(map) {
-  const parts = [map.note, map.source ? `Fuente: ${map.source}.` : ''].filter(Boolean);
-  const kids = [parts.join(' ')];
-  if ((map.attack_pairs || []).length) {
-    kids.push(' Datos de ataques: ', extLink('https://radar.cloudflare.com', { class: 'link' }, 'Cloudflare Radar'), ' (CC BY-NC 4.0).');
-  }
-  return el('p', { class: 'mapfoot', id: 'map-foot' }, kids);
-}
 
 /** Los 5 países con más ataques (3 en el móvil): cada uno es un botón que lleva el globo hasta él. */
 function countryButtons(map) {
@@ -167,7 +171,11 @@ function countryButtons(map) {
   return el('ol', { class: 'cc', id: 'map-cc', 'aria-label': 'Países con más ataques acumulados' }, ms.map((m) => el('li', { class: `cc--${scale.tier(m.attacks)}` },
     // Sin aria-label: el nombre accesible sale del texto visible (así contiene lo que se ve,
     // WCAG 2.5.3) más unas palabras solo para lectores de pantalla con la unidad completa
-    el('button', { type: 'button', class: 'cc__b', title: `Llevar el globo a ${markerText(m)}`, on: { click: () => flyTo(m.lat, m.lon) } }, [
+    // Pasar o enfocar un botón muestra el panel del país en el globo; clic, flyTo
+    el('button', { type: 'button', class: 'cc__b', title: `Llevar el globo a ${markerText(m)}`, on: {
+      click: () => flyTo(m.lat, m.lon), focus: () => focusCountry(m.cc), blur: () => focusCountry(null),
+      pointerenter: () => focusCountry(m.cc), pointerleave: () => focusCountry(null),
+    } }, [
       el('span', { class: 'sr-only', text: 'Llevar el globo a ' }),
       el('span', { class: 'cc__c', text: countryName(m.cc, m.country) }), ' ',
       el('span', { class: 'cc__n' }, [kfmt(m.attacks), el('span', { class: 'sr-only', text: ' ataques acumulados,' })]), ' ',
@@ -179,9 +187,8 @@ function mapPanel(map) {
   const ok = map && map.points.length;
   return el('section', { class: 'mapp', id: 'panel-map', 'aria-labelledby': 'h-map' }, [
     el('header', { class: 'mapp__h' }, [
-      el('h2', { class: 'mapp__t kicker', id: 'h-map', text: MAP_TITLE }),
+      el('div', { class: 'mapp__tw' }, [el('h2', { class: 'mapp__t kicker', id: 'h-map', text: MAP_TITLE }), ok ? infoPanel(map) : null]),
       el('p', { class: 'mapp__x', id: 'map-sub', text: ok ? mapSub(map) : 'Sin lectura del mapa' }),
-      ok ? arcsHeader(map) : null,
     ]),
     ok ? el('div', { class: 'globe-box', id: 'globe-zone' }, [
       starField(),
@@ -195,13 +202,12 @@ function mapPanel(map) {
       ]),
       zoomControls(),
       el('p', { class: 'globe-hint', text: COARSE ? 'Arrastra para girar · pellizca para acercar' : 'Arrastra para girar · Ctrl + rueda para acercar' }),
-      el('p', { class: 'globe-tip', id: 'globe-tip', 'aria-live': 'polite' }),
+      el('div', { class: 'globe-tip gpan', id: 'globe-tip', 'aria-live': 'polite' }),
       el('p', { class: 'globe-note', id: 'globe-note' }),
     ]) : el('div', { class: 'globe-box globe-box--off' }, emptyBlock('Mapa no disponible',
       map ? 'Sin orígenes de ataque en esta lectura de SANS ISC. El resto del briefing funciona con normalidad.'
         : 'El mapa de ataques no se pudo leer en esta edición (map.json). El resto del briefing funciona con normalidad.', true)),
     ok ? countryButtons(map) : null,
-    ok ? mapFoot(map) : null,
   ]);
 }
 
@@ -313,9 +319,7 @@ export function refreshMapPanels(state) {
   if (!map || !map.points.length || !document.getElementById('globe-zone')) return;
   const swap = (id, node) => { const old = document.getElementById(id); if (old) old.replaceWith(node); };
   swap('map-cc', countryButtons(map));
-  swap('map-foot', mapFoot(map));
-  const arcsEl = document.getElementById('map-arcs');   // rótulo de rayas: actualizar o quitar
-  if (arcsEl) { const n = arcsHeader(map); n ? arcsEl.replaceWith(n) : arcsEl.remove(); }
+  swap('map-info', infoBody(map));
   swap('panel-ports', portsPanel(map));
   const sub = document.getElementById('map-sub'), sum = document.getElementById('map-sum'), sm = document.getElementById('sum-map');
   if (sub) sub.textContent = mapSub(map);

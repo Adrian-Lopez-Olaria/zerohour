@@ -96,8 +96,23 @@ Los datos de NVD, KEV, GHSA, RSS, PoC y DShield se tratan como hostiles.
 
 ### Honestidad de los datos del mapa
 
-- **Frecuencia de las rayas.** Las rayas de Cloudflare Radar se ven como disparos cuya frecuencia es proporcional al % real de cada par. El reparto es determinista (`web/assets/js/planificador.js`, ventanas Pfair centradas) y está probado: con 50/2/1, recuentos exactos, ±1 en cualquier prefijo y sin huecos largos en los pares pequeños; con los 28 pares reales, ±1,5. La web lo dice: «Frecuencia de cada raya proporcional a su % real».
-- **Pendiente (H1).** Las llamadas a Radar por país (`&location=XX`) devuelven el % del tráfico con origen en ese país, no del total mundial, y el pipeline los mezclaba con los de la llamada global. Corrección propuesta: un campo `scope` por par y no comparar nunca shares de ámbitos distintos; si no se aprueba antes del lanzamiento, se publica solo la llamada global.
+- **Frecuencia de las rayas.** Las rayas de Cloudflare Radar se ven como disparos cuya frecuencia es proporcional al % real de cada par. El reparto es determinista (`web/assets/js/planificador.js`, ventanas Pfair centradas) y está probado: con 50/2/1, recuentos exactos, ±1 en cualquier prefijo y sin huecos largos en los pares pequeños; con los 28 pares reales, ±1,5. La web lo explica en el panel ⓘ del mapa.
+- **H1, cerrado el 08/11 sin `scope`.** Solo queda la llamada global de Radar (`limit=100`): los % filtrados por país (`&location=XX`) son del tráfico con origen en ese país y no son comparables con los globales. Se quitaron `RADAR_LOCATIONS`, el campo `scope` y su peso fijo de 0,5 en el planificador; todos los share de `map.json` son del total mundial.
+
+### Mapa: cambios de la noche del 08/11
+
+| Cambio | Comprobación |
+|---|---|
+| Bolitas de todos los países, mismo tamaño, color por tramo y gris para los que están fuera del ranking de DShield («Actividad baja»; nunca «sin actividad») | E2E: más de 150 bolitas visibles; España, sin datos de DShield en el fixture, sale en gris con «Fuera de las 3000 IPs más activas de DShield hoy» y su panel no muestra ninguna cifra de DShield |
+| Bolitas WebGL (`pointsData` con `pointsMerge`) en lugar de nodos DOM | E2E: 0 `.gm__dot` sin foco y como mucho 6 nodos (etiquetas) |
+| Hover, toque y panel de país | Sin `pointLabel` ni tooltips de globe.gl (van por `innerHTML`); `enablePointerInteraction(false)` se mantiene y la detección es propia. El panel usa `el()` y `textContent`. E2E de hover, toque y ranking con 0 violaciones de CSP y de Trusted Types |
+| Desplegables «N de N fuentes» y ⓘ | Se cierran con un clic fuera y con Esc, llevan `aria-expanded` y devuelven el foco al botón (E2E) |
+| Radar: hasta 100 pares (`limit=100`) | `validar_datos.py` rechaza ahora `attack_pairs` con más de 100 pares, códigos que no sean ISO-2 o % fuera de 0–100; `data.js` corta en 100 por defensa en profundidad |
+| Rendimiento (local, mediana de pasadas alternas) | Escritorio sin cambios (Lighthouse 90 → 90). Móvil: Lighthouse 64,5 → 56 y TBT 439 → 695 ms, una **regresión** que no viene de las bolitas (sin ellas también aparece) ni del JavaScript propio (perfil de CPU igual); pendiente de atribuir y de confirmar en producción |
+| España sin marcador | Diagnóstico con datos en bruto: 0 IPs españolas en el top 3000 de DShield del 08/11. No había ningún filtro en el código (ver README) |
+
+| DShield: 3300 IPs (antes 3000) | Medido con la API en bruto: con 10000 la API devuelve 5342 filas y `map.json` crece un 96 %; 3300 es el máximo con ≤ +20 % (126 países frente a 113) |
+| Pie de la web: una línea de fuentes | Quedan las licencias obligatorias enlazadas (DB-IP CC BY 4.0, Cloudflare Radar CC BY-NC 4.0) y el aviso de NVD; lo comprueba un E2E |
 
 ### Pentest externo
 

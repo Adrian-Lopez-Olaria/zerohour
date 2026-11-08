@@ -12,6 +12,8 @@ const RAD = Math.PI / 180;
 const SIZE = 560, PAD = 30, SPEED = 6.8, RESUME_MS = 1000, ZMIN = 1, ZMAX = 1.6;   // giro ~35% más rápido; zoom corto
 // Disparos con el ritmo y el máximo del móvil (la vista plana es el respaldo de equipos modestos)
 const SHOT_EVERY = 500, SHOT_MAX = 6, DASH = 0.35, FLASH_MS = 700;
+// Bolitas del mismo tamaño (radio en unidades del viewBox de 560) y separación mínima entre centros
+const DOT_R = 3.4, DOT_GAP = 1.15, HOT_R = 7;
 
 /** Punto de la curva cuadrática a→c→b en s ∈ [0, 1]. */
 const quad = (a, c, b, s) => ({ x: (1 - s) * (1 - s) * a.x + 2 * (1 - s) * s * c.x + s * s * b.x, y: (1 - s) * (1 - s) * a.y + 2 * (1 - s) * s * c.y + s * s * b.y });
@@ -51,11 +53,11 @@ export function mountFlatGlobe(host, o) {
   let plan = null, maxShare = 1, timer = 0, onScreen = true, fired = 0;
   const shots = Array.from({ length: SHOT_MAX }, () => ({ live: false, from: null, to: null, r: 0, born: 0, dur: 0 }));
   let flashes = [];
+  let focus = null, drawn = [], over = false;   // país enfocado; bolitas pintadas (para el hover)
   function setPairs(pr) {
     pairs = pr || [];
     const ok = pairs.filter((p) => o.centroid(p.from_cc) && o.centroid(p.to_cc));
-    const glob = ok.filter((p) => p.scope == null);
-    maxShare = Math.max(1e-6, ...(glob.length ? glob : ok).map((p) => p.share));
+    maxShare = Math.max(1e-6, ...ok.map((p) => p.share));
     plan = crearPlanificador(ok);
   }
   setPairs(pairs);
@@ -86,9 +88,12 @@ export function mountFlatGlobe(host, o) {
       const nl = Math.hypot(dx, dy) || 1, bend = Math.min(60, nl * 0.25);
       return { x: mx - dy / nl * bend, y: my + dx / nl * bend };
     };
-    const cls = (rr) => 'gp-arc ' + (rr >= 0.5 ? 'gp-arc--hi' : 'gp-arc--mid');
-    if (o.reduced) {
-      for (const pr of pairs) {
+    const touches = (a, b) => !focus || a === focus.cc || b === focus.cc;
+    const cls = (rr, a, b) => 'gp-arc ' + (rr >= 0.5 ? 'gp-arc--hi' : 'gp-arc--mid') + (touches(a, b) ? '' : ' is-dim');
+    // Con un país enfocado, todas sus rayas continuas (y en reducir movimiento, todas las del top)
+    const still = o.reduced ? pairs : focus ? pairs.filter((p) => p.from_cc === focus.cc || p.to_cc === focus.cc) : [];
+    {
+      for (const pr of still) {
         const ca = o.centroid(pr.from_cc), cb = o.centroid(pr.to_cc);
         if (!ca || !cb || pr.from_cc === pr.to_cc) continue;
         const qa = P(ca[0], ca[1]), qb = P(cb[0], cb[1]);
@@ -96,10 +101,11 @@ export function mountFlatGlobe(host, o) {
         const rr = Math.min(1, pesoDe(pr) / maxShare), c2 = ctrl(qa, qb);
         kids.push(svg('path', {
           d: `M${qa.x.toFixed(1)} ${qa.y.toFixed(1)}Q${c2.x.toFixed(1)} ${c2.y.toFixed(1)} ${qb.x.toFixed(1)} ${qb.y.toFixed(1)}`,
-          class: cls(rr), 'stroke-width': (0.8 + rr * 2).toFixed(1),
+          class: cls(rr, pr.from_cc, pr.to_cc), 'stroke-width': (0.8 + rr * 2).toFixed(1),
         }));
       }
-    } else {
+    }
+    if (!o.reduced) {
       const now = performance.now();
       for (const sh of shots) {
         if (!sh.live) continue;
@@ -110,7 +116,7 @@ export function mountFlatGlobe(host, o) {
         const c2 = ctrl(qa, qb);
         let d = '';
         for (let i = 0; i <= 8; i++) { const q = quad(qa, c2, qb, tail + (head - tail) * i / 8); d += (i ? 'L' : 'M') + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }
-        kids.push(svg('path', { d, class: cls(sh.r), 'stroke-width': (0.8 + sh.r * 2).toFixed(1) }));
+        kids.push(svg('path', { d, class: cls(sh.r, sh.fc, sh.tc), 'stroke-width': (0.8 + sh.r * 2).toFixed(1) }));
       }
       for (const f of flashes) {                                        // destello: anillo que crece y se apaga
         const q = P(f.at[0], f.at[1]), k = (now - f.born) / FLASH_MS;
@@ -118,19 +124,25 @@ export function mountFlatGlobe(host, o) {
         kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (3 + k * f.size).toFixed(1), 'stroke-opacity': (0.9 * (1 - k)).toFixed(2), class: 'gp-apulse gp--' + f.tier }));
       }
     }
-    const boxes = [], lab = [];
+    // Bolitas: todas del mismo tamaño, color = tramo (gris = sin actividad). En orden de actividad,
+    // la que se toque con otra ya pintada se oculta hasta acercar el zoom.
+    const boxes = [], lab = [], r = DOT_R, min2 = (2 * r * DOT_GAP) ** 2;
+    drawn = [];
     markers.forEach((m, i) => {
       const q = P(m.lat, m.lon);
       if (!q.vis || !inView(q)) return;
-      const r = Math.max(3, 3 + scale.t(m.attacks) * 11);   // ≈0,7× (marcadores más pequeños)
-      if (i < 5 && !o.reduced && st.zoom < 1.05) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-pulse gp-pulse--${i} gp--${scale.tier(m.attacks)}` }));
-      const dot = svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-m gp--${scale.tier(m.attacks)}` });
-      dot.addEventListener('pointerenter', () => o.onHover(m));
-      dot.addEventListener('pointerleave', () => o.onHover(null));
-      kids.push(dot);
+      if (drawn.some((d) => (d.x - q.x) ** 2 + (d.y - q.y) ** 2 < min2)) return;
+      drawn.push({ x: q.x, y: q.y, m });
+      const tier = scale.tier(m.attacks);
+      if (i < 5 && m.attacks > 0 && !o.reduced && st.zoom < 1.05) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: (r + 2).toFixed(1), class: `gp-pulse gp-pulse--${i} gp--${tier}` }));
+      kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: r.toFixed(1), class: `gp-m gp--${tier}` }));
       boxes.push([q.x - r, q.y - r, q.x + r, q.y + r]);
       if (labels.has(m)) lab.push({ q, r, m });
     });
+    if (focus) {
+      const q = P(focus.lat, focus.lon);
+      if (q.vis && inView(q)) kids.push(svg('circle', { cx: q.x.toFixed(1), cy: q.y.toFixed(1), r: HOT_R, class: `gp-m gp-m--hot gp--${scale.tier(focus.attacks)}` }));
+    }
     // Etiquetas «CC 1179,5 k»: derecha, izquierda, arriba o abajo; si no caben, no se pintan
     const fs = 15, hit = (b) => boxes.some((x) => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1]);
     for (const { q, r, m } of lab) {
@@ -175,7 +187,7 @@ export function mountFlatGlobe(host, o) {
       const p = plan.siguiente(), r = Math.min(1, pesoDe(p) / maxShare);
       fired++;
       if (p.from_cc === p.to_cc) flashes.push({ at: o.centroid(p.from_cc), born: now, tier: r >= 0.5 ? 'hi' : 'mid', size: 12 + r * 10 });
-      else Object.assign(free, { live: true, flashed: false, from: o.centroid(p.from_cc), to: o.centroid(p.to_cc), r, born: now, dur: Math.round(1800 - r * 600) });
+      else Object.assign(free, { live: true, flashed: false, from: o.centroid(p.from_cc), to: o.centroid(p.to_cc), fc: p.from_cc, tc: p.to_cc, r, born: now, dur: Math.round(1800 - r * 600) });
     }
     dirty = true;
     if (o.onShots) o.onShots(true, fired);
@@ -203,13 +215,28 @@ export function mountFlatGlobe(host, o) {
 
   const spin = (on) => { auto = on; if (o.onSpin) o.onSpin(on); };
   const hold = () => { spin(false); clearTimeout(idle); };
-  const release = () => { clearTimeout(idle); if (!o.reduced) idle = setTimeout(() => spin(true), RESUME_MS); };
+  // Con el puntero encima o un país enfocado no se reanuda el giro
+  const release = () => { clearTimeout(idle); if (!o.reduced && !over && !focus) idle = setTimeout(() => spin(true), RESUME_MS); };
+
+  /** Bolita pintada más cercana a un punto de pantalla (a menos de tol px de su borde). */
+  function pickAt(cx, cy, tol) {
+    const b = host.getBoundingClientRect(), k = SIZE / Math.max(1, b.width);
+    const x = (cx - b.left) * k, y = (cy - b.top) * k, lim = (DOT_R + tol * k) ** 2;
+    let best = null, bd = Infinity;
+    for (const d of drawn) { const dd = (d.x - x) ** 2 + (d.y - y) ** 2; if (dd < lim && dd < bd) { bd = dd; best = d.m; } }
+    return best;
+  }
   const setZoom = (z) => { st.zoom = Math.max(ZMIN, Math.min(ZMAX, z)); dirty = true; };
 
   // Arrastre para girar y pellizco para el zoom corto (Pointer Events)
   const pts = new Map();
   let pinch0 = 0, zoom0 = 1;
+  let down = null;
+  host.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { over = true; hold(); } });
+  host.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { over = false; o.onHover(null); release(); } });
+  host.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && !e.buttons) o.onHover(pickAt(e.clientX, e.clientY, 3)); });
   host.addEventListener('pointerdown', (e) => {
+    down = { x: e.clientX, y: e.clientY, mouse: e.pointerType === 'mouse' };
     host.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); hold();
     if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); zoom0 = st.zoom; }
   });
@@ -223,7 +250,12 @@ export function mountFlatGlobe(host, o) {
     dirty = true;
   });
   const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; if (!pts.size) release(); };
-  host.addEventListener('pointerup', up);
+  host.addEventListener('pointerup', (e) => {
+    const d = down; down = null;
+    up(e);
+    // Un toque/clic (sin arrastre): bolita → panel y flyTo; fuera de una bolita → se cierra
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) <= 6 && o.onPick) o.onPick(pickAt(e.clientX, e.clientY, d.mouse ? 3 : 12), !d.mouse);
+  });
   host.addEventListener('pointercancel', up);
   // La rueda sin Ctrl hace scroll de la página; con Ctrl, zoom corto
   host.addEventListener('wheel', (e) => {
@@ -251,6 +283,7 @@ export function mountFlatGlobe(host, o) {
     rotate(dLat, dLon) { hold(); st.lat0 = Math.max(-60, Math.min(70, st.lat0 + dLat)); st.lon0 = ((st.lon0 + dLon + 540) % 360) - 180; dirty = true; release(); },
     flyTo,
     update(ms, sc, lb, pr) { markers = ms; scale = sc; labels = lb; if (pr) setPairs(pr); shotsRun(); dirty = true; },
+    focus(m) { focus = m || null; dirty = true; if (focus) hold(); else release(); },
     onZoom(fn) { onZoomChange = fn; fn(st.zoom); },
     zoomLimits: { min: ZMIN, max: ZMAX },
     stop() { cancelAnimationFrame(raf); clearInterval(timer); timer = 0; io.disconnect(); document.removeEventListener('visibilitychange', shotsRun); },

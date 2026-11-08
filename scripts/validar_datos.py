@@ -117,6 +117,15 @@ def validar(data: Path, previo: Path | None = None) -> list[str]:
     for p in mp["points"]:
         check(-90 <= p.get("lat", 999) <= 90 and -180 <= p.get("lon", 999) <= 180, "map.json con coordenadas fuera de rango")
         check(re.fullmatch(r"[A-Z]{2}", str(p.get("cc", ""))) is not None, "map.json con código de país inválido")
+    # Rayas de Cloudflare Radar: como mucho 100 pares, códigos ISO-2 y % entre 0 y 100
+    pares = mp.get("attack_pairs", [])
+    check(isinstance(pares, list) and len(pares) <= 100, "map.json con attack_pairs mal formado o con más de 100 pares")
+    for q in pares:
+        check(isinstance(q, dict) and all(re.fullmatch(r"[A-Z]{2}", str(q.get(k, ""))) for k in ("from_cc", "to_cc")),
+              "map.json con un par de Radar con código de país inválido")
+        check(isinstance(q.get("share"), (int, float)) and 0 <= q["share"] <= 100, "map.json con un % de Radar fuera de rango")
+        # Solo la llamada global (H1): ningún campo más, tampoco el antiguo «scope»
+        check(set(q) <= {"from_cc", "to_cc", "share"}, "map.json con un par de Radar con campos de más (¿scope?)")
     return avisos
 
 

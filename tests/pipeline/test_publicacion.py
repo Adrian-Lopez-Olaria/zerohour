@@ -77,6 +77,19 @@ def test_rechaza_mapa_con_coordenadas_o_pais_invalidos(tmp_path):
         val.validar(write_data(tmp_path, mapa=m))
 
 
+@pytest.mark.parametrize("romper,motivo", [
+    (lambda m: m.__setitem__("attack_pairs", [{"from_cc": "CN", "to_cc": "US", "share": 1.0}] * 101), "más de 100 pares"),
+    (lambda m: m["attack_pairs"][0].__setitem__("share", 140), "fuera de rango"),
+    (lambda m: m["attack_pairs"][0].__setitem__("to_cc", "usa"), "código de país inválido"),
+    (lambda m: m["attack_pairs"][0].__setitem__("scope", "ES"), "campos de más"),
+])
+def test_rechaza_pares_de_radar_invalidos(tmp_path, romper, motivo):
+    m = copy.deepcopy(FX["map"])
+    romper(m)
+    with pytest.raises(val.Invalido, match=motivo):
+        val.validar(write_data(tmp_path, mapa=m))
+
+
 def test_historico_no_puede_perder_dias_recientes(tmp_path):
     """Si una ejecución pierde días que no tocaba podar, no se publica (protege los 90 días)."""
     prev = tmp_path / "prev-index.json"

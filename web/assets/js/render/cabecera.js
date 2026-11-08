@@ -5,6 +5,7 @@ import { el, clear } from '../util/dom.js';
 import { SOURCE_KEYS, EXTRA_SOURCE_KEYS, interpretSource } from '../data.js';
 import { TZ, fmtTplus, tUTC, tLocal, dDayMonYear, hmUTC, nextBriefingRun, nextMapRun } from '../util/format.js';
 import { icon } from './comunes.js';
+import { desplegable } from '../util/desplegable.js';
 
 const SOURCE_LABEL = { nvd: 'NVD', kev: 'CISA KEV', epss: 'EPSS', ghsa: 'GitHub Advisories', poc: 'PoC-in-GitHub', rss: 'Avisos y prensa (RSS)', cvelist: 'CVE.org', metasploit: 'Metasploit', nuclei: 'Nuclei', exploitdb: 'Exploit-DB' };
 /** Fuentes a mostrar: las 6 de siempre y las de la fase 6 si la edición las trae. */
@@ -84,7 +85,8 @@ export function renderStatus(latest, map) {
       ? el('span', [`${dDayMonYear(latest.generated_at)} · ${tLocal(latest.generated_at)} · `,
         el('span', { class: 'tplus', title: 'Tiempo desde la última actualización del briefing' }, ['T+', el('b', { class: 'js-tplus', text: '--:--:--' })]), ' ·'])
       : el('span', { text: 'Sin edición ·' }),
-    el('details', { class: 'srcs' + (errs ? ' has-err' : '') }, [
+    // Desplegable: se cierra al hacer clic fuera y con Esc (util/desplegable.js)
+    desplegable(el('details', { class: 'srcs' + (errs ? ' has-err' : '') }, [
       el('summary', [errs ? `${errs} ${errs === 1 ? 'fuente' : 'fuentes'} con error` : `${okN}/${keys.length} fuentes`, icon('chevron')]),
       el('ul', { class: 'srcs__list' }, [
         ...st.map(([k, s]) => el('li', [
@@ -95,7 +97,7 @@ export function renderStatus(latest, map) {
         ])),
         el('li', el('span', { class: 'srcs__upd', text: lectura })),
       ]),
-    ]),
+    ])),
   );
 }
 

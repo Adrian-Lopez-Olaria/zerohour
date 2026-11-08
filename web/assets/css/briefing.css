@@ -61,15 +61,23 @@
 .zb:hover { border-color: var(--line-hi); background: var(--bg-2); }
 .zb:disabled { color: var(--text-3); cursor: default; opacity: .55; }
 .globe-hint { position: absolute; right: 0; top: 4px; z-index: 3; width: 130px; margin: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-3); text-align: right; pointer-events: none; }
-.globe-tip { position: absolute; left: 0; right: 0; top: 4px; z-index: 3; min-height: 1.4em; margin: 0; font-size: 13px; font-weight: 600; color: var(--acc); text-align: center; pointer-events: none; }
+/* Panel de país (hover, toque o foco en el ranking): arriba a la izquierda, sin tapar el centro */
+.globe-tip { position: absolute; left: 0; top: 4px; z-index: 5; width: max-content; max-width: min(260px, 70%); margin: 0; padding: 8px 10px; border: 1px solid var(--line-hi); border-radius: var(--r-btn); background: var(--bg-1); box-shadow: 0 10px 28px rgba(0, 0, 0, .5); font-size: 12px; line-height: 1.4; color: var(--text-2); pointer-events: none; }
+.globe-tip:empty { display: none; }
+.gpan__t { margin: 0 0 3px; font-size: 13.5px; color: var(--text-1); }
+.gpan__e { display: block; font-size: 11.5px; font-weight: 600; }
+.gpan__e--hi { color: var(--map-hi); } .gpan__e--mid { color: var(--map-mid); } .gpan__e--lo { color: var(--map-lo); } .gpan__e--none { color: var(--text-3); }
+.gpan__l { margin: 2px 0 0; }
+.gpan__l--m { color: var(--text-3); }
+.gpan__k { color: var(--text-3); }
+.globe.is-pick { cursor: pointer; }
 .globe-note { position: absolute; left: 0; bottom: 4px; z-index: 3; margin: 0; font-size: 11.5px; color: var(--acc); pointer-events: none; }
 
-/* Marcador de país (capa htmlElementsData de globe.gl). Solo el punto recibe el ratón (tooltip). */
+/* Capa htmlElementsData de globe.gl: solo las etiquetas de los 6 primeros y la bolita enfocada
+   (las bolitas son puntos WebGL). Nada recibe el ratón: la detección la hace globe.js. */
 .gm { position: relative; width: 0; height: 0; pointer-events: none; }
-.gm--hi { --c: var(--map-hi); } .gm--mid { --c: var(--map-mid); } .gm--lo { --c: var(--map-lo); }
-.gm__dot, .gm__ring { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; }
-.gm__dot { background: var(--c); box-shadow: 0 0 0 1.5px #030914; pointer-events: auto; cursor: pointer; }
-.gm__ring { display: none; border: 2px solid var(--c); opacity: .5; transform: scale(1.6); }
+.gm--hi { --c: var(--map-hi); } .gm--mid { --c: var(--map-mid); } .gm--lo { --c: var(--map-lo); } .gm--none { --c: var(--map-none); }
+.gm__dot { position: absolute; left: 0; top: 0; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px #030914, 0 0 0 3.5px var(--text-1); }
 .gm__lbl { position: absolute; top: 0; white-space: nowrap; font-size: 15px; font-weight: 700; color: var(--text-1); paint-order: stroke; -webkit-text-stroke: 3px #030914; text-shadow: 0 0 3px #030914; }
 .gm__lbl em { font-style: normal; font-weight: 400; color: var(--text-2); }
 .gm__lbl.is-r { left: calc(var(--s) / 2 + 5px); transform: translateY(-50%); }
@@ -77,8 +85,6 @@
 .gm__lbl.is-t { left: 0; bottom: calc(var(--s) / 2 + 4px); top: auto; transform: translateX(-50%); }
 .gm__lbl.is-b { left: 0; top: calc(var(--s) / 2 + 4px); transform: translateX(-50%); }
 .gm__lbl.is-off { visibility: hidden; }
-/* Con reducir movimiento no hay anillos animados de globe.gl: anillo fijo al 50 % en los 5 primeros */
-@media (prefers-reduced-motion: reduce) { .gm__ring { display: block; } }
 
 /* Globo SVG de respaldo (mismo aspecto: esfera iluminada, atmósfera, tierra en puntos) */
 .gp { width: 100%; height: 100%; overflow: visible; }
@@ -88,12 +94,14 @@
 .gp-land { fill: none; stroke: var(--globe-land); stroke-linecap: round; stroke-width: 2.6; }
 .gp-land--far { stroke: var(--globe-land-far); stroke-width: 2; }
 .gp-m { stroke: #030914; stroke-width: 1.5; cursor: pointer; }
-.gp--hi { fill: var(--map-hi); stroke: var(--map-hi); } .gp--mid { fill: var(--map-mid); stroke: var(--map-mid); } .gp--lo { fill: var(--map-lo); stroke: var(--map-lo); }
-.gp-m.gp--hi, .gp-m.gp--mid, .gp-m.gp--lo { stroke: #030914; }
+.gp--hi { fill: var(--map-hi); stroke: var(--map-hi); } .gp--mid { fill: var(--map-mid); stroke: var(--map-mid); } .gp--lo { fill: var(--map-lo); stroke: var(--map-lo); } .gp--none { fill: var(--map-none); stroke: var(--map-none); }
+.gp-m.gp--hi, .gp-m.gp--mid, .gp-m.gp--lo, .gp-m.gp--none { stroke: #030914; stroke-width: 1; }
+.gp-m.gp-m--hot { stroke: var(--text-1); stroke-width: 1.5; }
 .gp-pulse { fill: none; stroke-width: 2.2; }
 /* Rayas de Cloudflare Radar en el respaldo SVG (estáticas) y pulso de los pares consigo mismo */
 .gp-arc { fill: none; stroke-linecap: round; opacity: .85; }
 .gp-arc--hi { stroke: var(--map-hi); } .gp-arc--mid { stroke: var(--map-mid); }
+.gp-arc.is-dim { opacity: .14; }
 .gp-apulse { fill: var(--map-hi); fill-opacity: .25; stroke: var(--map-hi); stroke-width: 1.6; }
 .gp-lbl { font-size: 15px; font-weight: 700; fill: var(--text-1); paint-order: stroke; stroke: #030914; stroke-width: 4px; stroke-linejoin: round; }
 .gp-lbl__n { font-weight: 400; fill: var(--text-2); }
@@ -109,15 +117,24 @@
 .cc__c { font-size: 11.5px; font-stretch: 87.5%; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cc__n { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .cc__s { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.mapfoot { width: 100%; max-width: 560px; margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-3); }
-/* Rótulo de las rayas de Radar, arriba (debajo del de DShield), con leyenda: trazo = raya, punto = marcador */
-.mapp__arcs { width: 100%; margin: 3px 0 0; font-size: 11px; line-height: 1.3; color: var(--map-hi); font-weight: 500; text-align: center; }
-.mapp__leg { margin-left: 6px; color: var(--text-3); font-weight: 400; white-space: nowrap; }
-.mapp__legsep { color: var(--line-hi); }
-.mapp__freq { display: block; color: var(--text-3); font-weight: 400; font-size: 10.5px; }
-.leg { display: inline-block; vertical-align: middle; height: 8px; }
-.leg--arc { width: 26px; } .leg--arc path { fill: none; stroke: var(--map-hi); stroke-width: 1.6; stroke-linecap: round; }
-.leg--dot { width: 8px; } .leg--dot circle { fill: var(--map-mid); }
+/* Título «Resumen de ataques» + botón ⓘ con el panel de qué muestra el mapa y las fuentes.
+   El panel se coloca respecto a la cabecera del mapa (todo su ancho), no respecto al botón. */
+.mapp__h { position: relative; }
+.mapp__tw { display: inline-flex; align-items: center; gap: 4px; }
+.info summary { list-style: none; }
+.info summary::-webkit-details-marker { display: none; }
+.info__b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; color: var(--text-2); }
+.info__b:hover, .info[open] .info__b { color: var(--text-1); }
+.info__b:focus-visible { outline: 2px solid var(--acc); outline-offset: 0; }
+.info__i { display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 12px; font-weight: 700; font-style: italic; font-family: Georgia, serif; line-height: 1; }
+.info__p { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 40; width: min(380px, 100%); margin: 0 auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--bg-1); box-shadow: 0 16px 40px rgba(0, 0, 0, .55); font-size: 12.5px; line-height: 1.45; color: var(--text-2); text-align: left; text-transform: none; letter-spacing: 0; }
+.info__p p { margin: 0 0 6px; } .info__p p:last-child { margin: 0; }
+.info__p b { color: var(--text-1); }
+.info__note { color: var(--text-3); font-size: 11.5px; }
+.info__tiers { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0 0 6px; padding: 0; list-style: none; }
+.info__tiers li { display: inline-flex; align-items: center; gap: 5px; }
+.info__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--map-lo); }
+.info__dot--hi { background: var(--map-hi); } .info__dot--mid { background: var(--map-mid); } .info__dot--none { background: var(--map-none); }
 
 @media (max-width: 999px) {
   /* Móvil: el globo no pasa del ~40 % de la primera pantalla */
@@ -133,7 +150,6 @@
   .globe-box:not(.globe-box--off) { max-width: min(620px, calc(100vh - 392px)); }
   .cc { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 560px; }
   .cc li:nth-child(n+4) { display: block; }
-  .mapfoot { text-align: center; }
 }
 
 /* ---------- Radar (guía Órbita §5.9) ---------- */

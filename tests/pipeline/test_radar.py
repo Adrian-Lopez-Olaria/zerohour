@@ -47,9 +47,9 @@ def test_fetch_isc_attackers_normaliza_y_filtra(radar, fake_get):
     assert out == [("45.142.1.7", 10)]   # ceros quitados; privada, inválida y NaN fuera
 
 
-def test_config_mapa_pide_3000_ips(radar):
-    """Con 200 IPs DShield daba 4-5 países; a 2000 unos 43; a 3000 se buscan ~7-9 países más."""
-    assert radar.CONFIG["mapa"]["ips"] == 3000 and radar.CONFIG["mapa"]["min_paises"] == 10
+def test_config_mapa_pide_3300_ips(radar):
+    """Con 200 IPs DShield daba 4-5 países; a 3000, 113; a 3300, 126 con map.json ≤ +20 % (08/11)."""
+    assert radar.CONFIG["mapa"]["ips"] == 3300 and radar.CONFIG["mapa"]["min_paises"] == 10
 
 
 def ips_publicas(n):

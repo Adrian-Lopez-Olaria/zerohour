@@ -4,21 +4,27 @@
      con import() dinámico: no es un sink de Trusted Types, no hace falta ninguna política.
    - Sin WebGL, o si la librería/tierra no llegan en 9 s → globo SVG (globo-plano.js) con el
      mismo comportamiento.
-   - Un marcador por país (suma de ataques, en su zona con más ataques), tamaño y tramo en
-     escala logarítmica por tercios; anillos en los 5 primeros; etiquetas «CC 1179,5 k» para 6.
-   - Gira solo (~5°/s). Arrastrar, las flechas del teclado o flyTo() lo paran y a 1 s de soltarlo
-     vuelve a girar desde donde estaba. Sin zoom: altitud fija; la rueda siempre hace scroll de la
-     página y el arrastre vertical en el móvil no bloquea el scroll (touch-action: pan-y).
+   - Una bolita por país del mundo (geo/centroides.js), todas del MISMO tamaño en pantalla; la
+     intensidad va solo en el color (tramos log por tercios) y gris tenue = sin actividad en
+     DShield hoy. Son puntos WebGL de globe.gl (pointsData con merge: una sola malla), no nodos
+     DOM. Si dos se tocan en pantalla a la altitud actual, se ve la de más actividad y la otra se
+     oculta hasta acercar el zoom. Anillos en los 5 primeros; etiquetas «CC 1179,5 k» para 6.
+   - Gira solo. Con el puntero encima, arrastrar, las flechas o flyTo() se para; a 1 s de salir o
+     de soltar vuelve a girar. Zoom corto ×1–×1,6; la rueda sin Ctrl hace scroll de la página.
+   - Hover/toque sobre una bolita: se agranda, se iluminan solo sus rayas y sale un panel propio
+     (el() y textContent; enablePointerInteraction sigue en false y la detección es nuestra:
+     getScreenCoords + distancia). Clic: flyTo.
    - Rayas de Cloudflare Radar como disparos efímeros, repartidos por planificador.js según el
      % de cada par (frecuencia proporcional al dato). Pausa total fuera de pantalla o con la
      pestaña oculta.
    - prefers-reduced-motion: sin giro, sin pulsos ni disparos (rayas estáticas) y vuelo instantáneo.
-   Las etiquetas y el tooltip se crean con createElement y textContent.
+   Las etiquetas y el panel se crean con createElement y textContent.
    ============================================================================= */
 import { el, svg } from './util/dom.js';
 import { nf, countryName, prefersReducedMotion } from './util/format.js';
 import { mountFlatGlobe } from './globo-plano.js';
 import { crearPlanificador, pesoDe } from './planificador.js';
+import { CENTROIDES } from './geo/centroides.js';
 
 const LIB_URL = new URL('../vendor/globe.gl-2.46.2.zh.min.js', import.meta.url).href;
 const LIB_CSS = new URL('../vendor/globe.gl-2.46.2.zh.css', import.meta.url).href;
@@ -31,8 +37,15 @@ const HOME = { lat: 32, lng: -36 };
 const ZOOM_MAG = 1.6;                       // zoom corto: de ×1 (vista inicial) a ×1,6 como máximo
 const ZOOM_STEP = 1.25;                     // cada pulsación o rueda acerca/aleja ×1,25
 const MAX_LABELS = 6, MAX_RINGS = 5, LABEL_MIN_DEG = 9;
-// = --map-hi / --map-mid / --map-lo (WebGL no lee variables CSS)
-const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF' };
+// = --map-hi / --map-mid / --map-lo / --map-none (WebGL no lee variables CSS)
+const TIER_HEX = { hi: '#FF8A5C', mid: '#FFC46B', lo: '#7FB8FF', none: '#A3ADBF' };
+/* Bolitas: diámetro en pantalla (en el centro del globo) y separación mínima entre centros, en
+   diámetros, por debajo de la cual se considera que se tocan. 7 px en escritorio: a la altitud por
+   defecto, en Europa solo se ocultan microestados pegados a un vecino con más actividad. */
+const DOT_PX = { desk: 7, mob: 6 }, DOT_GAP = 1.15, HOT_PX = 15, PT_ALT = 0.004;
+// Fuera del top de DShield no significa sin ataques: «Actividad baja» (dirección, 08/11)
+const ESTADO = { hi: 'Actividad alta', mid: 'Actividad media', lo: 'Actividad baja', none: 'Actividad baja' };
+const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
 const MAX_ARCS = 30;                       // rayas estáticas (reducir movimiento)
 /* Disparos: un par por turno (planificador.js), cada uno es una sola pasada del trazo y un
    destello en el destino. Ritmo y máximo de rayas a la vez, según el ancho. */
@@ -41,28 +54,10 @@ const DASH = 0.35;                          // largo del trazo, en fracción de 
 const FLASH_MS = 700;                       // vida del destello (el anillo dura ~0,55 s)
 const NONE = 'rgba(0,0,0,0)';               // raya del pool sin disparo: invisible
 
-/* Centroides aproximados de país [lat, lon], para las rayas de Cloudflare Radar cuando el país
-   no está entre los puntos de DShield. Si un extremo no tiene centroide, esa raya no se pinta. */
-const CENTROIDS = {
-  US: [39.8, -98.6], CA: [56.1, -106.3], MX: [23.6, -102.6], BR: [-10.8, -52.9], AR: [-38.4, -63.6],
-  CL: [-35.7, -71.5], CO: [4.6, -74.3], PE: [-9.2, -75.0], VE: [6.4, -66.6], CW: [12.2, -69.0],
-  GB: [54.0, -2.4], IE: [53.4, -8.2], FR: [46.6, 2.5], DE: [51.2, 10.4], NL: [52.2, 5.3],
-  BE: [50.6, 4.6], LU: [49.8, 6.1], ES: [40.2, -3.7], PT: [39.6, -8.0], IT: [42.8, 12.6],
-  CH: [46.8, 8.2], AT: [47.6, 14.1], SE: [62.2, 15.6], NO: [64.6, 12.0], FI: [64.5, 26.3],
-  DK: [56.0, 9.5], PL: [52.1, 19.4], CZ: [49.8, 15.5], SK: [48.7, 19.5], HU: [47.2, 19.4],
-  RO: [45.9, 25.0], BG: [42.7, 25.5], GR: [39.1, 22.5], UA: [48.4, 31.2], RU: [61.5, 105.3],
-  TR: [39.1, 35.2], IL: [31.0, 34.9], SA: [23.9, 45.1], AE: [23.9, 54.3], IR: [32.4, 53.7],
-  IN: [22.4, 78.9], PK: [30.4, 69.3], BD: [23.7, 90.4], CN: [35.9, 104.2], HK: [22.3, 114.2],
-  TW: [23.7, 121.0], JP: [36.2, 138.3], KR: [36.4, 127.9], VN: [16.0, 107.9], TH: [15.1, 101.0],
-  MY: [4.2, 109.7], SG: [1.35, 103.8], ID: [-2.5, 118.0], PH: [12.9, 121.8], AU: [-25.7, 134.5],
-  NZ: [-41.8, 172.0], ZA: [-30.6, 24.0], NG: [9.1, 8.7], EG: [26.8, 30.8], MA: [31.8, -7.1],
-  KE: [-0.0, 37.9], DZ: [28.0, 2.6], KZ: [48.0, 66.9], EE: [58.6, 25.0], LV: [56.9, 24.6],
-  LT: [55.2, 23.9], RS: [44.0, 21.0], HR: [45.1, 15.2], SI: [46.1, 14.8],
-};
-
 const narrow = () => innerWidth < 760;
 const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null,
-  plan: null, maxShare: 1, pool: [], flashes: [], pending: [], timer: 0, fired: 0, visible: false, armed: false };
+  plan: null, maxShare: 1, pool: [], flashes: [], pending: [], timer: 0, fired: 0, visible: false, armed: false,
+  all: [], vis: [], dotPx: DOT_PX.desk, dotDeg: 0.5, dotKey: '', focus: null, pinned: false, over: false, focusArcs: [] };
 
 /* ───────── escala: por país, logarítmica, por tercios (guía Órbita §1) ───────── */
 
@@ -79,6 +74,29 @@ export function countryMarkers(map) {
   return [...by.values()].sort((a, b) => b.attacks - a.attacks);
 }
 
+/** Todos los países: los de DShield (como countryMarkers, primero) y, detrás, el resto del mundo
+ *  en su centroide con 0 ataques (bolita gris, «Actividad baja»: fuera del top de DShield). */
+export function allMarkers(map, data = countryMarkers(map)) {
+  const seen = new Set(data.map((m) => m.cc));
+  const rest = Object.keys(CENTROIDES).filter((cc) => !seen.has(cc)).sort()
+    .map((cc) => ({ cc, country: '', attacks: 0, sources: 0, lat: CENTROIDES[cc][0], lon: CENTROIDES[cc][1], none: true }));
+  return [...data, ...rest];
+}
+
+const unit = (m) => { const p = m.lat * Math.PI / 180, l = m.lon * Math.PI / 180; return [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)]; };
+
+/** Bolitas que se ven: en orden (más actividad primero), se descarta la que quede a menos de
+ *  `minDeg` grados de otra ya visible. Es la misma idea que las etiquetas (no se pisan). */
+export function visibleSet(ms, minDeg) {
+  const cosMin = Math.cos(minDeg * Math.PI / 180), out = [], vs = [];
+  for (const m of ms) {
+    const v = unit(m);
+    if (vs.some((w) => v[0] * w[0] + v[1] * w[1] + v[2] * w[2] > cosMin)) continue;
+    out.push(m); vs.push(v);
+  }
+  return out;
+}
+
 /** t = (log10(a+1) − min) / (max − min) con min y max de los países del día; tramos por tercios. */
 export function makeScale(markers) {
   const v = markers.map((m) => Math.log10(m.attacks + 1));
@@ -87,7 +105,7 @@ export function makeScale(markers) {
   const t = (a) => Math.max(0, Math.min(1, (Math.log10(a + 1) - lo) / (hi - lo)));
   return {
     t,
-    tier: (a) => { const x = t(a); return x > 0.66 ? 'hi' : x > 0.33 ? 'mid' : 'lo'; },
+    tier: (a) => { if (!(a > 0)) return 'none'; const x = t(a); return x > 0.66 ? 'hi' : x > 0.33 ? 'mid' : 'lo'; },
     // ≈0,7× del tamaño anterior (marcadores más pequeños, menos solape en Europa), con mínimo legible
     size: (a) => Math.max(5, Math.round((6 + t(a) * 16) * (narrow() ? 0.8 : 1))),
   };
@@ -114,12 +132,14 @@ export function labelSet(markers) {
 function setData(map) {
   S.map = map;
   S.markers = countryMarkers(map);
+  S.all = allMarkers(map, S.markers);        // mismos objetos: etiquetas y anillos se buscan en S.vis
+  S.dotKey = '';                                   // recalcular bolitas visibles
   SCALE = makeScale(S.markers);
   S.labels = labelSet(S.markers);
+  if (S.focus) S.focus = S.all.find((m) => m.cc === S.focus.cc) || null;
   // Solo planifica pares que se pueden pintar (los dos extremos con centroide)
   const pares = ((map && map.attack_pairs) || []).filter((p) => centroidOf(p.from_cc) && centroidOf(p.to_cc));
-  const globales = pares.filter((p) => p.scope == null);
-  S.maxShare = Math.max(1e-6, ...(globales.length ? globales : pares).map((p) => p.share));
+  S.maxShare = Math.max(1e-6, ...pares.map((p) => p.share));
   S.plan = crearPlanificador(pares);
 }
 
@@ -183,9 +203,10 @@ function setAuto(on) {
   if (S.zone) S.zone.dataset.spin = spin ? 'on' : 'off';
 }
 function hold() { clearTimeout(S.idle); setAuto(false); }
+/** Vuelve a girar a 1 s, salvo con el puntero encima del globo o un panel de país abierto. */
 function release() {
   clearTimeout(S.idle);
-  if (!S.reduced) S.idle = setTimeout(() => setAuto(true), RESUME_MS);
+  if (!S.reduced && !S.over && !S.pinned) S.idle = setTimeout(() => setAuto(true), RESUME_MS);
 }
 
 /* ───────── controles (zoom corto, teclado y flyTo) para el globo 3D y el SVG ───────── */
@@ -264,30 +285,141 @@ function onKey(e) {
   e.preventDefault();
 }
 
-/** Tooltip «País: N ataques acumulados · N IPs activas (DShield)» encima del globo. */
-function showTip(m) {
-  const tip = S.zone && S.zone.querySelector('#globe-tip');
-  if (tip) tip.textContent = m ? markerText(m) : '';
+/* ───────── panel de país (hover, toque o foco en el ranking) ─────────
+   Se construye con el() y textContent: ni pointLabel ni tooltips de globe.gl (van por innerHTML). */
+
+const byShare = (a, b) => b.share - a.share;
+
+/** Contenido del panel: país, estado, IPs de DShield y principales destinos y orígenes (Radar). */
+export function panelContent(m, pairs, scale = SCALE, ipsN = S.map && S.map.dshield_ips) {
+  const tier = scale.tier(m.attacks);
+  const out = pairs.filter((p) => p.from_cc === m.cc && p.to_cc !== m.cc).sort(byShare).slice(0, 3);
+  const inn = pairs.filter((p) => p.to_cc === m.cc && p.from_cc !== m.cc).sort(byShare).slice(0, 3);
+  const self = pairs.find((p) => p.from_cc === m.cc && p.to_cc === m.cc);
+  const line = (k, list, cc) => el('p', { class: 'gpan__l' }, [el('span', { class: 'gpan__k', text: k }),
+    list.map((p) => `${countryName(cc(p))} ${nf(p.share, 1)} %`).join(' · ')]);
+  return [
+    el('p', { class: 'gpan__t' }, [el('b', { text: countryName(m.cc, m.country) }), ' ', el('span', { class: `gpan__e gpan__e--${tier}`, text: ESTADO[tier] })]),
+    m.attacks > 0 ? el('p', { class: 'gpan__l', text: `DShield: ${nf(m.sources)} ${m.sources === 1 ? 'IP activa' : 'IPs activas'} · ${nf(m.attacks)} ataques acumulados` })
+      : el('p', { class: 'gpan__l gpan__l--m', text: ipsN ? `Fuera de las ${nf(ipsN)} IPs más activas de DShield hoy` : 'Fuera de las IPs más activas de DShield hoy' }),
+    out.length ? line('Destinos (Radar): ', out, (p) => p.to_cc) : null,
+    inn.length ? line('Orígenes (Radar): ', inn, (p) => p.from_cc) : null,
+    self ? el('p', { class: 'gpan__l' }, [el('span', { class: 'gpan__k', text: 'Dentro del país (Radar): ' }), `${nf(self.share, 1)} %`]) : null,
+    !out.length && !inn.length && !self ? el('p', { class: 'gpan__l gpan__l--m', text: 'Sin pares origen → destino en Cloudflare Radar' }) : null,
+  ];
+}
+
+function showPanel(m) {
+  const box = S.zone && S.zone.querySelector('#globe-tip');
+  if (!box) return;
+  box.replaceChildren(...(m ? panelContent(m, (S.map && S.map.attack_pairs) || []).filter(Boolean) : []));
+}
+
+/** Enfoca un país (o null): panel, bolita grande, solo sus rayas iluminadas; el giro se para. */
+function setFocus(m, pin = false) {
+  const pinned = !!m && !!pin;
+  if (m === S.focus && pinned === S.pinned) return;
+  S.focus = m || null;
+  S.pinned = pinned;
+  showPanel(S.focus);
+  if (S.zone) S.zone.dataset.focus = S.focus ? S.focus.cc : '';
+  if (S.mode === 'globe' && S.globe) {
+    S.focusArcs = S.focus ? focusArcs(S.focus.cc) : [];
+    S.globe.htmlElementsData(htmlItems());
+    paintArcs();
+  } else if (S.mode === 'flat' && S.flat) S.flat.focus(S.focus);
+  if (S.focus) hold(); else release();
+}
+
+/** Para el ranking: foco (sin fijar) en un país por su código, o null para quitarlo. */
+export function focusCountry(cc) {
+  if (S.pinned) return;
+  setFocus(cc ? S.all.find((m) => m.cc === cc) || null : null);
 }
 
 /* ───────── globo 3D ───────── */
 
-function markerEl(m, i) {
-  // Si dos marcadores se pisan, el pequeño va por debajo: i es el orden por ataques (0 = el mayor),
-  // así que el mayor recibe el z-index más alto. (style por CSSOM, que la CSP permite.)
-  const node = el('div', { class: `gm gm--${SCALE.tier(m.attacks)}`, style: { '--s': `${SCALE.size(m.attacks)}px`, 'z-index': String(400 - i) } }, [
-    i < MAX_RINGS ? el('span', { class: 'gm__ring' }) : null,
-    el('span', { class: 'gm__dot', on: { pointerenter: () => showTip(m), pointerleave: () => showTip(null) } }),
-    S.labels.has(m) ? el('span', { class: 'gm__lbl', dataset: { cc: m.cc } }, [m.cc, el('em', { text: ` ${kfmt(m.attacks)}` })]) : null,
-  ]);
-  return node;
+/** Etiqueta «CC 1179,5 k» de uno de los 6 primeros (nodo CSS2D; style por CSSOM, que la CSP permite). */
+function labelEl(m) {
+  return el('div', { class: `gm gm--${SCALE.tier(m.attacks)}`, style: { '--s': `${S.dotPx}px` } },
+    el('span', { class: 'gm__lbl', dataset: { cc: m.cc } }, [m.cc, el('em', { text: ` ${kfmt(m.attacks)}` })]));
 }
 
-/** Centroide de un país: su zona de DShield si la hay (coordenada real), si no la tabla CENTROIDS. */
+/** Bolita enfocada, más grande, encima de la de WebGL. */
+function hotEl(m) {
+  return el('div', { class: `gm gm--hot gm--${SCALE.tier(m.attacks)}`, style: { '--s': `${HOT_PX}px` } }, el('span', { class: 'gm__dot' }));
+}
+
+/** Nodos HTML del globo: solo las etiquetas visibles y, si hay foco, la bolita grande. */
+function htmlItems() {
+  const vis = new Set(S.vis);
+  const items = S.markers.filter((m) => S.labels.has(m) && vis.has(m)).map((m) => ({ m, lat: m.lat, lon: m.lon }));
+  if (S.focus) items.push({ m: S.focus, hot: true, lat: S.focus.lat, lon: S.focus.lon });
+  return items;
+}
+
+/** Centroide de un país: su zona de DShield si la hay (coordenada real), si no geo/centroides.js. */
 function centroidOf(cc) {
   const m = S.markers.find((x) => x.cc === cc);
   if (m) return [m.lat, m.lon];
-  return CENTROIDS[cc] || null;
+  return CENTROIDES[cc] || null;
+}
+
+/* ───────── bolitas WebGL: tamaño fijo en pantalla y ocultación por solape ───────── */
+
+/** Píxeles por radián en el centro de la vista (cámara perspectiva de globe.gl). */
+function pxPerRad() {
+  const host = S.zone.querySelector('#globe');
+  const fov = (S.globe.camera().fov || 50) * Math.PI / 360;
+  return (host.clientHeight || 500) / 2 / Math.tan(fov);
+}
+
+/**
+ * Recalcula el radio angular de las bolitas (para que midan DOT_PX en pantalla a la altitud
+ * actual) y cuáles se ven. Solo rehace la malla si cambió la altitud, el tamaño o los datos.
+ */
+function refreshDots() {
+  if (!S.globe) return;
+  const alt = altOf(), ppr = pxPerRad(), px = narrow() ? DOT_PX.mob : DOT_PX.desk;
+  const key = `${alt.toFixed(3)}|${Math.round(ppr)}|${px}|${S.all.length}`;
+  if (key === S.dotKey) return;
+  S.dotKey = key;
+  const deg = (p) => p * alt / ppr * 180 / Math.PI;      // píxeles en pantalla → grados de arco
+  S.dotPx = px;
+  S.dotDeg = deg(px / 2);
+  S.vis = visibleSet(S.all, deg(px * DOT_GAP));
+  S.globe.pointsData(S.vis).htmlElementsData(htmlItems());
+  S.zone.dataset.dots = String(S.vis.length);
+}
+
+/** ¿El punto está en la cara visible del globo? (ángulo con el centro de la vista < horizonte) */
+function facing(m, pov) {
+  const a = unit(m), b = unit({ lat: pov.lat, lon: pov.lng });
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] > 1 / (1 + pov.altitude) + 0.02;
+}
+
+/** Bolita visible más cercana a (x, y) de pantalla, a menos de `tol` px de su borde. */
+function pick(x, y, tol) {
+  const host = S.zone.querySelector('#globe'), r = host.getBoundingClientRect(), pov = S.globe.pointOfView();
+  let best = null, bd = Infinity;
+  const lim = (S.dotPx / 2 + tol) ** 2;
+  for (const m of S.vis) {
+    if (!facing(m, pov)) continue;
+    const s = S.globe.getScreenCoords(m.lat, m.lon, PT_ALT);
+    const d = (s.x + r.left - x) ** 2 + (s.y + r.top - y) ** 2;
+    if (d < lim && d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+
+/** Cajas en pantalla de las bolitas con datos visibles de la cara de delante (para colocar etiquetas). */
+function dotBoxes() {
+  const host = S.zone.querySelector('#globe'), r = host.getBoundingClientRect(), pov = S.globe.pointOfView(), h = S.dotPx / 2;
+  // Solo las bolitas con datos: una etiqueta puede tapar una gris (sin actividad), no una con datos
+  return S.vis.filter((m) => m.attacks > 0 && facing(m, pov)).map((m) => {
+    const s = S.globe.getScreenCoords(m.lat, m.lon, PT_ALT), x = s.x + r.left, y = s.y + r.top;
+    return { left: x - h, right: x + h, top: y - h, bottom: y + h };
+  });
 }
 
 /** Proporción del par frente al mayor (grosor, color y velocidad del trazo). */
@@ -301,9 +433,34 @@ function staticArcs() {
     if (!a || !b || p.from_cc === p.to_cc) continue;
     if (arcs.length >= MAX_ARCS) break;
     const r = ratio(p);
-    arcs.push({ startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: r >= 0.5 ? TIER_HEX.hi : TIER_HEX.mid, stroke: 0.3 + r * 0.9, anim: 0 });
+    arcs.push({ startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: r >= 0.5 ? TIER_HEX.hi : TIER_HEX.mid, stroke: 0.3 + r * 0.9, anim: 0, solid: true, from: p.from_cc, to: p.to_cc });
   }
   return arcs;
+}
+
+/** Con un país enfocado: todas sus rayas (salientes y entrantes), continuas y quietas. */
+function focusArcs(cc) {
+  const arcs = [];
+  for (const p of (S.map && S.map.attack_pairs) || []) {
+    if (p.from_cc === p.to_cc || (p.from_cc !== cc && p.to_cc !== cc)) continue;
+    const a = centroidOf(p.from_cc), b = centroidOf(p.to_cc);
+    if (!a || !b) continue;
+    const r = ratio(p);
+    arcs.push({ startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: r >= 0.5 ? TIER_HEX.hi : TIER_HEX.mid, stroke: 0.45 + r * 0.9, anim: 0, solid: true, focus: true, from: p.from_cc, to: p.to_cc });
+  }
+  return arcs;
+}
+
+/** Color de una raya: con foco, las que no tocan al país enfocado se atenúan. */
+function arcColor(a) {
+  if (!S.focus || a.color === NONE || a.focus) return a.color;
+  return a.from === S.focus.cc || a.to === S.focus.cc ? a.color : rgba(a.color, 0.14);
+}
+
+function paintArcs() {
+  if (!S.globe) return;
+  if (S.reduced) S.globe.arcsData([...staticArcs(), ...S.focusArcs]);
+  else paintShots();
 }
 
 /* ───────── disparos (Cloudflare Radar) ─────────
@@ -326,7 +483,7 @@ function fire(now, slot) {
     return;
   }
   const dur = Math.round(1800 - r * 600);            // 1,2–1,8 s: más share, más rápido
-  Object.assign(slot, { startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: TIER_HEX[tier], stroke: 0.3 + r * 0.9, anim: dur, born: now, dur, live: true });
+  Object.assign(slot, { startLat: a[0], startLng: a[1], endLat: b[0], endLng: b[1], color: TIER_HEX[tier], stroke: 0.3 + r * 0.9, anim: dur, born: now, dur, live: true, from: p.from_cc, to: p.to_cc });
   // El trazo de una raya reutilizada sigue donde lo dejó el disparo anterior: vuelve al origen
   const line = slot.__threeObjArc && slot.__threeObjArc.children[0];
   if (line && line.material && line.material.uniforms && line.material.uniforms.dashTranslate) line.material.uniforms.dashTranslate.value = 0;
@@ -334,7 +491,7 @@ function fire(now, slot) {
 }
 
 function paintShots() {
-  S.globe.arcsData(S.pool.slice()).ringsData([...S.markers.slice(0, MAX_RINGS), ...S.flashes]);
+  S.globe.arcsData([...S.pool, ...S.focusArcs]).ringsData([...S.markers.slice(0, MAX_RINGS).filter((m) => S.vis.includes(m)), ...S.flashes]);
 }
 
 function shotsTick() {
@@ -363,10 +520,12 @@ function shotsRun(on) {
 }
 
 function setGlobeData() {
-  const ms = S.markers;
-  S.globe.htmlElementsData(ms).htmlElement((m) => markerEl(m, ms.indexOf(m)));
-  if (S.reduced) S.globe.ringsData([]).arcsData(staticArcs());
-  else paintShots();
+  S.dotKey = '';
+  refreshDots();
+  S.focusArcs = S.focus ? focusArcs(S.focus.cc) : [];
+  showPanel(S.focus);
+  if (S.reduced) S.globe.ringsData([]);
+  paintArcs();
   syncZoomButtons();
 }
 
@@ -375,8 +534,8 @@ function setGlobeData() {
  * izquierda, arriba y abajo; si ninguna cabe sin tocar otra etiqueta o un marcador, se oculta.
  */
 function placeLabels() {
-  if (!S.zone || S.mode !== 'globe') return;
-  const dots = [...S.zone.querySelectorAll('.gm__dot')].map((d) => d.getBoundingClientRect()).filter((r) => r.width);
+  if (!S.zone || S.mode !== 'globe' || !S.globe) return;
+  const dots = dotBoxes();                     // las bolitas son WebGL: sus cajas salen de la proyección
   const placed = [], box = S.zone.getBoundingClientRect();
   // Choca con otra etiqueta o con un marcador, o se sale de la caja del globo (se cortaría)
   const out = (r) => r.left < box.left || r.right > box.right || r.top < box.top || r.bottom > box.bottom;
@@ -427,10 +586,15 @@ function createGlobe() {
     // Rayas de Cloudflare Radar. Disparo: una sola pasada del trazo de origen a destino (el
     // hueco de 4 impide una segunda pasada; el desfase de 1 lo hace salir del origen).
     // Con reducir movimiento: trazo continuo y quieto.
-    .arcColor((a) => a.color).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.22).arcCurveResolution(28)
-    .arcDashLength(S.reduced ? 1 : DASH).arcDashGap(S.reduced ? 0 : 4).arcDashInitialGap(S.reduced ? 0 : 1)
+    // Las rayas «solid» (reducir movimiento y las del país enfocado) son continuas y quietas.
+    .arcColor(arcColor).arcStroke((a) => a.stroke).arcAltitudeAutoScale(0.22).arcCurveResolution(28)
+    .arcDashLength((a) => (a.solid ? 1 : DASH)).arcDashGap((a) => (a.solid ? 0 : 4)).arcDashInitialGap((a) => (a.solid ? 0 : 1))
     .arcDashAnimateTime((a) => a.anim).arcsTransitionDuration(0)
+    // Bolitas: puntos WebGL fusionados en una sola malla (pointsMerge), del mismo tamaño en pantalla
+    .pointsMerge(true).pointResolution(10).pointAltitude(PT_ALT).pointLat('lat').pointLng('lon')
+    .pointRadius(() => S.dotDeg).pointColor((m) => TIER_HEX[SCALE.tier(m.attacks)]).pointsTransitionDuration(0)
     .htmlLat('lat').htmlLng('lon').htmlAltitude(0.01)
+    .htmlElement((d) => (d.hot ? hotEl(d.m) : labelEl(d.m)))
     .pointOfView({ ...HOME, altitude: S.altHome }, 0);
   S.globe = g;
 
@@ -448,6 +612,45 @@ function createGlobe() {
   ctr.addEventListener('end', release);
   // Los botones +/− siguen a la cámara: 'change' salta en cada fotograma en que se mueve
   ctr.addEventListener('change', syncZoomButtons);
+  // Al cambiar la altitud (zoom), las bolitas se recalculan (mismo tamaño en pantalla y solapes).
+  // 'change' salta en cada fotograma del giro: solo se programa si la altitud se ha movido.
+  let lastAlt = S.altHome, dotT = 0;
+  ctr.addEventListener('change', () => {
+    const a = altOf();
+    if (Math.abs(a - lastAlt) < 0.002) return;
+    lastAlt = a; clearTimeout(dotT); dotT = setTimeout(refreshDots, 150);
+  });
+
+  /* Hover y toque. La detección es nuestra (pick: proyección + distancia), no la de globe.gl. */
+  const isMouse = (e) => e.pointerType === 'mouse';
+  host.addEventListener('pointerenter', (e) => { if (isMouse(e)) { S.over = true; hold(); } });
+  host.addEventListener('pointerleave', (e) => {
+    if (!isMouse(e)) return;
+    S.over = false;
+    if (!S.pinned) setFocus(null);
+    release();
+  });
+  let hoverRaf = 0, lastMove = null, down = null;
+  host.addEventListener('pointermove', (e) => {
+    if (!isMouse(e) || e.buttons) return;
+    lastMove = e;
+    if (!hoverRaf) hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      const m = pick(lastMove.clientX, lastMove.clientY, 3);
+      host.classList.toggle('is-pick', !!m);
+      if (!S.pinned) setFocus(m);
+    });
+  });
+  host.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, mouse: isMouse(e) }; }, { capture: true });
+  host.addEventListener('pointerup', (e) => {
+    const d = down; down = null;
+    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // fue un arrastre
+    const m = pick(e.clientX, e.clientY, d.mouse ? 3 : 12);                 // el dedo es menos preciso
+    // Ratón: el panel ya sale con el hover y el clic hace flyTo. Toque: el panel queda fijo
+    // hasta otro toque fuera (o Esc).
+    if (m) { setFocus(m, !d.mouse); flyTo(m.lat, m.lon); }
+    else if (S.focus) setFocus(null);                                        // toque fuera: se cierra
+  }, { capture: true });
   // La rueda sin Ctrl hace scroll de la página: el canvas es hijo del host; parar la propagación
   // en captura sobre el host impide que el listener de rueda de OrbitControls (en el canvas) la vea.
   host.addEventListener('wheel', (e) => { if (!e.ctrlKey) e.stopPropagation(); }, { capture: true });
@@ -468,6 +671,7 @@ function createGlobe() {
     if (!host.clientWidth) return;
     g.width(host.clientWidth).height(host.clientHeight);
     if (narrow() !== wasNarrow) { wasNarrow = narrow(); setGlobeData(); if (S.timer) { shotsRun(false); shotsRun(true); } }
+    else refreshDots();                        // otra altura del lienzo: otro tamaño en grados
     g.resumeAnimation();
     requestAnimationFrame(() => requestAnimationFrame(sync));
   }).observe(host);
@@ -491,9 +695,11 @@ function mountFlat(note) {
   S.flatZoom = 1;
   S.zone.dataset.disparos = 'off';
   S.flat = mountFlatGlobe(box, {
-    land: S.land, markers: S.markers, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
+    land: S.land, markers: S.all, scale: SCALE, labels: S.labels, fmt: kfmt, reduced: S.reduced, home: HOME,
     pairs: (S.map && S.map.attack_pairs) || [], centroid: centroidOf,
-    onHover: showTip, onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
+    onHover: (m) => { if (!S.pinned) setFocus(m); },
+    onPick: (m, touch) => { if (m) { setFocus(m, touch); S.flat.flyTo(m.lat, m.lon); } else if (S.focus) setFocus(null); },
+    onSpin: (on) => { S.zone.dataset.spin = on ? 'on' : 'off'; },
     onShots: (on, n) => { S.zone.dataset.disparos = on ? 'on' : 'off'; S.zone.dataset.shots = String(n); },
   });
   S.flat.onZoom((z) => { S.flatZoom = z; syncZoomButtons(); });
@@ -510,6 +716,9 @@ async function mount() {
   S.reduced = prefersReducedMotion();
   const view = S.zone.querySelector('#globe-view');
   if (view) view.addEventListener('keydown', onKey);
+  // Panel de país fijado (toque): se cierra con un toque fuera del globo o con Esc
+  document.addEventListener('pointerdown', (e) => { if (S.pinned && !S.zone.contains(e.target)) setFocus(null); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.focus) setFocus(null); });
   if (!webglOK()) {
     S.land = await loadLand().catch(() => []);
     mountFlat('Sin WebGL: globo simplificado');
@@ -568,6 +777,6 @@ export function scheduleGlobe(zone, map) {
 export function updateGlobe(map) {
   setData(map);
   if (S.mode === 'globe' && S.globe) { setGlobeData(); shotsRun(S.visible); }
-  else if (S.mode === 'flat' && S.flat) S.flat.update(S.markers, SCALE, S.labels, (S.map && S.map.attack_pairs) || []);
+  else if (S.mode === 'flat' && S.flat) { S.flat.update(S.all, SCALE, S.labels, (S.map && S.map.attack_pairs) || []); showPanel(S.focus); }
 }
 

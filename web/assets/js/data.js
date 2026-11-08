@@ -222,16 +222,18 @@ export function normalizeMap(raw) {
     data_day: raw.data_day ?? null,
     // Textos del pipeline para el pie del mapa (se pintan con textContent, tal cual)
     note: str(raw.note).slice(0, 400),
+    // Nº de IPs del ranking de DShield de esta lectura (para «Fuera de las N IPs más activas»)
+    dshield_ips: num(raw.dshield_ips) > 0 ? Math.round(num(raw.dshield_ips)) : null,
     source: str(raw.source).slice(0, 200),
     points: arr(raw.points).map((p) => ({ lat: num(p.lat), lon: num(p.lon), country: str(p.country), cc: str(p.cc), attacks: num(p.attacks) || 0, sources: num(p.sources) || 0 })).filter((p) => p.lat != null && p.lon != null),
     by_country: arr(raw.by_country).map((c) => ({ cc: str(c.cc), country: str(c.country), attacks: num(c.attacks) || 0 })),
     top_ports: arr(raw.top_ports).map((p) => ({ port: num(p.port), records: num(p.records) || 0, sources: num(p.sources) || 0, targets: num(p.targets) || 0 })).filter((p) => p.port != null),
     // Rayas de Cloudflare Radar (origen→destino, % del total). Se revalidan aquí: cc ^[A-Z]{2}$,
-    // share 0-100 y como mucho 20. El pipeline ya los filtra; esto es defensa en profundidad.
+    // share 0-100 y como mucho 100. El pipeline ya los filtra; esto es defensa en profundidad.
     attack_pairs: arr(raw.attack_pairs)
       .map((p) => ({ from_cc: str(p.from_cc).toUpperCase(), to_cc: str(p.to_cc).toUpperCase(), share: num(p.share) }))
       .filter((p) => /^[A-Z]{2}$/.test(p.from_cc) && /^[A-Z]{2}$/.test(p.to_cc) && p.share != null && p.share >= 0 && p.share <= 100)
-      .slice(0, 30),
+      .slice(0, 100),
     attack_pairs_source: str(raw.attack_pairs_source).slice(0, 120),
     attack_pairs_range: raw.attack_pairs_range && typeof raw.attack_pairs_range === 'object'
       ? { start: str(raw.attack_pairs_range.start).slice(0, 40), end: str(raw.attack_pairs_range.end).slice(0, 40) } : null,
