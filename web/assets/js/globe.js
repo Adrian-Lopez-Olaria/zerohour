@@ -62,7 +62,7 @@ const CENTROIDS = {
 
 const narrow = () => innerWidth < 760;
 const S = { zone: null, mode: null, globe: null, flat: null, map: null, land: null, reduced: false, scheduled: false, markers: [], labels: new Set(), altHome: 1.8, idle: 0, ui: null,
-  plan: null, maxShare: 1, pool: [], flashes: [], pending: [], timer: 0, fired: 0, visible: false };
+  plan: null, maxShare: 1, pool: [], flashes: [], pending: [], timer: 0, fired: 0, visible: false, armed: false };
 
 /* ───────── escala: por país, logarítmica, por tercios (guía Órbita §1) ───────── */
 
@@ -344,8 +344,10 @@ function shotsTick() {
   S.flashes = S.flashes.filter((f) => now - f.born < FLASH_MS);
   // Destello al llegar: en el turno más cercano a la llegada del trazo (±medio turno)
   S.pending = S.pending.filter((f) => { if (now < f.at - cfg.every / 2) return true; f.born = now; S.flashes.push(f); return false; });
-  while (S.pool.length < cfg.max) S.pool.push(newSlot());
-  const free = S.plan.size ? S.pool.slice(0, cfg.max).find((s) => !s.live) : null;
+  // El pool crece de una en una, solo cuando no queda ninguna raya libre: crear las 12 mallas de
+  // golpe en el primer turno era una tarea larga justo en la carga
+  let free = S.plan.size ? S.pool.slice(0, cfg.max).find((s) => !s.live) : null;
+  if (!free && S.plan.size && S.pool.length < cfg.max) S.pool.push(free = newSlot());
   if (free) fire(now, free);
   paintShots();
   S.zone.dataset.shots = String(S.fired);
@@ -353,7 +355,7 @@ function shotsTick() {
 
 /** Arranca o para el temporizador. Solo corre con el globo 3D cargado, visible y sin reducir movimiento. */
 function shotsRun(on) {
-  const run = !!on && !S.reduced && S.mode === 'globe' && !!S.globe && !!S.plan && S.plan.size > 0;
+  const run = !!on && S.armed && !S.reduced && S.mode === 'globe' && !!S.globe && !!S.plan && S.plan.size > 0;
   if (run === !!S.timer) return;
   if (run) S.timer = setInterval(shotsTick, shotCfg().every);
   else { clearInterval(S.timer); S.timer = 0; }
@@ -476,6 +478,10 @@ function createGlobe() {
   syncZoomButtons();
   // Los marcadores (nodos HTML de CSS2D) en otra tarea: la creación del globo ya es larga
   setTimeout(() => { if (S.globe) setGlobeData(); }, 0);
+  // Los disparos, cuando el hilo principal se queda libre tras montar el globo (no compiten con
+  // los primeros fotogramas ni con la compilación de shaders)
+  const arm = () => { S.armed = true; shotsRun(S.visible); };
+  setTimeout(() => { if ('requestIdleCallback' in window) requestIdleCallback(arm, { timeout: 3000 }); else arm(); }, 1500);
 }
 
 /* ───────── respaldo SVG ───────── */
