@@ -258,6 +258,10 @@ Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y
   - Permisos mínimos por job (`permissions: {}` por defecto); el token de Cloudflare solo tiene «Workers Scripts: Edit», vive en un entorno restringido a `main` y solo lo ve el paso que despliega.
 - **Divulgación responsable.** Ver [`SECURITY.md`](SECURITY.md) y [`/.well-known/security.txt`](https://zerohour-cve.dev/.well-known/security.txt) (RFC 9116).
 
+## Limitaciones conocidas
+
+- Los días de partido de LaLiga, algunas operadoras españolas bloquean IPs compartidas de Cloudflare por orden judicial; durante esos bloqueos la web puede no cargar desde España (desde otras redes o con VPN funciona con normalidad).
+
 ## Licencia
 
 El código es [MIT](LICENSE). Los datos son de sus fuentes, con sus condiciones: geolocalización de [DB-IP](https://db-ip.com) (CC BY 4.0); *This product uses the NVD API but is not endorsed or certified by the NVD.*
