@@ -28,7 +28,6 @@ design/
 docs/interno/
 
 # ── Varios ──
-.netlify/
 .wrangler/
 .DS_Store
 Thumbs.db

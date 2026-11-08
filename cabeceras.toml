@@ -12,10 +12,6 @@
 # solapan. Los tests lo comprueban fichero a fichero.
 # ─────────────────────────────────────────────────────────────────────────────
 
-[build]
-  publish = "web"
-  # Sin "command": el sitio ya viene montado en la rama deploy
-
 # ── Seguridad: todas las respuestas ──────────────────────────────────────────
 [[headers]]
   for = "/*"

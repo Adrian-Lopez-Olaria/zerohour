@@ -37,9 +37,8 @@ def csp_directives(value):
 
 # ───────────────────────── cabeceras.toml ─────────────────────────
 
-def test_publica_web_sin_comando_de_build():
-    assert CONF["build"]["publish"] == "web"
-    assert "command" not in CONF["build"]          # el sitio llega montado en la rama deploy
+def test_solo_reglas_de_cabeceras():
+    assert set(CONF) == {"headers"}                  # sin bloques de otra plataforma (build, redirects…)
 
 
 def test_csp_estricta():
