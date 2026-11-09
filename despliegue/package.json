@@ -4,7 +4,7 @@
   "description": "Solo wrangler, versión exacta y lockfile con hashes: el job desplegar instala con npm ci --ignore-scripts",
   "license": "MIT",
   "devDependencies": {
-    "wrangler": "4.151.1"
+    "wrangler": "4.153.0"
   },
   "overrides": {
     "undici": "7.30.1"
