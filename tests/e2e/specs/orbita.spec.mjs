@@ -77,7 +77,7 @@ test.describe('§9 · escritorio 1440 × 900', () => {
     // Fuera los rótulos visibles: todo va al panel ⓘ
     await expect(page.locator('#map-arcs, .mapp__freq, #map-foot')).toHaveCount(0);
     await page.locator('#map-infobox summary').click();
-    await expect(page.locator('#map-info')).toContainText('pares origen → destino de ataques web mitigados por Cloudflare en las últimas 24 h');
+    await expect(page.locator('#map-info')).toContainText('ataques web mitigados por Cloudflare en las últimas 24 h, del país de origen al de destino');
     await expect(page.locator('#map-info')).toContainText('frecuencia proporcional a su %');
     const link = page.locator('#map-info a', { hasText: 'Cloudflare Radar' });
     await expect(link).toHaveAttribute('href', /^https:\/\/radar\.cloudflare\.com/);

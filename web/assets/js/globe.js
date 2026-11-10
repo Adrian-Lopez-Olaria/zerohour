@@ -308,7 +308,7 @@ export function panelContent(m, pairs, scale = SCALE) {
     out.length ? line('Destinos (Radar): ', out, (p) => p.to_cc) : null,
     inn.length ? line('Orígenes (Radar): ', inn, (p) => p.from_cc) : null,
     self ? el('p', { class: 'gpan__l' }, [el('span', { class: 'gpan__k', text: 'Dentro del país (Radar): ' }), `${nf(self.share, 1)} %`]) : null,
-    !out.length && !inn.length && !self ? el('p', { class: 'gpan__l gpan__l--m', text: 'Sin pares origen → destino en Cloudflare Radar' }) : null,
+    !out.length && !inn.length && !self ? el('p', { class: 'gpan__l gpan__l--m', text: 'Sin pares de origen y destino en Cloudflare Radar' }) : null,
   ];
 }
 

@@ -135,7 +135,7 @@ function infoBody(map) {
     el('ul', { class: 'info__tiers' }, [tier('hi', 'alta'), tier('mid', 'media'), tier('lo', 'baja'), tier('none', 'zona de baja actividad')]),
     el('p', { class: 'info__note', text: `Zona de baja actividad: países fuera de las ${map.dshield_ips ? `${nf(map.dshield_ips)} ` : ''}IPs más activas del ranking de DShield de hoy.` }),
     map.note ? el('p', { class: 'info__note', text: map.note }) : null,
-    hasArcs ? el('p', [el('b', { text: 'Rayas: ' }), 'pares origen → destino de ataques web mitigados por Cloudflare en las últimas 24 h.',
+    hasArcs ? el('p', [el('b', { text: 'Rayas: ' }), 'ataques web mitigados por Cloudflare en las últimas 24 h, del país de origen al de destino.',
       prefersReducedMotion() ? ' Se muestran quietas.' : ' Cada raya sale con una frecuencia proporcional a su %.',
       ' Radar solo da porcentajes, no recuentos.']) : null,
     el('p', [el('b', { text: 'Fuentes: ' }),
@@ -160,7 +160,7 @@ function mapSummary(map) {
   const ms = countryMarkers(map);
   let s = `Globo: ${MAP_TITLE}. ${ms.length} países; más ataques acumulados: ${ms.slice(0, 3).map((m) => `${countryName(m.cc, m.country)} ${nf(m.attacks)}`).join(', ')}.`;
   const arcs = (map.attack_pairs || []).filter((p) => p.from_cc !== p.to_cc).slice(0, 5);
-  if (arcs.length) s += ` Ataques web mitigados por Cloudflare, origen → destino, últimas 24 h: ${arcs.map((p) => `${countryName(p.from_cc)} a ${countryName(p.to_cc)}, ${nf(p.share)} por ciento del total`).join('; ')}.`;
+  if (arcs.length) s += ` Ataques web mitigados por Cloudflare, de origen a destino, últimas 24 h: ${arcs.map((p) => `${countryName(p.from_cc)} a ${countryName(p.to_cc)}, ${nf(p.share)} por ciento del total`).join('; ')}.`;
   return s;
 }
 
