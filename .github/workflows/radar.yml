@@ -55,6 +55,10 @@ permissions: {}          # nada por defecto: cada job pide lo justo
 concurrency:
   group: radar-cve       # un solo run a la vez: nadie pisa la rama deploy de otro
   cancel-in-progress: false
+  # Cola de hasta 100 runs pendientes, en orden. Con la cola por defecto (single) solo cabe UNO:
+  # el siguiente que llega cancela al que esperaba, y un disparo del Worker se perdería.
+  # Grupos separados por modo no sirven: cada run publica el sitio entero en deploy.
+  queue: max
 
 jobs:
   recolectar:

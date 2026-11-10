@@ -302,6 +302,13 @@ def test_workflow_force_y_paso_fresco():
     assert pasos[ids.index("gate")]["env"]["FORCE"] == "${{ inputs.force }}"
 
 
+def test_workflow_un_solo_grupo_con_cola():
+    """Un solo grupo (los runs publican el sitio entero en deploy) y cola larga: con la cola por
+    defecto, un run pendiente se cancela si llega otro y un disparo del Worker se perdería."""
+    c = _workflow()["concurrency"]
+    assert c == {"group": "radar-cve", "cancel-in-progress": False, "queue": "max"}
+
+
 ya = _load("ya_publicado")
 
 
