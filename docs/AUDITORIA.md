@@ -117,3 +117,19 @@ Los datos de NVD, KEV, GHSA, RSS, PoC y DShield se tratan como hostiles.
 ### Pentest externo
 
 Pendiente. Cuando se haga, el resumen del informe irá en `docs/`.
+
+## Actualización · 10 de noviembre de 2026 · planificador `zerohour-cron`
+
+**Problema.** El `schedule` de GitHub Actions se encola cuando GitHub tiene carga. Del 5 al 9 de noviembre, el diario de las 05:17 UTC arrancó entre 6 h 27 min y 8 h 37 min tarde. El 9/11 la edición salió de un run manual a las 09:31 UTC, y la programada llegó a las 13:54 y la volvió a publicar. Del 9/11 00:41 al 10/11 03:41, de 10 lecturas del mapa salieron 3.
+
+**Decisión.** Los runs los lanza un Cron Trigger de Cloudflare: el Worker `zerohour-cron` hace `workflow_dispatch` a las 05:00 UTC (daily) y a las :41 cada 3 h (map). El `schedule` de GitHub queda solo como respaldo.
+
+| Control | Cómo | Comprobación |
+|---|---|---|
+| Separación de privilegios | Worker aparte del de la web: el Worker público (`zerohour`) sigue sin código ni secrets. Se despliega a mano; el token de Cloudflare del CI no cambia de permisos ni lo toca | `test_wrangler_solo_estaticos_y_sin_vistas_previas` (la web sigue sin `main`); `cron/` fuera de los `paths` de despliegue |
+| Token mínimo | Fine-grained, solo el repo `zerohour`, **Actions: Read and write** (más *Metadata: Read-only*, obligatorio). No permite leer secrets ni escribir en el repo. Caduca en un año: renovar antes del 10/11/2027 | Secret del Worker (`wrangler secret put`), nunca en un fichero ni en el repo |
+| Sin superficie pública | `workers_dev: false`, `preview_urls: false`, sin rutas; además el `fetch` responde 404 a todo | `tests/unit/cron.test.mjs` |
+| Sin fugas en el log | Ante un fallo se registran el estado y el cuerpo (500 caracteres como máximo), nunca las cabeceras | test «el token nunca aparece en el log» |
+| Reintento acotado | Uno solo, a los ~20 s o lo que diga `Retry-After` (hasta 5 min), y solo ante un error de red, un 5xx o un 429. 401/403/404/422 solo se registran | tests de 401–422, 5xx, 429, red y `Retry-After` |
+| Sin duplicados | `scripts/ya_publicado.py` en el gate de `recolectar`: un `daily` con la edición de hoy (fecha de Madrid) ya publicada, o un `map` con menos de 150 min, termina en verde sin publicar. `force` lo salta | `test_workflow_gate_no_publica_dos_veces`, `test_ya_publicado_*` |
+| Sin dependencias nuevas | `fetch` del runtime; wrangler fijado de `despliegue/` (4.151.1) | `wrangler deploy --dry-run`: 3,22 KiB, sin bindings |

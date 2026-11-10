@@ -6,7 +6,7 @@ Briefing diario de vulnerabilidades: cada mañana cruza fuentes públicas, punt�
 
 En producción en **<https://zerohour-cve.dev>**.
 
-Todo corre gratis: el pipeline en **GitHub Actions** y la web en **Cloudflare Workers** (solo ficheros estáticos), con cabeceras de seguridad estrictas (CSP sin excepciones y Trusted Types).
+Todo corre gratis: el pipeline en **GitHub Actions**, lanzado a su hora por un **Cron Trigger de Cloudflare**, y la web en **Cloudflare Workers** (solo ficheros estáticos), con cabeceras de seguridad estrictas (CSP sin excepciones y Trusted Types).
 
 ![Briefing de ZEROHOUR a 1440 × 900: «Lo primero hoy», seis cifras, el top 10 agrupado por veredicto, el globo de origen de ataques, el radar y los puertos](docs/capturas/orbita-briefing-1440.png)
 
@@ -58,7 +58,10 @@ Trece fuentes de datos, más prensa especializada y geolocalización offline:
  PoC-in-GitHub, RSS de INCIBE-CERT / CERT-EU / prensa, SANS ISC) + DB-IP Lite (offline)
                 │  HTTPS, todo tratado como hostil
                 ▼
- ┌──────────────────────────── GitHub Actions (cron 05:17 UTC y cada 3 h) ───────────────────┐
+ Worker zerohour-cron (Cron Triggers de Cloudflare: 05:00 UTC y :41 cada 3 h, sin URL pública)
+                │  POST workflow_dispatch (token fine-grained: solo este repo, Actions: Read and write)
+                ▼
+ ┌──────────── GitHub Actions (+ schedule propio de respaldo: 05:17 UTC y cada 3 h) ──────────┐
  │ recolectar · contents: read   radar.py → data/*.json → validar_datos.py → artifact        │
  │ publicar   · contents: write  montar_deploy.py: web/ + datos + _headers (de cabeceras.toml)  │
  │                               → commit huérfano y force-push SOLO a la rama deploy         │
@@ -76,6 +79,8 @@ Trece fuentes de datos, más prensa especializada y geolocalización offline:
 
 ## Cómo se publica
 
+- **A su hora, sin depender de la cola de GitHub.** El `schedule` de GitHub Actions se encola cuando hay carga: el diario de las 05:17 UTC llegó entre 6 y 9 horas tarde del 5 al 9 de noviembre de 2026, y el mapa se saltaba lecturas. Por eso los runs los lanza el Worker **`zerohour-cron`** ([`cron/`](cron/)), con Cron Triggers de Cloudflare: `workflow_dispatch` a las **05:00 UTC** (diario, 06:00 en invierno y 07:00 en verano en España; la edición sale ~2 min después) y a las **:41 cada 3 h** (mapa). El `schedule` de GitHub sigue en `radar.yml`, solo como respaldo.
+- **Nunca se publica dos veces.** Antes de recolectar, `scripts/ya_publicado.py` mira lo que ya hay en `deploy`: si es un `daily` y la edición de hoy (fecha de Madrid) ya está publicada, o un `map` y el mapa tiene menos de 150 min, el run acaba en verde con un aviso y no publica nada. Así, el respaldo que llega tarde no pisa la edición del Worker. Para republicar a propósito: **Run workflow** con `force` marcado. `all` y `deploy` no se saltan nunca.
 - **`main` solo tiene código.** Los datos nunca se suben a `main`, así que su historial no crece cada día.
 - **`deploy` es el sitio ya montado** y tiene siempre **un único commit**: cada publicación lo reemplaza con un commit huérfano y *force-push*. El *force-push* solo existe hacia `deploy`: el destino está fijado en `scripts/publicar_deploy.sh` y un test lo comprueba.
 - **Tres jobs con permisos mínimos.** `recolectar` (`contents: read`) ejecuta el pipeline y recupera el histórico de 90 días **desde `deploy`**. `publicar` (`contents: write`) solo valida, monta y empuja, sin instalar nada. `desplegar` (`contents: read`) sube a Cloudflare exactamente ese commit de `deploy` con `wrangler`, instalado con `npm ci --ignore-scripts` desde un lockfile con hashes; es el único paso que ve el token de Cloudflare.
@@ -88,11 +93,20 @@ Trece fuentes de datos, más prensa especializada y geolocalización offline:
 
 1. **Repo público en GitHub** (minutos de Actions ilimitados). En **Settings → Actions → General → Workflow permissions** deja **Read repository contents** (solo lectura): el único job que escribe pide `contents: write` él mismo, y solo puede escribir en `deploy`.
 2. **Clave de NVD:** pide una gratuita en <https://nvd.nist.gov/developers/request-an-api-key> y guárdala en **Settings → Secrets and variables → Actions** como `NVD_API_KEY`. Funciona sin ella, pero mucho más lento.
-3. **Primera ejecución:** **Actions → ZEROHOUR → Run workflow** con el modo `all`. Crea la rama `deploy`. Desde ahí se ejecuta solo: briefing a las 05:17 UTC y mapa cada 3 horas.
+3. **Primera ejecución:** **Actions → ZEROHOUR → Run workflow** con el modo `all`. Crea la rama `deploy`. Desde ahí se ejecuta solo: lo lanza el Worker `zerohour-cron` (paso 5) y, de respaldo, el `schedule` de GitHub (briefing a las 05:17 UTC y mapa cada 3 horas).
 4. **Cloudflare:**
    - Crea un API token con un único permiso: **Account → Workers Scripts → Edit**, limitado a tu cuenta. No necesita permisos de zona.
    - En GitHub, **Settings → Environments → New environment** `cloudflare`, restringido a la rama `main`, con los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` y la variable `SITIO_URL` (la URL pública; el workflow comprueba allí que la edición nueva ya se sirve).
    - El dominio propio se conecta desde el panel (**Workers & Pages → zerohour → Settings → Domains & Routes → Custom domain**), así el token sigue sin permisos de zona. En la zona, apaga todo lo que inyecte o reescriba HTML (Rocket Loader, Email Obfuscation, Web Analytics automático, Zaraz, Bot Fight Mode): rompería la CSP.
+5. **Worker planificador `zerohour-cron`** (se despliega **a mano**, nunca desde el CI; el token de Cloudflare del CI no lo toca). Comandos para PowerShell desde la raíz del repo, con el wrangler fijado en `despliegue/` (la misma versión que la web):
+   1. Si no está instalado: `cd despliegue; npm ci --ignore-scripts --no-audit --no-fund; cd ..`
+   2. `.\despliegue\node_modules\.bin\wrangler.cmd login` abre el navegador para autorizar wrangler en tu cuenta de Cloudflare.
+   3. `.\despliegue\node_modules\.bin\wrangler.cmd deploy --config cron\wrangler.jsonc` sube el Worker y sus dos Cron Triggers (sin URL pública: ni `workers.dev` ni rutas).
+   4. **Token de GitHub** (fine-grained): en GitHub, **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**. Nombre `zerohour-cron`; caducidad de 1 año; **Only select repositories** → `zerohour`; **Repository permissions → Actions: Read and write** y nada más (*Metadata: Read-only* lo añade GitHub y no se puede quitar). Sin permisos de cuenta.
+   5. `.\despliegue\node_modules\.bin\wrangler.cmd secret put GITHUB_TOKEN --config cron\wrangler.jsonc` y pega el token cuando lo pida (o en el panel: **Workers & Pages → zerohour-cron → Settings → Variables and Secrets → Add → Secret**). No lo guardes en ningún fichero.
+   6. `.\despliegue\node_modules\.bin\wrangler.cmd logout`.
+   - **Renovación del token: antes del 10/11/2027** (creado en noviembre de 2026 con caducidad de un año). Se repiten los pasos 4 y 5; GitHub avisa por correo unos días antes. Si caduca, los disparos fallan con 401 (se ve en **Workers Logs** del Worker) y solo queda el `schedule` de respaldo, con sus retrasos.
+   - Si un disparo falla, el Worker registra el estado y el cuerpo de la respuesta (nunca el token). Reintenta **una sola vez**, a los ~20 s (o lo que diga `Retry-After`), y solo ante un error de red, un 5xx o un 429.
 
 ### Ejecutarlo en local
 
@@ -270,6 +284,11 @@ Los textos y URLs de las fuentes (descripciones de NVD, titulares RSS, nombres y
   - wrangler con versión exacta y lockfile con integridad, instalado con `npm ci --ignore-scripts` en un job que solo puede leer el repo.
   - Dependabot semanal con 14 días de espera para versiones recién publicadas.
   - Permisos mínimos por job (`permissions: {}` por defecto); el token de Cloudflare solo tiene «Workers Scripts: Edit», vive en un entorno restringido a `main` y solo lo ve el paso que despliega.
+- **Planificador (`zerohour-cron`).**
+  - Es un Worker **aparte** del de la web: el Worker público (`zerohour`, solo ficheros estáticos) no tiene ningún secret y no puede lanzar nada.
+  - No tiene URL pública (`workers_dev` y `preview_urls` a `false`, sin rutas) y, aun así, su `fetch` responde 404 a todo: nadie puede lanzar runs desde fuera. Solo actúan sus Cron Triggers.
+  - Su único secret es un token fine-grained de GitHub limitado al repo `zerohour` con **Actions: Read and write**: con él solo se pueden lanzar, cancelar o borrar runs y artifacts, no leer secrets ni escribir código. El workflow que lanza sigue con sus permisos y entornos de siempre.
+  - Sin dependencias: `fetch` del runtime. Se despliega a mano con el wrangler fijado de `despliegue/`.
 - **Divulgación responsable.** Ver [`SECURITY.md`](SECURITY.md) y [`/.well-known/security.txt`](https://zerohour-cve.dev/.well-known/security.txt) (RFC 9116).
 
 ## Limitaciones conocidas
