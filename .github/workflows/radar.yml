@@ -16,10 +16,14 @@
 name: ZEROHOUR
 
 on:
+  # Los runs puntuales los lanza el Worker zerohour-cron (Cron Triggers de Cloudflare, cron/):
+  # workflow_dispatch a las 05:00 UTC (daily) y a las :41 cada 3 h (map). Este schedule de
+  # GitHub, que se encola con horas de retraso, queda SOLO como respaldo: si lo que trae ya está
+  # publicado, el gate de recolectar no publica nada (salvo con force).
   schedule:
-    # Informe diario: 05:17 UTC → 06:17 en invierno / 07:17 en verano (hora de España)
+    # Respaldo del informe diario: 05:17 UTC → 06:17 en invierno / 07:17 en verano (hora de España)
     - cron: "17 5 * * *"
-    # Mapa de ataques: cada 3 horas
+    # Respaldo del mapa de ataques: cada 3 horas
     - cron: "41 */3 * * *"
   # Cambios de código en main: se regenera deploy con los datos que ya había
   push:
@@ -41,6 +45,10 @@ on:
         type: choice
         options: [all, daily, map, deploy]
         default: all
+      force:
+        description: "Publicar aunque ya esté publicado (daily: la edición de hoy; map: < 150 min)"
+        type: boolean
+        default: false
 
 permissions: {}          # nada por defecto: cada job pide lo justo
 
@@ -130,16 +138,33 @@ jobs:
             echo "Sin rama deploy todavía: primera publicación"
           fi
 
+      # Sin duplicados: el Worker y el schedule de respaldo pueden traer lo mismo. Mira en lo que
+      # ya está en deploy si la edición de hoy (daily) o un mapa de < 150 min (map) ya existen.
+      # La concurrency serializa los runs, así que aquí se ve lo que dejó el run anterior.
+      - name: ¿Ya está publicado?
+        id: fresco
+        if: steps.prep.outputs.previos == 'true'
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+        run: python3 scripts/ya_publicado.py "$MODE" data/ | tee -a "$GITHUB_OUTPUT"
+
       # Sin datos publicados todavía, "deploy" (push a main) y "map" no tienen informe que
-      # publicar: el run acaba en verde con un aviso, sin validar ni publicar nada.
+      # publicar. Y si lo que trae este run ya está publicado (y no viene con force), tampoco.
+      # En los dos casos el run acaba en verde con un aviso, sin validar ni publicar nada.
       - name: ¿Hay algo que publicar?
         id: gate
         env:
           MODE: ${{ steps.mode.outputs.mode }}
           PREVIOS: ${{ steps.prep.outputs.previos }}
+          FRESCO: ${{ steps.fresco.outputs.fresco }}
+          DETALLE: ${{ steps.fresco.outputs.detalle }}
+          FORCE: ${{ inputs.force }}           # vacío en schedule y push: cuenta como false
         run: |
           if [ "$PREVIOS" != "true" ] && { [ "$MODE" = "deploy" ] || [ "$MODE" = "map" ]; }; then
             echo "::notice::Aún no hay datos publicados: lanza primero un run manual en modo all. Este run ($MODE) no publica nada."
+            echo "mode=nada" >> "$GITHUB_OUTPUT"
+          elif [ "$FRESCO" = "true" ] && [ "$FORCE" != "true" ]; then
+            echo "::notice::Ya publicado: ${DETALLE}. Este run ($MODE) no publica nada (para forzarlo: Run workflow con force)."
             echo "mode=nada" >> "$GITHUB_OUTPUT"
           else
             echo "mode=$MODE" >> "$GITHUB_OUTPUT"

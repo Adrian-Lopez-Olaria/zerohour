@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -262,6 +263,86 @@ def test_workflow_no_publica_sin_datos_previos(tmp_path, modo, previos, esperado
     assert r.returncode == 0
     assert out.read_text().strip() == f"mode={esperado}"
     assert ("::notice::" in r.stdout) == (esperado == "nada")
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="necesita bash")
+@pytest.mark.parametrize("modo, fresco, force, esperado", [
+    ("daily", "true", "", "nada"),          # respaldo de GitHub tras el run del Worker: no duplica
+    ("daily", "true", "false", "nada"),     # segundo dispatch el mismo día, sin force
+    ("daily", "true", "true", "daily"),     # force=true publica igualmente
+    ("daily", "false", "", "daily"),        # primera edición del día
+    ("map", "true", "", "nada"), ("map", "true", "true", "map"), ("map", "false", "false", "map"),
+    ("map", "", "", "map"),                 # sin respuesta de ya_publicado.py: ante la duda, se publica
+    ("all", "false", "", "all"), ("deploy", "false", "", "deploy"),
+])
+def test_workflow_gate_no_publica_dos_veces(tmp_path, modo, fresco, force, esperado):
+    paso = next(s for s in _workflow()["jobs"]["recolectar"]["steps"] if s.get("id") == "gate")
+    out = tmp_path / "out"
+    out.write_text("")
+    r = subprocess.run(["bash", "-c", paso["run"]], capture_output=True, text=True,
+                       env={"MODE": modo, "PREVIOS": "true", "FRESCO": fresco, "FORCE": force,
+                            "DETALLE": "la edición del 2026-11-10 ya está publicada",
+                            "GITHUB_OUTPUT": str(out), "PATH": "/usr/bin:/bin"})
+    assert r.returncode == 0, r.stderr
+    assert out.read_text().strip() == f"mode={esperado}"
+    assert ("::notice::Ya publicado" in r.stdout) == (esperado == "nada")
+
+
+def test_workflow_force_y_paso_fresco():
+    w = _workflow()
+    force = w[True]["workflow_dispatch"]["inputs"]["force"]           # yaml lee `on:` como True
+    assert force == {"description": force["description"], "type": "boolean", "default": False}
+    assert [c["cron"] for c in w[True]["schedule"]] == ["17 5 * * *", "41 */3 * * *"]   # respaldo intacto
+    pasos = w["jobs"]["recolectar"]["steps"]
+    ids = [s.get("id") for s in pasos]
+    assert ids.index("prep") < ids.index("fresco") < ids.index("gate")
+    fresco = pasos[ids.index("fresco")]
+    assert fresco["if"] == "steps.prep.outputs.previos == 'true'"
+    assert "scripts/ya_publicado.py" in fresco["run"] and "secrets." not in str(fresco)
+    assert pasos[ids.index("gate")]["env"]["FORCE"] == "${{ inputs.force }}"
+
+
+ya = _load("ya_publicado")
+
+
+@pytest.mark.parametrize("ahora, fecha, esperado", [
+    ("2026-11-10T05:00:00+00:00", "2026-11-10", True),     # 06:00 en Madrid: misma fecha
+    ("2026-11-10T23:30:00+00:00", "2026-11-10", False),    # 00:30 del 11 en Madrid: ya es otro día
+    ("2026-11-10T05:00:00+00:00", "2026-11-09", False),    # la de ayer: toca publicar
+])
+def test_ya_publicado_daily_por_fecha_de_madrid(tmp_path, ahora, fecha, esperado):
+    (tmp_path / "latest.json").write_text(json.dumps({"date": fecha, "generated_at": "x"}), encoding="utf-8")
+    fresco, _ = ya.comprobar("daily", tmp_path, ya._fecha(ahora))
+    assert fresco is esperado
+
+
+@pytest.mark.parametrize("minutos, esperado", [(0, True), (35, True), (149, True), (150, False), (179, False), (-5, False)])
+def test_ya_publicado_map_por_antiguedad(tmp_path, minutos, esperado):
+    from datetime import datetime, timedelta, timezone
+    ahora = datetime(2026, 11, 10, 9, 41, tzinfo=timezone.utc)
+    (tmp_path / "map.json").write_text(json.dumps({"updated_at": (ahora - timedelta(minutes=minutos)).isoformat()}),
+                                       encoding="utf-8")
+    assert ya.comprobar("map", tmp_path, ahora)[0] is esperado
+
+
+@pytest.mark.parametrize("contenido", [None, "{roto", '{"updated_at": "2026-11-10T09:00:00"}', '[]'])
+def test_ya_publicado_ante_la_duda_publica(tmp_path, contenido):
+    if contenido is not None:
+        (tmp_path / "map.json").write_text(contenido, encoding="utf-8")
+        (tmp_path / "latest.json").write_text(contenido, encoding="utf-8")
+    ahora = ya._fecha("2026-11-10T09:41:00+00:00")
+    assert ya.comprobar("map", tmp_path, ahora)[0] is False
+    assert ya.comprobar("daily", tmp_path, ahora)[0] is False
+    assert ya.comprobar("all", tmp_path, ahora)[0] is False
+
+
+def test_ya_publicado_salida_para_github_output(tmp_path):
+    (tmp_path / "latest.json").write_text(json.dumps({"date": "2026-11-10", "generated_at": "a\nb"}), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(SCRIPTS / "ya_publicado.py"), "daily", str(tmp_path),
+                        "--ahora", "2026-11-10T05:00:00+00:00"], capture_output=True, text=True, encoding="utf-8")
+    assert r.returncode == 0
+    lineas = r.stdout.splitlines()
+    assert lineas[0] == "fresco=true" and lineas[1].startswith("detalle=") and len(lineas) == 2
 
 
 def test_workflow_si_no_hay_nada_no_valida_ni_publica():
