@@ -15,12 +15,14 @@ on:
       - "tests/e2e/**"
       - "tests/unit/**"
       - "tests/fixtures/**"
+      - "cron/**"                       # Worker planificador: sus tests van en tests/unit
       - ".github/workflows/e2e.yml"
   pull_request:
     paths:
       - "web/**"
       - "tests/e2e/**"
       - "tests/unit/**"
+      - "cron/**"
   workflow_dispatch:
 
 permissions: {}
@@ -58,7 +60,7 @@ jobs:
       - name: Instalar Chromium de Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Pruebas unitarias (planificador de disparos)
+      - name: Pruebas unitarias (planificador de disparos y Worker zerohour-cron)
         run: node --test "../unit/*.test.mjs"
 
       - name: Pruebas

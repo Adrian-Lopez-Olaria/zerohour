@@ -1,0 +1,30 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// cron/wrangler.jsonc · zerohour-cron, el Worker planificador (aparte del Worker de la web)
+//
+// Solo tiene un handler scheduled: lanza radar.yml por la API de GitHub a su hora. Se despliega
+// A MANO, nunca desde el CI, con el wrangler fijado en despliegue/ (misma versión que la web):
+//   despliegue/node_modules/.bin/wrangler deploy --config cron/wrangler.jsonc
+// El token de GitHub es un secret del Worker (wrangler secret put GITHUB_TOKEN), nunca un fichero.
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  "name": "zerohour-cron",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+
+  // UTC. Los mismos crons que el respaldo en .github/workflows/radar.yml (un test lo comprueba)
+  "triggers": {
+    "crons": ["0 5 * * *", "41 */3 * * *"]
+  },
+
+  // Sin URL pública: ni *.workers.dev, ni vistas previas, ni rutas. El fetch devuelve 404 igualmente.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // Workers Logs: los console.error de un disparo fallido se ven en el panel sin wrangler tail
+  "observability": {
+    "enabled": true
+  },
+
+  // Sin telemetría de wrangler
+  "send_metrics": false
+}
