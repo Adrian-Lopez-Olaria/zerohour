@@ -2,7 +2,7 @@
 #   pip-compile --generate-hashes --allow-unsafe --strip-extras requirements-dev.in
 -c requirements.txt
 -r requirements.in
-pytest==9.1.1
+pytest==9.2.0
 pyyaml==6.0.3         # tests que leen .github/workflows/radar.yml
-fonttools==4.67.0     # test_glifos.py: cobertura de las fuentes autoalojadas (woff2)
+fonttools==4.68.0     # test_glifos.py: cobertura de las fuentes autoalojadas (woff2)
 brotli==1.2.1         # fontTools lo necesita para leer woff2 (1.2.1: corrige GHSA-9v8h-qqgm-4m35)
