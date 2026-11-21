@@ -1,0 +1,196 @@
+/* =============================================================================
+   COMPONENTES · vistas, panel, botón, severidad, veredicto, chips, score, avisos
+   v2: superficies planas con borde de 1 px y barra de cabecera; radio de 2 px;
+   sin marcas de esquina ni códigos de sección.
+   ============================================================================= */
+
+/* ---------- Vistas ---------- */
+.view[hidden] { display: none; }
+.view { padding: var(--gap) 0 var(--sp-7); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Cabecera de página (listado, histórico): título mono, sin titulares en display */
+.page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 4px 0 var(--gap); }
+.page-head h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .06em; }
+/* Titulares que reciben el foco al cambiar de pantalla (router): sin anillo, no son controles */
+h1[tabindex="-1"]:focus { outline: none; }
+
+/* ---------- Color por severidad (fondo, relleno SVG y texto) ---------- */
+.sevbg--CRITICAL { background: var(--sev-critical); } .sevbg--HIGH { background: var(--sev-high); } .sevbg--MEDIUM { background: var(--sev-medium); }
+.sevbg--LOW { background: var(--sev-low); } .sevbg--UNSCORED { background: var(--sev-unscored); }
+.sevfill--CRITICAL { fill: var(--sev-critical); } .sevfill--HIGH { fill: var(--sev-high); } .sevfill--MEDIUM { fill: var(--sev-medium); }
+.sevfill--LOW { fill: var(--sev-low); } .sevfill--UNSCORED { fill: var(--sev-unscored); fill-opacity: .55; }
+.sevc--CRITICAL { color: var(--sev-critical); } .sevc--HIGH { color: var(--sev-high); } .sevc--MEDIUM { color: var(--sev-medium); }
+.sevc--LOW { color: var(--sev-low); } .sevc--UNSCORED { color: var(--sev-unscored); }
+
+/* ---------- Aviso de edición histórica ---------- */
+.edition { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 var(--gap); padding: 8px 14px; border: 1px solid var(--acc); border-radius: var(--r-chip); background: rgba(255, 181, 71, .08); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.edition b { color: var(--acc); font-weight: 600; }
+.edition span { color: var(--text-2); }
+.edition__back { margin-left: auto; }
+
+/* ---------- Panel plano ---------- */
+.panel { display: flex; flex-direction: column; min-width: 0; padding: 12px 14px; background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--r-panel); }
+.panel__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.panel__title { margin: 0; font-size: 15px; font-weight: 700; color: var(--text-1); }
+.panel__meta { margin-left: auto; font-size: var(--fs-note); font-stretch: 87.5%; color: var(--text-2); }
+.panel__meta a { color: var(--acc); text-decoration: none; }
+.panel__meta a:hover { text-decoration: underline; }
+.panel__body { padding: 10px 0 0; }
+.panel__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; padding: 8px 0 0; margin-top: 8px; border-top: 1px solid var(--line); }
+
+/* ---------- Botones ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--tap); padding: 0 16px; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--bg-2); color: var(--text-1); font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: border-color var(--t-fast); }
+.btn:hover { border-color: var(--line-hi); }
+.btn--primary { background: var(--acc); border-color: var(--acc); color: #2A1A04; }
+.btn--primary:hover { border-color: var(--acc); filter: brightness(1.06); }
+.btn--ghost { background: transparent; }
+.btn--sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.btn[aria-disabled="true"], .btn:disabled { opacity: .35; pointer-events: none; }
+
+/* ---------- Severidad CVSS: barras de color + texto neutro ---------- */
+.sev { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-note); font-weight: 500; letter-spacing: .04em; color: var(--text-2); white-space: nowrap; }
+.sev__bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; color: var(--sev-c); }
+.sev__bars i { width: 3px; background: currentColor; }
+.sev__bars i:nth-child(1) { height: 4px; } .sev__bars i:nth-child(2) { height: 6px; } .sev__bars i:nth-child(3) { height: 8px; } .sev__bars i:nth-child(4) { height: 10px; }
+.sev__bars i.off { background: transparent; box-shadow: inset 0 0 0 1px currentColor; opacity: .5; }
+.sev--CRITICAL { --sev-c: var(--sev-critical); } .sev--HIGH { --sev-c: var(--sev-high); } .sev--MEDIUM { --sev-c: var(--sev-medium); } .sev--LOW { --sev-c: var(--sev-low); } .sev--UNSCORED { --sev-c: var(--sev-unscored); }
+
+/* ---------- Veredicto: forma SVG propia + texto (■ hoy · ◧ semana · □ planificar · ○ vigilar) ---------- */
+.v-hoy { --vc: var(--v-hoy); } .v-semana { --vc: var(--v-semana); } .v-planificar { --vc: var(--v-planificar); } .v-vigilar { --vc: var(--v-vigilar); }
+.vshape { width: 11px; height: 11px; flex: none; color: var(--vc); }
+.vshape .vs-line { fill: none; stroke: currentColor; stroke-width: 1.8; }
+.vshape .vs-fill { fill: currentColor; }
+.vtag { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--vc); white-space: nowrap; }
+
+/* ---------- Chips: las 12 etiquetas aprobadas en 5 familias (guía Órbita §5.6) ----------
+   La lógica de producción no cambia (orden TAG_ORDER, 3 + «+N»); solo el estilo. */
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 21px; padding: 0 8px 0 6px; border: 1px solid var(--line); border-radius: var(--r-chip); background: transparent; color: var(--text-2); font-size: 12px; font-weight: 600; font-stretch: 87.5%; line-height: 1; white-space: nowrap; }
+.chip svg { width: 11px; height: 11px; flex: none; }
+/* Explotación: kev relleno coral (7,3:1), ssvc contorno discontinuo, ransomware doble filete */
+.chip--kev, .chip--ransomware { background: var(--v-hoy); border-color: var(--v-hoy); color: #2A0B06; }
+.chip--ransomware { box-shadow: inset 0 0 0 2px #2A0B06; }
+.chip--ssvc { border-color: var(--v-hoy); border-style: dashed; color: var(--v-hoy); }
+/* Código de ataque: exploit relleno ámbar (9,6:1); poc discontinuo con asterisco; detección contorno */
+.chip--exploit, .chip--deteccion, .chip--poc { border-color: var(--acc); color: var(--acc); }
+.chip--exploit { background: var(--acc); color: #2A1A04; }
+.chip--poc { border-style: dashed; }
+/* Avisos: contorno discontinuo; técnica: fondo sin borde; propio: relleno claro (17,9:1) */
+.chip--incibe, .chip--certeu, .chip--news { border-style: dashed; }
+.chip--remote, .chip--library { background: var(--bg-2); border-color: transparent; }
+.chip--stack { background: var(--text-1); border-color: var(--text-1); color: var(--bg-0); }
+.chip--more { color: var(--text-3); }
+.chips--lg .chip { height: 26px; padding: 0 10px 0 8px; font-size: 13px; gap: 6px; }
+.chips--lg .chip svg { width: 13px; height: 13px; }
+@media (max-width: 760px) { .chip { height: 23px; font-size: 12.5px; } }
+
+/* ---------- Aviso de fuente caída o de error de carga ---------- */
+.alert { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 12px; align-items: start; margin-top: 12px; padding: 10px 14px; border: 1px solid var(--fail); border-radius: var(--r-strip); background: var(--fail-bg); }
+.alert svg { width: 16px; height: 16px; color: var(--fail); margin-top: 2px; }
+.alert b { font-size: 13px; font-weight: 700; color: var(--fail); }
+.alert p { margin: 2px 0 0; font-size: var(--fs-small); color: var(--text-2); }
+.alert__next { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+@media (max-width: 760px) { .alert { grid-template-columns: auto 1fr; } .alert__next { grid-column: 2; white-space: normal; } }
+
+/* ---------- Estado vacío ---------- */
+.empty { padding: 28px 16px; display: grid; justify-items: start; gap: 6px; }
+.empty__glyph { width: 32px; height: 32px; color: var(--text-3); }
+.empty h3 { margin: 0; font-size: 12px; font-weight: 600; }
+.empty p { margin: 0; max-width: 560px; color: var(--text-2); font-size: var(--fs-small); }
+.empty--tight { padding: 16px 14px; }
+
+/* =============================================================================
+   MOVIMIENTO REDUCIDO: todo a cero, sin autogiro ni ondas
+   ============================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* =============================================================================
+   FILA DE CVE «ÓRBITA» (.orow) · top 10, listado y ficha (guía Órbita §5.3–5.5)
+   Accionable (actuar hoy · esta semana · planificar): posición, forma e ID / fabricante ·
+   producto / chips y CVSS / plazo CISA / desglose; a la derecha, el score grande.
+   Compacta (vigilar): una línea, chips sin icono y score pequeño en --text-2.
+   Sin borde de color a la izquierda (prohibido en la guía §0).
+   ============================================================================= */
+.orows { margin: 0; padding: 0; list-style: none; }
+.ogrp { display: flex; align-items: center; gap: 8px; padding: 12px 0 5px; border-bottom: 1px solid var(--line); font-size: 12.5px; font-weight: 700; font-stretch: 87.5%; letter-spacing: .08em; text-transform: uppercase; color: var(--vc); }
+.ogrp .vshape { width: 12px; height: 12px; }
+.ogrp__n { margin-left: auto; font-family: var(--f-mono); font-weight: 400; color: var(--text-2); letter-spacing: 0; }
+.ogrp.v-vigilar { color: var(--text-2); }
+.orow { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; padding: 11px 6px 11px 0; border-bottom: 1px solid var(--line); border-radius: 6px; transition: background-color var(--t-fast); }
+.orow:hover, .orow.is-hot, .orow:focus-within { background: var(--bg-2); }
+.orow__pos { padding-top: 2px; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.orow__main { min-width: 0; display: grid; align-content: start; }
+.orow__l1 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.orow__l1 .vshape { width: 11px; height: 11px; }
+/* El ID es el enlace a la ficha y cubre toda la fila (zona táctil grande, un solo tabulador) */
+.oid { font-family: var(--f-mono); font-size: 13px; color: var(--text-1); text-decoration: none; }
+.oid::after { content: ""; position: absolute; inset: 0; border-radius: 6px; }
+.oid:focus-visible { outline: none; }
+.oid:focus-visible::after { outline: 2px solid var(--acc); outline-offset: -2px; }
+.orow:hover .oid { text-decoration: underline; }
+.orow__who { margin: 3px 0 0; font-size: 17px; font-weight: 600; line-height: 1.2; min-width: 0; }
+.who__p { font-weight: 400; color: var(--text-2); }
+.pend { font-style: italic; font-weight: 400; font-size: 13.5px; color: var(--text-2); }
+.orow__l3 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
+.orow__cv { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.orow__desc { margin: 4px 0 0; font-size: 12.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.orow.v-vigilar .orow__who { color: var(--text-2); font-weight: 500; }
+.orow--min { padding: 7px 6px 7px 0; }
+.orow--min .orow__l1 { flex-wrap: wrap; gap: 2px 10px; }
+.orow--min .oid { font-size: 12.5px; }
+.orow--min .orow__who { margin: 0; font-size: 12.5px; }
+.orow--min .orow__l3 { margin-top: 3px; }
+
+/* Score: cifra en el color del veredicto (peso 600 en hoy y semana; 300 y --text-2 en vigilar) */
+.oscore { display: grid; justify-items: end; align-content: start; min-width: 40px; }
+.oscore__n { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.v-hoy .oscore__n, .v-semana .oscore__n { font-weight: 600; color: var(--vc); }
+.v-planificar .oscore__n { color: var(--vc); }
+.orow--min .oscore__n { font-size: 20px; color: var(--text-2); }
+.oscore__x { font-size: 11px; color: var(--text-3); }
+
+/* Plazo de CISA */
+.odue { display: inline-flex; align-items: baseline; gap: 6px; margin-top: 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.odue__k { font-size: 11px; font-weight: 700; font-stretch: 87.5%; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.odue.is-near, .odue.is-near .odue__k { color: var(--v-hoy); }
+
+/* Desglose del score */
+.obd { margin-top: 8px; }
+.obd__bar { display: block; width: 100%; max-width: 460px; height: 6px; border-radius: 3px; overflow: hidden; }
+.obd__t { fill: var(--bg-2); }
+.obd__cvss { fill: var(--bd-cvss); } .obd__epss { fill: var(--bd-epss); } .obd__explotada { fill: var(--bd-explotada); }
+.obd__ransomware { fill: var(--bd-ransomware); } .obd__exploit { fill: var(--bd-exploit); } .obd__stack { fill: var(--bd-stack); }
+.obd__floor { fill: none; stroke: var(--text-3); stroke-width: .6; stroke-dasharray: 1 1; }
+.obd__l { margin: 4px 0 0; font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.ofoot { margin: 8px 0 0; font-size: 11px; line-height: 1.4; color: var(--text-3); }
+.more10 summary { display: flex; justify-content: center; align-items: center; min-height: 46px; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); font-weight: 600; cursor: pointer; list-style: none; }
+.more10 summary::-webkit-details-marker { display: none; }
+.more10 summary:hover { border-color: var(--line-hi); }
+.more10[open] summary { display: none; }
+
+@media (min-width: 1000px) {
+  .orow { padding: 7px 6px 7px 0; }
+  .orow__who { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pend { font-size: 12.5px; }
+  .orow__l3 { margin-top: 3px; }
+  .oscore__n { font-size: 26px; }
+  .chip { height: 21px; font-size: 12px; }
+  .orow--min { padding: 2px 6px 2px 0; align-items: center; }
+  .orow--min .orow__pos { padding: 0; }
+  .orow--min .orow__main { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .orow--min .orow__l1 { display: grid; gap: 0; }
+  .orow--min .oid { font-size: 12px; }
+  .orow--min .orow__who { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .orow--min .orow__l3 { margin: 0; flex-wrap: nowrap; }
+  .orow--min .orow__cv { display: none; }
+  .orow--min .oscore__n { font-size: 18px; }
+  .orow--min .chip { height: 19px; font-size: 11px; }
+  .ogrp { padding: 6px 0 2px; }
+  .odue, .obd { margin-top: 6px; }
+  .obd__l { margin-top: 2px; font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .orow { transition: none; } }

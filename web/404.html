@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>404 · Ruta no encontrada — ZEROHOUR</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#04060C">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon-404.svg">
+
+<!-- Página estática y sin JavaScript. Se sirve en CUALQUIER ruta que no exista
+     (/a/b/c), así que todas las rutas son absolutas. Misma CSP que el resto del sitio. -->
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/fuentes.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/componentes.css">
+<link rel="stylesheet" href="/assets/css/cabecera.css">
+<link rel="stylesheet" href="/assets/css/error.css">
+</head>
+
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<svg class="logo-defs" width="0" height="0" aria-hidden="true">
+  <symbol id="logo" viewBox="0 0 32 32">
+    <circle class="lg-ring" cx="16" cy="16" r="13.5"/>
+    <path class="lg-sweep" d="M16 16V2.5A13.5 13.5 0 0 1 25.5 6.4Z"/>
+    <line class="lg-hand" x1="16" y1="16" x2="16" y2="2.5"/>
+    <circle class="lg-hub" cx="16" cy="16" r="2"/>
+  </symbol>
+</svg>
+
+<header class="hdr">
+  <div class="wrap hdr__row">
+    <a class="brand" href="/">
+      <svg class="brand__mark" aria-hidden="true" focusable="false"><use href="#logo"/></svg>
+      <span class="brand__name">ZEROHOUR</span>
+    </a>
+    <nav class="nav" aria-label="Secciones">
+      <a class="nav__a" href="/#briefing">Briefing</a>
+      <a class="nav__a" href="/#listado">Listado</a>
+      <a class="nav__a" href="/#historico">Histórico</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap err" tabindex="-1">
+  <p class="eyebrow"><b>HTTP 404</b><span>SIN CONTACTO EN ESTA DIRECCIÓN</span></p>
+
+  <div class="err__grid">
+    <!-- Radar apagado: barrido parado, sin blips -->
+    <svg class="err__radar" viewBox="0 0 200 200" aria-hidden="true">
+      <circle cx="100" cy="100" r="92" />
+      <circle cx="100" cy="100" r="62" />
+      <circle cx="100" cy="100" r="32" />
+      <path d="M100 4V196M4 100H196" />
+      <path class="err__sweep" d="M100 100 L100 8 A92 92 0 0 0 34.9 34.9 Z" />
+      <circle class="err__hub" cx="100" cy="100" r="3" />
+    </svg>
+
+    <div>
+      <h1 class="err__h"><span class="err__code">404</span>Esta ruta no existe</h1>
+      <p class="err__p">La dirección no corresponde a ninguna página de ZEROHOUR. Las fichas de cada CVE viven dentro del briefing, en enlaces del tipo <span class="mono">/#cve/CVE-AAAA-NNNN</span>.</p>
+      <div class="err__actions">
+        <a class="btn btn--primary" href="/#briefing">Ir al briefing</a>
+        <a class="btn btn--ghost" href="/#listado">Ver el listado</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__bar">
+      <span class="label">ZEROHOUR · 39°59′N 0°03′O</span>
+      <span class="label">HTTP 404</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
