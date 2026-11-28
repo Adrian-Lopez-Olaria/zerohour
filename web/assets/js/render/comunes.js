@@ -1,0 +1,205 @@
+/* =============================================================================
+   render/comunes.js · piezas de interfaz compartidas por las vistas
+   Todo se construye con el()/svg(): sin innerHTML. Los textos de datos van
+   siempre como texto; las URLs externas, por safeUrl().
+   ============================================================================= */
+import { el, svg, safeUrl } from '../util/dom.js';
+import { sevKey, ID_RE } from '../data.js';
+import { dLong, verdictBand } from '../util/format.js';
+
+export const SEV = Object.freeze({
+  CRITICAL: { label: 'Crítica', bars: 4 },
+  HIGH: { label: 'Alta', bars: 3 },
+  MEDIUM: { label: 'Media', bars: 2 },
+  LOW: { label: 'Baja', bars: 1 },
+  UNSCORED: { label: 'Sin puntuar', bars: 0 },
+});
+export const SEV_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNSCORED'];
+
+export const TAG = Object.freeze({
+  kev: { short: 'KEV', long: 'Explotada · KEV', title: 'Explotada activamente (catálogo KEV de CISA)' },
+  ssvc: { short: 'SSVC', long: 'Explotada · SSVC', title: 'CISA la marca como explotada (SSVC «active»); aún no está en el catálogo KEV' },
+  ransomware: { short: 'Ransom', long: 'Ransomware', title: 'Uso conocido en campañas de ransomware' },
+  exploit: { short: 'Exploit', long: 'Exploit verificado', title: 'Exploit verificado: módulo de Metasploit o exploit verificado de Exploit-DB' },
+  deteccion: { short: 'Detección', long: 'Plantilla de detección', title: 'Plantilla de detección de Nuclei: hay una forma comprobada de disparar el fallo (no es un exploit)' },
+  poc: { short: 'PoC*', long: 'PoC sin verificar', title: 'PoC pública sin verificar (PoC-in-GitHub, Exploit-DB sin verificar o referencia de NVD)' },
+  stack: { short: 'Mi stack', long: 'Mi stack', title: 'Afecta a productos de mi inventario' },
+  incibe: { short: 'INCIBE', long: 'Aviso INCIBE', title: 'Aviso publicado por INCIBE-CERT' },
+  certeu: { short: 'CERT-EU', long: 'Aviso CERT-EU', title: 'Aviso de CERT-EU (solo publica los que considera graves)' },
+  news: { short: 'Noticias', long: 'En noticias', title: 'Cubierta por medios especializados' },
+  remote: { short: 'Red', long: 'Remota', title: 'Explotable en remoto (vector de red)' },
+  library: { short: 'Librería', long: 'Librería', title: 'Librería o dependencia de software' },
+});
+export const TAG_ORDER = Object.keys(TAG);
+
+/* Veredictos: cortes y textos sin cambios (85 / 70 / 40); v2 añade clase y forma propias */
+export const VERDICTS = Object.freeze([
+  { key: 'hoy', band: 3, label: 'Actuar hoy', shape: 'full' },
+  { key: 'semana', band: 2, label: 'Esta semana', shape: 'half' },
+  { key: 'planificar', band: 1, label: 'Planificar', shape: 'empty' },
+  { key: 'vigilar', band: 0, label: 'Vigilar', shape: 'circle' },
+]);
+export const verdictOf = (score) => VERDICTS[3 - verdictBand(score)];
+
+/**
+ * Forma del veredicto en SVG propio (cuadrado lleno, medio lleno, vacío y círculo): se lee sin
+ * color y no depende de glifos que el subconjunto latin de Saira no trae.
+ */
+export function vshape(v, cls) {
+  const kids = v.shape === 'circle'
+    ? [svg('circle', { cx: 6, cy: 6, r: 4.6, class: 'vs-line' })]
+    : [svg('rect', { x: 1.5, y: 1.5, width: 9, height: 9, class: 'vs-line' }),
+      v.shape === 'full' ? svg('rect', { x: 1.5, y: 1.5, width: 9, height: 9, class: 'vs-fill' }) : null,
+      v.shape === 'half' ? svg('rect', { x: 1.5, y: 1.5, width: 4.5, height: 9, class: 'vs-fill' }) : null];
+  return svg('svg', { viewBox: '0 0 12 12', class: `vshape v-${v.key}${cls ? ' ' + cls : ''}`, 'aria-hidden': 'true', focusable: 'false' }, kids);
+}
+
+/** Veredicto con su forma: se lee sin depender del color. */
+export function vtag(v, extra) {
+  return el('span', { class: `vtag v-${v.key}` }, [vshape(v), el('span', { text: v.label }), extra]);
+}
+
+/* Iconos propios: viewBox 16, trazo 1,5 px, extremos rectos (guía §6).
+   Se describen como datos [etiqueta, atributos] para montarlos con svg(). */
+const FILLED = { fill: 'currentColor', stroke: 'none' };
+const ICON = {
+  kev: [['circle', { cx: 8, cy: 8, r: 5.5 }], ['path', { d: 'M8 0.8v3.4M8 11.8v3.4M0.8 8h3.4M11.8 8h3.4' }], ['rect', { x: 6.9, y: 6.9, width: 2.2, height: 2.2, ...FILLED }]],
+  // ssvc: la retícula de KEV con el aro discontinuo y el centro hueco (misma familia, menos certeza)
+  ssvc: [['circle', { cx: 8, cy: 8, r: 5.5, 'stroke-dasharray': '2.4 1.9' }], ['path', { d: 'M8 0.8v3.4M8 11.8v3.4M0.8 8h3.4M11.8 8h3.4' }], ['circle', { cx: 8, cy: 8, r: 1.2 }]],
+  // exploit: el prompt de poc con una marca de verificación
+  exploit: [['path', { d: 'M2 3.5l3.5 3.5L2 10.5' }], ['path', { d: 'M7.6 11.2l2.2 2.3 4.6-5.3' }]],
+  // deteccion: esquinas de un visor con una línea de barrido (escáner, no arma)
+  deteccion: [['path', { d: 'M1.5 5V1.5H5M11 1.5h3.5V5M14.5 11v3.5H11M5 14.5H1.5V11' }], ['path', { d: 'M4 8h8' }]],
+  ransomware: [['rect', { x: 2.5, y: 7, width: 11, height: 7.5 }], ['path', { d: 'M5 7V4.8a3 3 0 0 1 6 0V7' }], ['path', { d: 'M8 9.6v2.4' }]],
+  poc: [['path', { d: 'M2.5 4l4 4-4 4M8.5 12.5h5.5' }]],
+  stack: [['path', { d: 'M8 1.8 14.5 5 8 8.2 1.5 5Z' }], ['path', { d: 'M1.5 8.2 8 11.4l6.5-3.2M1.5 11.4 8 14.6l6.5-3.2' }]],
+  incibe: [['path', { d: 'M8 1.2 14 3.5v4.2c0 3.4-2.6 6.1-6 7.1-3.4-1-6-3.7-6-7.1V3.5Z' }], ['path', { d: 'M8 4.8v4.4M8 10.8v1.4' }]],
+  // certeu: el escudo de los avisos oficiales con un aro de 8 puntos (la UE) en lugar de la exclamación
+  certeu: [['path', { d: 'M8 1.2 14 3.5v4.2c0 3.4-2.6 6.1-6 7.1-3.4-1-6-3.7-6-7.1V3.5Z' }], ['circle', { cx: 8, cy: 7.6, r: 2.6, 'stroke-dasharray': '0.9 1.14' }]],
+  news: [['rect', { x: 1.5, y: 2.5, width: 13, height: 11 }], ['path', { d: 'M4 5.5h5M4 8h8M4 10.5h8' }], ['rect', { x: 10.5, y: 4.5, width: 2, height: 2, ...FILLED }]],
+  remote: [['circle', { cx: 8, cy: 12, r: 1.3, ...FILLED }], ['path', { d: 'M4.6 8.8a4.8 4.8 0 0 1 6.8 0M2 6a8.5 8.5 0 0 1 12 0' }]],
+  library: [['path', { d: 'M8 1.5 14 4.7v6.6L8 14.5 2 11.3V4.7Z' }], ['path', { d: 'M2 4.7 8 8l6-3.3M8 8v6.5' }]],
+  search: [['circle', { cx: 7, cy: 7, r: 5 }], ['path', { d: 'M10.6 10.6 15 15' }]],
+  star: [['path', { d: 'M8 1.6l1.9 4 4.4.5-3.3 3 .9 4.3L8 11.2l-3.9 2.2.9-4.3-3.3-3 4.4-.5Z' }]],
+  alert: [['path', { d: 'M8 1.5 15 14H1Z' }], ['path', { d: 'M8 6v4M8 11.6v1.2' }]],
+  // Controles e indicadores: sustituyen a ▾ → + − ⟲, que no están en el subconjunto latin
+  chevron: [['path', { d: 'M4 6l4 4 4-4' }]],
+  arrow: [['path', { d: 'M2.5 8h10.5M9 4l4 4-4 4' }]],
+  plus: [['path', { d: 'M8 3v10M3 8h10' }]],
+  minus: [['path', { d: 'M3 8h10' }]],
+  reset: [['path', { d: 'M3.2 6.2A5.2 5.2 0 1 1 3 9.6' }], ['path', { d: 'M2.6 2.8v3.6h3.6' }]],
+  empty: [['circle', { cx: 8, cy: 8, r: 6.5 }], ['circle', { cx: 8, cy: 8, r: 3.5 }], ['path', { d: 'M8 8 13.5 4.5' }]],
+};
+
+export function icon(name, cls) {
+  return svg('svg', {
+    class: 'ico' + (cls ? ' ' + cls : ''), viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5',
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false',
+  }, (ICON[name] || []).map(([tag, attrs]) => svg(tag, attrs)));
+}
+
+/** Enlace interno a la ficha; null si el ID no cumple ^CVE-\d{4}-\d{4,7}$. */
+export const cveHref = (id) => (ID_RE.test(String(id)) ? '#cve/' + id : null);
+export const isProv = (c) => c.cvss == null;
+
+/** Orden de urgencia (= rank_key de radar.py): primero el veredicto, que puede venir de un mínimo,
+    y dentro de cada veredicto la suma real de filas: el mínimo no adelanta a quien tiene más mérito. */
+export const byUrgency = (a, b) => verdictBand(b.score) - verdictBand(a.score) || b.rows_sum - a.rows_sum
+  || (b.cvss ?? -1) - (a.cvss ?? -1) || a.id.localeCompare(b.id);
+
+/** Etiqueta de severidad: barras 1–4 + texto (sin puntuar = barras huecas). */
+export function sevTag(severity) {
+  const k = sevKey(severity), n = SEV[k].bars;
+  return el('span', { class: `sev sev--${k}` }, [
+    el('span', { class: 'sev__bars', 'aria-hidden': 'true' }, [1, 2, 3, 4].map((i) => el('i', { class: i <= n ? null : 'off' }))),
+    SEV[k].label,
+  ]);
+}
+
+/**
+ * Chips de etiqueta, en el orden aprobado. Solo se pintan tags conocidos.
+ * max: como mucho N chips y uno «+N» con el resto en title y en texto para lectores de pantalla.
+ */
+export function chips(tags, long = false, max = 0) {
+  const list = TAG_ORDER.filter((t) => tags.includes(t));
+  if (!list.length) return long ? null : el('span', { class: 'label', text: '—' });
+  const shown = max ? list.slice(0, max) : list, rest = list.slice(shown.length);
+  const restTxt = rest.map((t) => TAG[t].long).join(' · ');
+  return el('span', { class: 'chips' + (long ? ' chips--lg' : '') }, [
+    ...shown.map((t) => el('span', { class: `chip chip--${t}`, title: TAG[t].title }, [icon(t), long ? TAG[t].long : TAG[t].short])),
+    rest.length ? el('span', { class: 'chip chip--more', title: restTxt }, [`+${rest.length}`, el('span', { class: 'sr-only', text: `: ${restTxt}` })]) : null,
+  ]);
+}
+
+/** Cabecera de panel. v2: sin códigos de sección (el primer argumento se ignora). */
+export function panelHead(code, title, meta, id) {
+  return el('div', { class: 'panel__head' }, [
+    el('h2', { class: 'panel__title', id, text: title }),
+    meta ? el('span', { class: 'panel__meta', text: meta }) : null,
+  ]);
+}
+
+export function emptyBlock(title, text, tight = false) {
+  return el('div', { class: 'empty' + (tight ? ' empty--tight' : '') }, [
+    tight ? null : icon('empty', 'empty__glyph'),
+    title ? el('h3', { text: title }) : null,
+    el('p', { text }),
+  ]);
+}
+
+export const PENDING_VENDOR = 'Fabricante pendiente en NVD';
+
+/**
+ * Quién: fabricante y producto. Si NVD aún no da fabricante, NUNCA se presenta la CNA como tal:
+ * «Fabricante pendiente en NVD · CNA x» (la CNA es quien publicó la CVE, no quien la fabrica).
+ * → { main, sub, pending, pendingText, cna, line }
+ */
+export function who(c) {
+  if (c.vendor) {
+    // "GitLab / GitLab": si el producto se llama igual que el fabricante, no se repite
+    const same = c.product && c.vendor.toLowerCase() === c.product.toLowerCase();
+    const sub = same ? '' : c.product;
+    return { main: c.vendor, sub, pending: false, cna: c.cna, line: [c.vendor, sub].filter(Boolean).join(' · ') };
+  }
+  const pendingText = PENDING_VENDOR + (c.cna ? ` · CNA ${c.cna}` : '');
+  return { main: '', sub: c.product, pending: true, pendingText, cna: c.cna, line: [c.product, pendingText].filter(Boolean).join(' · ') };
+}
+/** Una línea: «Fabricante · Producto» o «Fabricante pendiente en NVD · CNA x». */
+export const whoLine = (c) => who(c).line;
+
+const AV_LABEL = { NETWORK: 'RED', ADJACENT_NETWORK: 'ADYACENTE', ADJACENT: 'ADYACENTE', LOCAL: 'LOCAL', PHYSICAL: 'FÍSICO' };
+/** Vector de ataque de NVD → etiqueta corta (sin dato: PENDIENTE). */
+export const avLabel = (v) => AV_LABEL[String(v || '').toUpperCase()] || 'PENDIENTE';
+
+const LANG_RE = /^[a-z]{2,3}(-[A-Za-z]{2})?$/;
+/** Valor seguro para el atributo lang (viene de los datos): solo códigos tipo "es" o "en-GB". */
+export const langOf = (l) => (LANG_RE.test(String(l || '')) ? String(l) : null);
+
+/** "host/ruta" legible de una URL http(s) ya validada; '' si no lo es. */
+export function hostPath(url) {
+  const safe = safeUrl(url);
+  if (!safe) return '';
+  const u = new URL(safe);
+  const p = (u.pathname + u.search).replace(/\/$/, '');
+  return u.host + (p.length > 48 ? p.slice(0, 47) + '…' : p);
+}
+
+/** Aviso de que se está viendo una edición pasada, con vuelta a hoy. */
+export function editionBanner(edition, onBack) {
+  if (!edition || edition.today) return null;
+  return el('div', { class: 'edition', role: 'status' }, [
+    el('b', { text: 'EDICIÓN HISTÓRICA' }),
+    el('span', { text: dLong(edition.date) }),
+    el('button', { type: 'button', class: 'btn btn--ghost edition__back', text: 'VOLVER A HOY', on: { click: onBack } }),
+  ]);
+}
+
+/**
+ * Enlace externo seguro. Si la URL no es http(s) válida, devuelve un <span> con el
+ * mismo contenido (el dato se ve, pero no es clicable). PoC: pasa ugc = true.
+ */
+export function extLink(url, attrs = {}, children, { ugc = false } = {}) {
+  const safe = safeUrl(url);
+  if (!safe) return el('span', { class: attrs.class }, children);
+  return el('a', { ...attrs, href: safe, target: '_blank', rel: ugc ? 'noopener noreferrer nofollow ugc' : 'noopener noreferrer' }, children);
+}
